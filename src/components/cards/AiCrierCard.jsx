@@ -1,0 +1,100 @@
+import React, { useState } from 'react';
+import { GiRobotGolem } from 'react-icons/gi';
+import { FiMessageSquare, FiZap } from 'react-icons/fi';
+
+const AiCrierCard = ({ 
+  title = "AI Crier", 
+  status = "active",
+  recentActivities = 12,
+  color = "#10B981",
+  onActivate,
+  onChat
+}) => {
+  const [isActive, setIsActive] = useState(status === "active");
+  
+  const handleToggle = () => {
+    setIsActive(!isActive);
+    if (onActivate) onActivate(!isActive);
+  };
+  
+  const getStatusColor = () => {
+    return isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800";
+  };
+  
+  const getStatusText = () => {
+    return isActive ? "Active & Monitoring" : "Sleep Mode";
+  };
+  
+  return (
+    <div className="bg-white p-4 rounded-xl shadow-sm   hover:shadow-md transition-shadow cursor-pointer  h-55">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div 
+            className="p-3 rounded-lg"
+            style={{ backgroundColor: `${color}15` }}
+          >
+            <GiRobotGolem className="text-xl" style={{ color }} />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800">{title}</h3>
+            <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor()}`}>
+              {getStatusText()}
+            </span>
+          </div>
+        </div>
+        <div className="relative">
+          <button
+            onClick={handleToggle}
+            className={`w-12 h-6 flex items-center rounded-full p-1 transition-all ${
+              isActive ? 'bg-green-500 justify-end' : 'bg-gray-300 justify-start'
+            }`}
+          >
+            <div className="w-4 h-4 bg-white rounded-full"></div>
+          </button>
+        </div>
+      </div>
+      
+      <div className="space-y-3 mb-4">
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <FiZap className="text-gray-500" />
+            <span className="text-gray-600">Recent Activities</span>
+          </div>
+          <span className="font-medium">{recentActivities}</span>
+        </div>
+        
+        <div className="text-sm text-gray-600">
+          <p>Your AI assistant is {isActive ? 'actively monitoring' : 'in sleep mode'}</p>
+          <p className="text-xs mt-1">
+            {isActive 
+              ? "Providing insights and alerts in real-time" 
+              : "Activate to receive AI-powered insights"}
+          </p>
+        </div>
+      </div>
+      
+      <div className="flex gap-3">
+        <button
+          onClick={onChat}
+          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium text-sm"
+          style={{ 
+            backgroundColor: `${color}15`,
+            color
+          }}
+        >
+          <FiMessageSquare />
+          Chat Now
+        </button>
+        
+        <button
+          onClick={handleToggle}
+          className="flex-1 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+        >
+          {isActive ? 'Deactivate' : 'Activate'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default AiCrierCard;

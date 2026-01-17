@@ -1,22 +1,155 @@
-import React from "react";
-import { FiBell } from "react-icons/fi";
+// src/components/NotificationBell.jsx
+import React, { useState } from "react";
+import { FiBell, FiCheck, FiX, FiCheckCircle, FiInfo, FiAlertCircle } from "react-icons/fi";
+import { useNotifications } from "../../hooks/useNotifications"; // CHANGED THIS LINE
 
-const NotificationBell = ({ count = 0 }) => {
-  //if no notification return nothing
-  if (count === 0) return null;
+const NotificationBell = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { 
+    notifications, 
+    markAllAsRead, 
+    clearAll,
+    markAsRead,
+    clearNotification
+  } = useNotifications();
+  
+  // Unread notifications count
+  const unreadCount = notifications.filter(n => !n.read).length;
+  
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'success':
+        return <FiCheckCircle className="text-green-500 text-lg" />;
+      case 'warning':
+        return <FiAlertCircle className="text-yellow-500 text-lg" />;
+      case 'info':
+      default:
+        return <FiInfo className="text-blue-500 text-lg" />;
+    }
+  };
+
   return (
-    <div className="relative inline-block " >
-      <FiBell className="text-2xl text-gray-700"/>
+    <div className="relative">
+      {/* Bell icon */}
+      <div 
+        className="cursor-pointer relative p-2 rounded-full hover:bg-gray-100 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <FiBell className="text-xl text-gray-700 hover:text-[#3D9B9B]" />
+        
+        {/* Notification badge */}
+        {unreadCount > 0 && (
+          <span className="absolute top-0 right-0 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </div>
 
-      {/* notification badge  */}
-      {count > 0 && (
-        <span
-       className="absolute -top-1 
-       bg-red-600 text-white
-       text-[9px] rounded-full h-3 w-3
-       flex items-center justify-center ">
-        {count}
-      </span>
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-800">Notifications</h3>
+            <div className="flex gap-2">
+              {unreadCount > 0 && (
+                <button 
+                  onClick={() => {
+                    markAllAsRead();
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50"
+                >
+                  <FiCheck className="text-sm" />
+                  Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button 
+                  onClick={() => {
+                    clearAll();
+                  }}
+                  className="text-xs text-gray-500 hover:text-red-600 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50"
+                >
+                  <FiX className="text-sm" />
+                  Clear all
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Notifications list */}
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.length > 0 ? (
+              notifications.map((notification) => (
+                <div 
+                  key={notification.id}
+                  className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer group ${
+                    !notification.read ? 'bg-blue-50/50' : ''
+                  }`}
+                  onClick={() => {
+                    if (!notification.read) {
+                      markAsRead(notification.id);
+                    }
+                    if (notification.onClick) {
+                      notification.onClick();
+                    }
+                    setIsOpen(false);
+                  }}
+                >
+                  <div className="flex gap-3 items-start">
+                    <div className="mt-1">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="font-medium text-gray-800 truncate">{notification.title}</p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearNotification(notification.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1"
+                        >
+                          <FiX className="text-sm" />
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-1">{notification.message}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-400">{notification.time}</p>
+                        {!notification.read && (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                            New
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center text-gray-500">
+                <FiBell className="text-3xl mx-auto mb-3 text-gray-300" />
+                <p className="text-gray-600 font-medium mb-1">No notifications</p>
+                <p className="text-sm text-gray-500">When you have notifications, they'll appear here</p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-3 border-t border-gray-200">
+            <div className="flex justify-between items-center text-sm text-gray-600">
+              <span>
+                {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
+              </span>
+              <button 
+                className="text-blue-600 hover:text-blue-800 font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
