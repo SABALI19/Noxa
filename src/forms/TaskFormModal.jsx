@@ -236,7 +236,7 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
               name="time"
               value={formData.time}
               onChange={handleChange}
-              className={`w-full text-xs px-3 py-2.5 font-normal text-gray-400 font-roboto border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none appearance-none cursor-pointer bg-white ${
+              className={`w-full text-xs px-3 py-2.5 font-normal text-gray-400 font-roboto border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent bg-white cursor-pointer ${
                 errors.time ? 'border-red-400' : 'border-gray-300 hover:border-gray-400'
               }`}
             >
@@ -461,10 +461,9 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
     }
   };
 
-  const handleSaveClick = () => {
-    if (formRef.current) {
-      formRef.current.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-    }
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    handleSubmit(e);
   };
 
   const handleBackdropClick = (e) => {
@@ -481,6 +480,16 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
     setShowCategoryDropdown(false);
   };
 
+  const handleSaveClick = () => {
+    if (formRef.current) {
+      const submitEvent = new Event('submit', { 
+        cancelable: true, 
+        bubbles: true 
+      });
+      formRef.current.dispatchEvent(submitEvent);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -489,6 +498,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
       onClick={handleBackdropClick}
     >
       <div className="bg-white/90 backdrop-blur-lg rounded-xl shadow-2xl shadow-gray-700/50 w-full max-w-md max-h-[90vh] overflow-y-auto border border-white/20">
+        {/* Header with Save Button (Top) */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200/50">
           <h2 className="text-lg font-roboto font-normal text-gray-900">Create New Task</h2>
           <div className="flex items-center gap-3">
@@ -512,7 +522,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
         <form 
           id="task-form" 
           ref={formRef}
-          onSubmit={handleSubmit} 
+          onSubmit={handleFormSubmit} 
           className="p-6"
         >
           <h3 className="text-md font-roboto font-normal text-gray-800 mb-4">
@@ -531,7 +541,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none transition-colors ${
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors ${
                     errors.title ? 'border-red-500' : 'border-gray-300 hover:border-gray-400'
                   }`}
                   placeholder="What needs to be done?"
@@ -661,7 +671,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                 <div className="relative">
                   <button
                     type="button"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none transition-colors hover:border-gray-400 text-left flex items-center justify-between bg-white"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 text-left flex items-center justify-between bg-white"
                     onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
                     aria-expanded={showCategoryDropdown}
                     aria-haspopup="listbox"
@@ -727,7 +737,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                   value={formData.description}
                   onChange={handleChange}
                   rows="3"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none transition-colors hover:border-gray-400 resize-none overflow-y-auto"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 resize-none overflow-y-auto"
                   placeholder="Add any additional details..."
                   style={{ minHeight: '80px', maxHeight: '80px' }}
                 />
@@ -743,7 +753,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                   name="recurrence"
                   value={formData.recurrence}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none transition-colors hover:border-gray-400"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400"
                 >
                   <option value="none">None</option>
                   <option value="daily">Daily</option>
@@ -790,7 +800,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                           value={option.value}
                           checked={formData.reminderFrequency === option.value}
                           onChange={handleChange}
-                          className="mr-3 text-[#3D9B9B] focus:ring-[#3D9B9B]"
+                          className="mr-3 text-[#3D9B9B] focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B]"
                         />
                         <span className="text-sm text-gray-700">{option.label}</span>
                       </label>
@@ -807,7 +817,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                     name="reminderTiming"
                     value={formData.reminderTiming}
                     onChange={handleChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none transition-colors hover:border-gray-400 text-sm bg-white"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 text-sm bg-white"
                   >
                     {reminderTimingOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -828,7 +838,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                       name="customReminderTime"
                       value={formData.customReminderTime}
                       onChange={handleChange}
-                      className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none transition-colors ${
+                      className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors ${
                         errors.customReminderTime ? 'border-red-500' : 'border-gray-300 hover:border-gray-400'
                       }`}
                       min={new Date().toISOString().slice(0, 16)}
@@ -853,7 +863,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                           value={option.value}
                           checked={formData.notificationMethod === option.value}
                           onChange={handleChange}
-                          className="mr-3 text-[#3D9B9B] focus:ring-[#3D9B9B]"
+                          className="mr-3 text-[#3D9B9B] focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B]"
                         />
                         <span className="text-sm text-gray-700 flex items-center gap-2">
                           <span>{option.icon}</span>
@@ -882,6 +892,24 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
             )}
           </div>
         </form>
+
+        {/* Footer with Save Button (Bottom) */}
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200/50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100/50 rounded-lg font-roboto text-sm font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveClick}
+            className="px-4 py-2 bg-[#3D9B9B] text-white hover:bg-[#2D8B8B] rounded-lg font-roboto text-sm font-medium transition-colors"
+          >
+            Save Task
+          </button>
+        </div>
       </div>
     </div>
   );

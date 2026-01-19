@@ -2,18 +2,17 @@
 import React from 'react';
 import { FiCheckSquare } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { useTasks } from '../../context/TaskContext';
 
-const TaskCard = ({ 
-  pending = 0,
-  completed = 0,
-  overdue = 0
-}) => {
+const TaskCard = () => {
   const navigate = useNavigate();
-  const totalTasks = pending + completed + overdue;
-  const completionRate = totalTasks > 0 ? Math.round((completed / totalTasks) * 100) : 0;
+  const { getTaskStats } = useTasks();
+  
+  const stats = getTaskStats();
+  const totalTasks = stats.total;
+  const completionRate = totalTasks > 0 ? Math.round((stats.completed / totalTasks) * 100) : 0;
   
   const handleViewAll = () => {
-    // Navigate to tasks route and set default view and page via query params
     navigate('/tasks?view=all&page=1');
   };
   
@@ -42,7 +41,7 @@ const TaskCard = ({
             <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
             <span className="text-gray-500">Pending</span>
           </div>
-          <span className="font-medium">{pending}</span>
+          <span className="font-medium">{stats.pending}</span>
         </div>
         
         <div className="flex justify-between text-xs">
@@ -50,7 +49,7 @@ const TaskCard = ({
             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
             <span className="text-gray-500">Completed</span>
           </div>
-          <span className="font-medium">{completed}</span>
+          <span className="font-medium">{stats.completed}</span>
         </div>
         
         <div className="flex justify-between text-xs">
@@ -58,7 +57,7 @@ const TaskCard = ({
             <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
             <span className="text-gray-500">Overdue</span>
           </div>
-          <span className="font-medium">{overdue}</span>
+          <span className="font-medium">{stats.overdue}</span>
         </div>
       </div>
       

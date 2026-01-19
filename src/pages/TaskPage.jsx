@@ -1,6 +1,6 @@
 // src/pages/TaskPage.jsx
 import { Grid3x3, List } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   FiPlus,
   FiCheckSquare,
@@ -11,116 +11,42 @@ import {
   FiArrowLeft,
   FiCheckCircle,
   FiBarChart2
-} from 'react-icons/fi';
-// import Checkbook from '../assets/icons/checkbook.svg';
+} from "react-icons/fi";
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import TaskFormModal from '../forms/TaskFormModal.jsx';
 import { useNotifications } from '../hooks/useNotifications.jsx';
 import { useNotificationTracking } from '../hooks/useNotificationTracking.jsx';
 import TaskTrackingDetail from '../components/tracking/TaskTrackingDetail';
+import { useTasks } from '../context/TaskContext.jsx';
 
 const TaskPage = () => {
   const navigate = useNavigate();
   const { addTaskNotification } = useNotifications();
   const { trackView, trackCompletion, getNotificationStats } = useNotificationTracking();
   
-  // State for tasks
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: 'Review quarterly budget report',
-      description: '',
-      dueDate: '2024-01-20T20:00:00',
-      priority: 'high',
-      category: 'work',
-      completed: false,
-      overdue: true,
-      status: 'in_progress'
-    },
-    {
-      id: 2,
-      title: 'Prepare presentation slides',
-      description: '',
-      dueDate: '2024-01-22T17:30:00',
-      priority: 'medium',
-      category: 'work',
-      completed: false,
-      overdue: false,
-      status: 'in_progress'
-    },
-    {
-      id: 3,
-      title: 'Schedule dentist appointment',
-      description: '',
-      dueDate: '2024-01-23T10:00:00',
-      priority: 'low',
-      category: 'personal',
-      completed: false,
-      overdue: false,
-      status: 'pending'
-    },
-    {
-      id: 4,
-      title: 'Morning workout routine',
-      description: '',
-      dueDate: '2024-01-22T08:00:00',
-      priority: 'medium',
-      category: 'health',
-      completed: true,
-      overdue: false,
-      status: 'completed'
-    },
-    {
-      id: 5,
-      title: 'Buy groceries for the week',
-      description: '',
-      dueDate: '2024-01-26T21:00:00',
-      priority: 'low',
-      category: 'personal',
-      completed: false,
-      overdue: false,
-      status: 'pending'
-    }
-  ]);
-
-  // State for modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Get tasks and operations from context - including filtered tasks
+  const { 
+    tasks, 
+    addTask, 
+    updateTask, 
+    deleteTask,
+    getTaskStats,
+    getFilteredTasks,
+    filters,
+    resetFilters
+  } = useTasks(); // Removed unused updateFilters
+  
+  // Use filtered tasks from context instead of calculating locally
+  const filteredTasks = getFilteredTasks();
+  
+  // State for modals
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showTrackingDetail, setShowTrackingDetail] = useState(false);
   const [selectedTaskTracking, setSelectedTaskTracking] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
-
-  // Initialize filters from localStorage (validate values) using lazy initializers
-  const _storedFilters = (() => {
-    try {
-      const s = localStorage.getItem('taskFilters');
-      return s ? JSON.parse(s) : {};
-    } catch (err) {
-      console.error('Error parsing taskFilters from localStorage:', err);
-      return {};
-    }
-  })();
-
-  const [activeView] = useState(() => {
-    const validViews = ['all', 'today', 'overdue', 'completed', 'in_progress'];
-    const v = _storedFilters.activeView;
-    return typeof v === 'string' && validViews.includes(v) ? v : 'all';
-  });
-
-  const [activeCategory] = useState(() => {
-    const c = _storedFilters.activeCategory;
-    return typeof c === 'string' && c.length > 0 ? c : null;
-  });
-
-  const [activePriority] = useState(() => {
-    const p = _storedFilters.activePriority;
-    return typeof p === 'string' && ['high', 'medium', 'low'].includes(p) ? p : null;
-  });
-
-  const [sortBy] = useState(() => {
-    const s = _storedFilters.sortBy;
-    return typeof s === 'string' && ['dueDate', 'priority'].includes(s) ? s : 'dueDate';
-  });
+  const [taskToEdit, setTaskToEdit] = useState(null);
   
   const [displayMode, setDisplayMode] = useState('list'); // 'list' or 'grid'
   const [expandedSections, setExpandedSections] = useState({
@@ -130,23 +56,7 @@ const TaskPage = () => {
     in_progress: true
   });
 
-  // Save filters to localStorage whenever they change
-  useEffect(() => {
-    const filters = {
-      activeView,
-      activeCategory,
-      activePriority,
-      sortBy
-    };
-    
-    try {
-      localStorage.setItem('taskFilters', JSON.stringify(filters));
-    } catch (err) {
-      console.error('Error saving taskFilters to localStorage:', err);
-    }
-  }, [activeView, activeCategory, activePriority, sortBy]);
-
-  // Calculate task statistics and group tasks.
+  // Calculate task statistics from filtered tasks
   const now = new Date();
   const isTaskOverdue = (t) => {
     if (!t.dueDate) return false;
@@ -154,54 +64,46 @@ const TaskPage = () => {
     return !t.completed && d < now;
   };
 
-  const overdueTasks = tasks.filter(t => isTaskOverdue(t));
-  const completedTasks = tasks.filter(t => t.completed);
-  const pendingTasks = tasks.filter(t => !t.completed && !isTaskOverdue(t));
-  const inProgressTasks = tasks.filter(t => t.status === 'in_progress' && !t.completed);
+  // Get stats from all tasks (not filtered)
+  const stats = getTaskStats();
+  const pending = stats.pending;
+  const completed = stats.completed;
+  const overdue = stats.overdue;
+  const inProgress = stats.inProgress;
 
-  const pending = pendingTasks.length;
-  const completed = completedTasks.length;
-  const overdue = overdueTasks.length;
-  const inProgress = inProgressTasks.length;
+  // Get stats from filtered tasks
+  const filteredOverdueTasks = filteredTasks.filter(t => isTaskOverdue(t));
+  const filteredCompletedTasks = filteredTasks.filter(t => t.completed);
+  const filteredPendingTasks = filteredTasks.filter(t => !t.completed && !isTaskOverdue(t));
+  const filteredInProgressTasks = filteredTasks.filter(t => t.status === 'in_progress' && !t.completed);
 
-  // Check if there are any tasks to display
-  const hasTasks = pending > 0 || completed > 0 || overdue > 0 || inProgress > 0;
+  // Check if there are any filtered tasks to display
+  const hasFilteredTasks = filteredTasks.length > 0;
 
-  // Filter tasks based on active filters
-  const filterTasks = (taskList) => {
-    return taskList.filter(task => {
-      if (activeView === 'today') {
-        const today = new Date().toDateString();
-        const taskDate = new Date(task.dueDate).toDateString();
-        return taskDate === today;
-      }
-      if (activeView === 'overdue') return isTaskOverdue(task);
-      if (activeView === 'completed') return task.completed;
-      if (activeView === 'in_progress') return task.status === 'in_progress';
-      if (activeCategory) return task.category === activeCategory;
-      if (activePriority) return task.priority === activePriority;
-      return true;
-    });
-  };
-
-  // Sort tasks
+  // Sort filtered tasks for display
   const sortTaskList = (taskList) => {
     return [...taskList].sort((a, b) => {
-      if (sortBy === 'dueDate') {
+      if (filters.sortBy === 'dueDate') {
         return new Date(a.dueDate) - new Date(b.dueDate);
       }
-      if (sortBy === 'priority') {
+      if (filters.sortBy === 'priority') {
         const priorityOrder = { high: 1, medium: 2, low: 3 };
         return priorityOrder[a.priority] - priorityOrder[b.priority];
+      }
+      if (filters.sortBy === 'category') {
+        return a.category.localeCompare(b.category);
+      }
+      if (filters.sortBy === 'created') {
+        return new Date(a.createdAt) - new Date(b.createdAt);
       }
       return 0;
     });
   };
 
-  const filteredPending = sortTaskList(filterTasks(pendingTasks));
-  const filteredCompleted = sortTaskList(filterTasks(completedTasks));
-  const filteredOverdue = sortTaskList(filterTasks(overdueTasks));
-  const filteredInProgress = sortTaskList(filterTasks(inProgressTasks));
+  const sortedPending = sortTaskList(filteredPendingTasks);
+  const sortedCompleted = sortTaskList(filteredCompletedTasks);
+  const sortedOverdue = sortTaskList(filteredOverdueTasks);
+  const sortedInProgress = sortTaskList(filteredInProgressTasks);
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -240,38 +142,37 @@ const TaskPage = () => {
   };
 
   const toggleTaskCompletion = (taskId) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const wasCompleted = task.completed;
-        const updatedTask = { 
-          ...task, 
-          completed: !task.completed,
-          status: !task.completed ? 'completed' : 'pending'
-        };
-        
-        // Add notification using context
-        if (!wasCompleted) {
-          addTaskNotification('task_completed', updatedTask, () => 
-            handleTaskNotificationClick(taskId)
-          );
-          // Track completion
-          trackCompletion(taskId, 'task');
-        } else {
-          addTaskNotification('task_updated', updatedTask, () => 
-            handleTaskNotificationClick(taskId)
-          );
-        }
-        
-        return updatedTask;
-      }
-      return task;
-    }));
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const wasCompleted = task.completed;
+    const updatedTask = { 
+      ...task, 
+      completed: !task.completed,
+      status: !task.completed ? 'completed' : 'pending'
+    };
+    
+    // Update task in context
+    updateTask(taskId, updatedTask);
+    
+    // Add notification using context
+    if (!wasCompleted) {
+      addTaskNotification('task_completed', updatedTask, () => 
+        handleTaskNotificationClick(taskId)
+      );
+      // Track completion
+      trackCompletion(taskId, 'task');
+    } else {
+      addTaskNotification('task_updated', updatedTask, () => 
+        handleTaskNotificationClick(taskId)
+      );
+    }
   };
 
-  const deleteTask = (taskId) => {
+  const deleteTaskFromContext = (taskId) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
       const taskToDelete = tasks.find(t => t.id === taskId);
-      setTasks(tasks.filter(task => task.id !== taskId));
+      deleteTask(taskId);
       
       // Add notification for task deletion
       if (taskToDelete) {
@@ -282,46 +183,99 @@ const TaskPage = () => {
 
   // Function to update task status (in progress, pending, etc.)
   const updateTaskStatus = (taskId, newStatus) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const oldStatus = task.status;
-        const updatedTask = { ...task, status: newStatus };
-        
-        // Add notification for status change to in_progress
-        if (newStatus === 'in_progress' && oldStatus !== 'in_progress') {
-          addTaskNotification('task_in_progress', updatedTask, () => 
-            handleTaskNotificationClick(taskId)
-          );
-        } else if (newStatus !== oldStatus) {
-          addTaskNotification('task_updated', updatedTask, () => 
-            handleTaskNotificationClick(taskId)
-          );
-        }
-        
-        return updatedTask;
-      }
-      return task;
-    }));
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const oldStatus = task.status;
+    const updatedTask = { ...task, status: newStatus };
+    
+    // Update in context
+    updateTask(taskId, { status: newStatus });
+    
+    // Add notification for status change to in_progress
+    if (newStatus === 'in_progress' && oldStatus !== 'in_progress') {
+      addTaskNotification('task_in_progress', updatedTask, () => 
+        handleTaskNotificationClick(taskId)
+      );
+    } else if (newStatus !== oldStatus) {
+      addTaskNotification('task_updated', updatedTask, () => 
+        handleTaskNotificationClick(taskId)
+      );
+    }
   };
 
   // Function to create a new task
   const handleCreateTask = (newTaskData) => {
-    // Generate a new ID
-    const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
-    
-    const newTask = {
-      id: newId,
+    const newTask = addTask({
       ...newTaskData,
       status: 'pending',
-      overdue: false // This will be calculated dynamically
-    };
-    
-    setTasks(prevTasks => [...prevTasks, newTask]);
+      overdue: false
+    });
     
     // Add notification for task creation
     addTaskNotification('task_created', newTask, () => 
-      handleTaskNotificationClick(newId)
+      handleTaskNotificationClick(newTask.id)
     );
+  };
+
+  // Function to update an existing task
+  const handleUpdateTask = (updatedTaskData) => {
+    if (!taskToEdit) return;
+    
+    // Preserve the task ID and other essential properties
+    const finalUpdatedTask = {
+      ...updatedTaskData,
+      id: taskToEdit.id,
+      // Preserve completion status unless explicitly changed in form
+      completed: taskToEdit.completed,
+      // Use status from form if provided, otherwise keep existing
+      status: updatedTaskData.status || taskToEdit.status
+    };
+    
+    // Update task in context
+    updateTask(taskToEdit.id, finalUpdatedTask);
+    
+    // Add notification for task update
+    addTaskNotification('task_updated', finalUpdatedTask, () => 
+      handleTaskNotificationClick(taskToEdit.id)
+    );
+    
+    // Close edit modal
+    closeEditTaskModal();
+  };
+
+  // Modal control functions
+  const openCreateTaskModal = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const closeCreateTaskModal = () => {
+    setIsCreateModalOpen(false);
+  };
+
+  const openEditTaskModal = (task) => {
+    setTaskToEdit(task);
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditTaskModal = () => {
+    setIsEditModalOpen(false);
+    setTaskToEdit(null);
+  };
+
+  // Handle view tracking
+  const handleViewTracking = (task, e) => {
+    e?.stopPropagation();
+    setSelectedTask(task);
+    setSelectedTaskTracking(getNotificationStats(task.id, 'task'));
+    setShowTrackingDetail(true);
+    // Track view
+    trackView(task.id, 'task');
+  };
+
+  // Handle reset filters
+  const handleResetFilters = () => {
+    resetFilters();
   };
 
   const toggleDisplayMode = () => {
@@ -372,25 +326,6 @@ const TaskPage = () => {
       case 'overdue': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
-  };
-
-  // Open and close modal functions
-  const openCreateTaskModal = () => {
-    setIsModalOpen(true);
-  };
-
-  const closeCreateTaskModal = () => {
-    setIsModalOpen(false);
-  };
-
-  // Handle view tracking
-  const handleViewTracking = (task, e) => {
-    e?.stopPropagation();
-    setSelectedTask(task);
-    setSelectedTaskTracking(getNotificationStats(task.id, 'task'));
-    setShowTrackingDetail(true);
-    // Track view
-    trackView(task.id, 'task');
   };
 
   // Task Item Component for List View with Category Border
@@ -481,11 +416,16 @@ const TaskPage = () => {
                   </svg>
                 </button>
               )}
-              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+              {/* Edit Button - Now Functional */}
+              <button 
+                onClick={() => openEditTaskModal(task)}
+                className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"
+                title="Edit task"
+              >
                 <FiEdit className="text-lg" />
               </button>
               <button 
-                onClick={() => deleteTask(task.id)}
+                onClick={() => deleteTaskFromContext(task.id)}
                 className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
               >
                 <FiTrash2 className="text-lg" />
@@ -537,11 +477,16 @@ const TaskPage = () => {
               </svg>
             </button>
           )}
-          <button className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-200">
+          {/* Edit Button - Now Functional */}
+          <button 
+            onClick={() => openEditTaskModal(task)}
+            className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-100"
+            title="Edit task"
+          >
             <FiEdit className="text-sm" />
           </button>
           <button 
-            onClick={() => deleteTask(task.id)}
+            onClick={() => deleteTaskFromContext(task.id)}
             className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-100"
           >
             <FiTrash2 className="text-sm" />
@@ -596,51 +541,51 @@ const TaskPage = () => {
     <div className="p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header with Back Button */}
-        <div className="mb-8 mt-6 ">
-  <div className="flex items-center justify-between mb-4">
-    <button 
-      onClick={() => navigate('/')}
-      className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
-    >
-      <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
-      <span className="font-medium hidden sm:inline">Back to Dashboard</span>
-      <span className="font-medium sm:hidden">Back</span>
-    </button>
-  </div>
-  
-  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-    <div className="flex items-center gap-3">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Task Manager</h1>
-        <p className="text-gray-600 mt-1">Stay organized and productive with your tasks</p>
-      </div>
-      <Button
-        variant="icon"
-        size="xs"
-        onClick={toggleDisplayMode}
-        className="mt-1"
-      >
-        {displayMode === 'list' ? (
-          <Grid3x3 className="text-lg" size={20} />
-        ) : (
-          <List className="text-lg" size={20} />
-        )}
-      </Button>
-    </div>
-    
-    {/* Create Task Button - Responsive */}
-    <Button
-      variant="primary"
-      size="sm"
-      onClick={openCreateTaskModal}
-      className="flex items-center justify-center rounded-xl sm:rounded-2xl gap-1 sm:gap-2 w-full sm:w-auto"
-    >
-      <FiPlus className="text-base sm:text-lg" />
-      <span className="hidden xs:inline">Create New Task</span>
-      <span className="xs:hidden">New Task</span>
-    </Button>
-  </div>
-</div>
+        <div className="mb-8 mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <button 
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
+            >
+              <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
+              <span className="font-medium hidden sm:inline">Back to Dashboard</span>
+              <span className="font-medium sm:hidden">Back</span>
+            </button>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Task Manager</h1>
+                <p className="text-gray-600 mt-1">Stay organized and productive with your tasks</p>
+              </div>
+              <Button
+                variant="icon"
+                size="xs"
+                onClick={toggleDisplayMode}
+                className="mt-1"
+              >
+                {displayMode === 'list' ? (
+                  <Grid3x3 className="text-lg" size={20} />
+                ) : (
+                  <List className="text-lg" size={20} />
+                )}
+              </Button>
+            </div>
+            
+            {/* Create Task Button - Responsive */}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={openCreateTaskModal}
+              className="flex items-center justify-center rounded-xl sm:rounded-2xl gap-1 sm:gap-2 w-full sm:w-auto"
+            >
+              <FiPlus className="text-base sm:text-lg" />
+              <span className="hidden xs:inline">Create New Task</span>
+              <span className="xs:hidden">New Task</span>
+            </Button>
+          </div>
+        </div>
 
         {/* Task Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -682,11 +627,11 @@ const TaskPage = () => {
           </div>
         </div>
 
-        {/* Show content based on whether there are tasks or not */}
-        {hasTasks ? (
+        {/* Show content based on whether there are filtered tasks or not */}
+        {hasFilteredTasks ? (
           <div className="space-y-6">
             {/* In Progress Tasks Section */}
-            {filteredInProgress.length > 0 && (
+            {sortedInProgress.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div 
                   className="p-4 border-b border-gray-200 bg-blue-50 cursor-pointer"
@@ -699,7 +644,7 @@ const TaskPage = () => {
                       </svg>
                       <h2 className="text-lg font-semibold text-gray-900">In Progress</h2>
                       <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-                        {filteredInProgress.length} tasks
+                        {sortedInProgress.length} tasks
                       </span>
                     </div>
                     <span className="text-gray-500">
@@ -712,13 +657,13 @@ const TaskPage = () => {
                   <div>
                     {displayMode === 'list' ? (
                       <div>
-                        {filteredInProgress.map(task => (
+                        {sortedInProgress.map(task => (
                           <TaskItem key={task.id} task={task} />
                         ))}
                       </div>
                     ) : (
                       <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredInProgress.map(task => (
+                        {sortedInProgress.map(task => (
                           <TaskCard key={task.id} task={task} />
                         ))}
                       </div>
@@ -729,7 +674,7 @@ const TaskPage = () => {
             )}
 
             {/* Overdue Tasks Section */}
-            {filteredOverdue.length > 0 && (
+            {sortedOverdue.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div 
                   className="p-4 border-b border-gray-200 bg-red-50 cursor-pointer"
@@ -740,7 +685,7 @@ const TaskPage = () => {
                       <FiAlertCircle className="text-red-600" />
                       <h2 className="text-lg font-semibold text-gray-900">Overdue Tasks</h2>
                       <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
-                        {filteredOverdue.length} tasks
+                        {sortedOverdue.length} tasks
                       </span>
                     </div>
                     <span className="text-gray-500">
@@ -753,13 +698,13 @@ const TaskPage = () => {
                   <div>
                     {displayMode === 'list' ? (
                       <div>
-                        {filteredOverdue.map(task => (
+                        {sortedOverdue.map(task => (
                           <TaskItem key={task.id} task={task} />
                         ))}
                       </div>
                     ) : (
                       <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredOverdue.map(task => (
+                        {sortedOverdue.map(task => (
                           <TaskCard key={task.id} task={task} />
                         ))}
                       </div>
@@ -770,7 +715,7 @@ const TaskPage = () => {
             )}
 
             {/* Pending Tasks Section */}
-            {filteredPending.length > 0 && (
+            {sortedPending.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div 
                   className="p-4 border-b border-gray-200 bg-yellow-50 cursor-pointer"
@@ -781,7 +726,7 @@ const TaskPage = () => {
                       <FiClock className="text-yellow-600" />
                       <h2 className="text-lg font-semibold text-gray-900">Pending Tasks</h2>
                       <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
-                        {filteredPending.length} tasks
+                        {sortedPending.length} tasks
                       </span>
                     </div>
                     <span className="text-gray-500">
@@ -794,13 +739,13 @@ const TaskPage = () => {
                   <div>
                     {displayMode === 'list' ? (
                       <div>
-                        {filteredPending.map(task => (
+                        {sortedPending.map(task => (
                           <TaskItem key={task.id} task={task} />
                         ))}
                       </div>
                     ) : (
                       <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredPending.map(task => (
+                        {sortedPending.map(task => (
                           <TaskCard key={task.id} task={task} />
                         ))}
                       </div>
@@ -811,7 +756,7 @@ const TaskPage = () => {
             )}
 
             {/* Completed Tasks Section */}
-            {filteredCompleted.length > 0 && (
+            {sortedCompleted.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div 
                   className="p-4 border-b border-gray-200 bg-green-50 cursor-pointer"
@@ -822,7 +767,7 @@ const TaskPage = () => {
                       <FiCheckCircle className="text-green-600" />
                       <h2 className="text-lg font-semibold text-gray-900">Completed Tasks</h2>
                       <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
-                        {filteredCompleted.length} tasks
+                        {sortedCompleted.length} tasks
                       </span>
                     </div>
                     <span className="text-gray-500">
@@ -835,13 +780,13 @@ const TaskPage = () => {
                   <div>
                     {displayMode === 'list' ? (
                       <div>
-                        {filteredCompleted.map(task => (
+                        {sortedCompleted.map(task => (
                           <TaskItem key={task.id} task={task} />
                         ))}
                       </div>
                     ) : (
                       <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {filteredCompleted.map(task => (
+                        {sortedCompleted.map(task => (
                           <TaskCard key={task.id} task={task} />
                         ))}
                       </div>
@@ -852,40 +797,66 @@ const TaskPage = () => {
             )}
           </div>
         ) : (
-          /* Empty State */
+          /* Empty State for filtered results */
           <div className="flex flex-col items-center justify-center py-12">
             <div className="mb-6">
-              {/* <img 
-                src={Checkbook} 
-                alt="Checkbook icon" 
-                className="w-32 h-32 text-gray-400" 
-              /> */}
+              <FiAlertCircle className="w-24 h-24 text-gray-300" />
             </div>
             
-            <h2 className="text-2xl font-semibold text-gray-900 mb-3">No tasks found</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+              {tasks.length === 0 ? 'No tasks found' : 'No matching tasks found'}
+            </h2>
             
             <p className="text-gray-600 mb-8 max-w-md text-center">
-              Get organized by creating your first task. Start by clicking the "Create New Task" button.
+              {tasks.length === 0 
+                ? 'Get organized by creating your first task. Start by clicking the "Create New Task" button.'
+                : `No tasks match your current filters. Try changing your filters or resetting to see all ${tasks.length} tasks.`
+              }
             </p>
             
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={openCreateTaskModal}
-              className="flex items-center gap-2"
-            >
-              <FiPlus className="text-lg" />
-              Create your first task
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4">
+              {tasks.length > 0 && (filters.activeView !== 'all' || filters.activeCategory || filters.activePriority) && (
+                <Button
+                  variant="secondaryPro"
+                  size="lg"
+                  onClick={handleResetFilters}
+                  className="flex items-center gap-2"
+                >
+                  Reset Filters
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={openCreateTaskModal}
+                className="flex items-center gap-2"
+              >
+                <FiPlus className="text-lg" />
+                Create New Task
+              </Button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Task Form Modal */}
+      {/* Create Task Modal */}
       <TaskFormModal
-        isOpen={isModalOpen}
+        isOpen={isCreateModalOpen}
         onClose={closeCreateTaskModal}
         onSubmit={handleCreateTask}
+        title="Create New Task"
+        submitButtonText="Create Task"
+      />
+
+      {/* Edit Task Modal */}
+      <TaskFormModal
+        isOpen={isEditModalOpen}
+        onClose={closeEditTaskModal}
+        onSubmit={handleUpdateTask}
+        task={taskToEdit}
+        title="Edit Task"
+        submitButtonText="Update Task"
+        isEditMode={true}
       />
 
       {/* Tracking Detail Modal */}

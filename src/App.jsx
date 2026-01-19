@@ -12,7 +12,7 @@ import TaskPage from "./pages/TaskPage";
 import ReminderPage from "./pages/ReminderPage";
 import LandingPage from "./pages/LandingPage";
 import AccountPage from './pages/AccountPage';
-import NotificationsPage from './pages/NotificationsPage';
+import NotificationsPage from './pages/NotificationPageSettings';
 import AppearancePage from './pages/AppearancePage';
 import DataPrivacy from './pages/DataPrivacy';
 import HelpSupportPage from './pages/HelpSupportPage';
@@ -20,6 +20,7 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { NotificationTrackingProvider } from "./context/NotificationTrackingContext";
 import { AuthProvider } from "./context/AuthContext";
 import { useAuth } from "./hooks/UseAuth";
+import { TaskProvider } from "./context/TaskContext";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -65,7 +66,8 @@ const AuthRedirect = () => {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
+      <TaskProvider>
+        <AuthProvider>
         <NotificationProvider>
           <NotificationTrackingProvider>
             <Routes>
@@ -108,6 +110,7 @@ function App() {
           </NotificationTrackingProvider>
         </NotificationProvider>
       </AuthProvider>
+      </TaskProvider>
     </BrowserRouter>
   );
 }

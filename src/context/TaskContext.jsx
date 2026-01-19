@@ -12,6 +12,26 @@ export const useTasks = () => {
 };
 
 export const TaskProvider = ({ children }) => {
+  // Initial filters state
+  const [filters, setFilters] = useState(() => {
+    const savedFilters = localStorage.getItem('noxa_filters');
+    if (savedFilters) {
+      try {
+        return JSON.parse(savedFilters);
+      } catch (e) {
+        console.error('Error parsing saved filters:', e);
+      }
+    }
+    
+    // Default filters
+    return {
+      activeView: 'all',
+      activeCategory: null,
+      activePriority: null,
+      sortBy: 'dueDate'
+    };
+  });
+
   // Initial tasks data
   const [tasks, setTasks] = useState(() => {
     // Try to load from localStorage
@@ -183,6 +203,126 @@ export const TaskProvider = ({ children }) => {
     localStorage.setItem('noxa_reminders', JSON.stringify(reminders));
   }, [reminders]);
 
+  useEffect(() => {
+    localStorage.setItem('noxa_filters', JSON.stringify(filters));
+  }, [filters]);
+
+  // Filter functions
+  const updateFilters = useCallback((newFilters) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setFilters({
+      activeView: 'all',
+      activeCategory: null,
+      activePriority: null,
+      sortBy: 'dueDate'
+    });
+  }, []);
+
+  // Get today's tasks
+  const getTodayTasks = useCallback(() => {
+    const today = new Date().toDateString();
+    return tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const taskDate = new Date(task.dueDate).toDateString();
+      return taskDate === today;
+    });
+  }, [tasks]);
+
+  // Get overdue tasks
+  const getOverdueTasks = useCallback(() => {
+    const now = new Date();
+    return tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const d = new Date(task.dueDate);
+      return !task.completed && d < now;
+    });
+  }, [tasks]);
+
+  // Get week tasks (for the sidebar count)
+  const getWeekTasks = useCallback(() => {
+    const now = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    
+    return tasks.filter(task => {
+      if (!task.dueDate || task.completed) return false;
+      const dueDate = new Date(task.dueDate);
+      return dueDate >= now && dueDate <= nextWeek;
+    });
+  }, [tasks]);
+
+  // Get filtered tasks based on current filters
+  const getFilteredTasks = useCallback(() => {
+    let filtered = [...tasks];
+    
+    // Apply view filter
+    if (filters.activeView && filters.activeView !== 'all') {
+      switch (filters.activeView) {
+        case 'today':
+          filtered = getTodayTasks();
+          break;
+        case 'week':
+          const now = new Date();
+          const nextWeek = new Date();
+          nextWeek.setDate(nextWeek.getDate() + 7);
+          filtered = filtered.filter(task => {
+            if (!task.dueDate || task.completed) return false;
+            const dueDate = new Date(task.dueDate);
+            return dueDate >= now && dueDate <= nextWeek;
+          });
+          break;
+        case 'overdue':
+          filtered = getOverdueTasks();
+          break;
+        case 'completed':
+          filtered = filtered.filter(task => task.completed);
+          break;
+        // 'all' view shows all tasks
+      }
+    }
+    
+    // Apply category filter
+    if (filters.activeCategory) {
+      filtered = filtered.filter(task => task.category === filters.activeCategory);
+    }
+    
+    // Apply priority filter
+    if (filters.activePriority) {
+      filtered = filtered.filter(task => task.priority === filters.activePriority);
+    }
+    
+    // Apply sorting
+    if (filters.sortBy) {
+      filtered.sort((a, b) => {
+        switch (filters.sortBy) {
+          case 'dueDate':
+            if (!a.dueDate && !b.dueDate) return 0;
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate) - new Date(b.dueDate);
+            
+          case 'priority':
+            const priorityOrder = { high: 0, medium: 1, low: 2 };
+            return priorityOrder[a.priority] - priorityOrder[b.priority];
+            
+          case 'category':
+            return a.category.localeCompare(b.category);
+            
+          case 'created':
+            return new Date(a.createdAt) - new Date(b.createdAt);
+            
+          default:
+            return 0;
+        }
+      });
+    }
+    
+    return filtered;
+  }, [tasks, filters, getTodayTasks, getOverdueTasks]);
+
   // Task operations
   const addTask = useCallback((newTask) => {
     const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
@@ -216,6 +356,19 @@ export const TaskProvider = ({ children }) => {
     setTasks(prev => prev.filter(task => task.id !== taskId));
     // Also delete related reminders
     setReminders(prev => prev.filter(reminder => reminder.taskId !== taskId));
+  }, []);
+
+  const toggleTaskCompletion = useCallback((taskId) => {
+    setTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, completed: !task.completed } : task
+    ));
+    
+    // Update corresponding reminders
+    setReminders(prev => prev.map(reminder => 
+      reminder.taskId === taskId 
+        ? { ...reminder, taskCompleted: !reminder.taskCompleted } 
+        : reminder
+    ));
   }, []);
 
   // Reminder operations
@@ -280,26 +433,6 @@ export const TaskProvider = ({ children }) => {
     return reminders.filter(reminder => reminder.taskId === taskId);
   }, [reminders]);
 
-  // Get overdue tasks
-  const getOverdueTasks = useCallback(() => {
-    const now = new Date();
-    return tasks.filter(task => {
-      if (!task.dueDate) return false;
-      const d = new Date(task.dueDate);
-      return !task.completed && d < now;
-    });
-  }, [tasks]);
-
-  // Get today's tasks
-  const getTodayTasks = useCallback(() => {
-    const today = new Date().toDateString();
-    return tasks.filter(task => {
-      if (!task.dueDate) return false;
-      const taskDate = new Date(task.dueDate).toDateString();
-      return taskDate === today;
-    });
-  }, [tasks]);
-
   // Get today's reminders
   const getTodayReminders = useCallback(() => {
     const today = new Date().toDateString();
@@ -310,21 +443,38 @@ export const TaskProvider = ({ children }) => {
   }, [reminders]);
 
   const value = {
+    // State
     tasks,
     reminders,
+    filters,
+    
+    // Task operations
     addTask,
     updateTask,
     deleteTask,
+    toggleTaskCompletion,
+    
+    // Reminder operations
     addReminder,
     updateReminder,
     deleteReminder,
+    
+    // Filter operations
+    updateFilters,
+    resetFilters,
+    getFilteredTasks,
+    getWeekTasks,
+    
+    // Statistics
     getTaskStats,
     getReminderStats,
+    
+    // Getter functions
     getTaskById,
     getRemindersForTask,
     getOverdueTasks,
     getTodayTasks,
-    getTodayReminders
+    getTodayReminders  
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

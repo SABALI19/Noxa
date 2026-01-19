@@ -11,113 +11,35 @@ import {
 import Button from '../components/Button';
 import { useNotificationTracking } from '../hooks/useNotificationTracking';
 import TaskTrackingDetail from '../components/tracking/TaskTrackingDetail';
+import { useTasks } from '../context/TaskContext';
 
 const ReminderPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { trackSnooze, trackView, trackCompletion, getNotificationStats } = useNotificationTracking();
   
+  const { 
+    reminders, 
+    updateReminder, 
+    deleteReminder,
+    updateTask,
+    getReminderStats,
+    getTaskById,
+    getTodayReminders
+  } = useTasks();
+  
   // State for viewing tracking details
   const [showTrackingDetail, setShowTrackingDetail] = useState(false);
   const [selectedTaskTracking, setSelectedTaskTracking] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
-  
-  // Determine where to go back to based on referrer or default to dashboard
-  const getBackDestination = () => {
-    if (location.state?.from) {
-      return location.state.from;
-    }
-    return -1;
-  };
-
-  // Enhanced reminders data with tracking integration
-  const [reminders, setReminders] = useState([
-    {
-      id: 1,
-      taskId: 1,
-      title: 'Review quarterly budget report',
-      dueDate: '2024-01-20T20:00:00',
-      reminderTime: '2024-01-20T18:00:00',
-      status: 'upcoming',
-      category: 'work',
-      priority: 'high',
-      frequency: 'once',
-      notificationMethod: 'app',
-      taskCompleted: false,
-      note: 'Reminder: 2 hours before due time'
-    },
-    {
-      id: 2,
-      taskId: 2,
-      title: 'Prepare presentation slides',
-      dueDate: '2024-01-22T17:30:00',
-      reminderTime: '2024-01-21T17:30:00',
-      status: 'upcoming',
-      category: 'work',
-      priority: 'medium',
-      frequency: 'once',
-      notificationMethod: 'both',
-      taskCompleted: false,
-      note: 'Daily reminder until completed'
-    },
-    {
-      id: 3,
-      taskId: 3,
-      title: 'Schedule dentist appointment',
-      dueDate: '2024-01-23T10:00:00',
-      reminderTime: '2024-01-22T10:00:00',
-      status: 'today',
-      category: 'personal',
-      priority: 'low',
-      frequency: 'daily',
-      notificationMethod: 'email',
-      taskCompleted: false,
-      note: 'Reminder set for 1 day before'
-    },
-    {
-      id: 4,
-      taskId: 4,
-      title: 'Morning workout routine',
-      dueDate: '2024-01-22T08:00:00',
-      reminderTime: '2024-01-22T07:30:00',
-      status: 'completed',
-      category: 'health',
-      priority: 'medium',
-      frequency: 'daily',
-      notificationMethod: 'app',
-      taskCompleted: true,
-      note: 'Completed task - reminder dismissed'
-    },
-    {
-      id: 5,
-      taskId: 5,
-      title: 'Buy groceries for the week',
-      dueDate: '2024-01-26T21:00:00',
-      reminderTime: '2024-01-25T21:00:00',
-      status: 'upcoming',
-      category: 'personal',
-      priority: 'low',
-      frequency: 'multiple',
-      notificationMethod: 'both',
-      taskCompleted: false,
-      note: 'Multiple reminders set'
-    }
-  ]);
-
-  const [filter, setFilter] = useState('all');
   const [activeReminder, setActiveReminder] = useState(null);
+  const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [editingReminder, setEditingReminder] = useState(null);
   const [editForm, setEditForm] = useState({});
   
-  // Calculate stats
-  const stats = {
-    total: reminders.length,
-    today: reminders.filter(r => r.status === 'today').length,
-    upcoming: reminders.filter(r => r.status === 'upcoming').length,
-    completed: reminders.filter(r => r.status === 'completed').length,
-    missed: reminders.filter(r => r.status === 'missed').length
-  };
+  // Calculate stats from shared context
+  const stats = getReminderStats();
 
   // Filter reminders based on selected filter and search query
   const filteredReminders = reminders.filter(reminder => {
@@ -151,6 +73,14 @@ const ReminderPage = () => {
   const sortedReminders = [...filteredReminders].sort((a, b) => 
     new Date(a.reminderTime) - new Date(b.reminderTime)
   );
+
+  // Determine where to go back to based on referrer or default to dashboard
+  const getBackDestination = () => {
+    if (location.state?.from) {
+      return location.state.from;
+    }
+    return -1;
+  };
 
   // Format date for display
   const formatDateTime = (dateString) => {
@@ -257,22 +187,17 @@ const ReminderPage = () => {
     e?.stopPropagation();
     if (!editingReminder) return;
     
-    setReminders(prev => prev.map(r => 
-      r.id === reminderId 
-        ? { 
-            ...r, 
-            title: editForm.title,
-            note: editForm.description,
-            dueDate: `${editForm.dueDate}T${new Date(r.dueDate).toTimeString().split('T')[0] || '12:00:00'}`,
-            reminderTime: `${editForm.reminderTime}T${new Date(r.reminderTime).toTimeString().split('T')[0] || '12:00:00'}`,
-            priority: editForm.priority,
-            category: editForm.category,
-            frequency: editForm.frequency,
-            notificationMethod: editForm.notificationMethod,
-            status: editForm.status
-          }
-        : r
-    ));
+    updateReminder(reminderId, {
+      title: editForm.title,
+      note: editForm.description,
+      dueDate: `${editForm.dueDate}T${new Date(editingReminder.dueDate).toTimeString().split('T')[0] || '12:00:00'}`,
+      reminderTime: `${editForm.reminderTime}T${new Date(editingReminder.reminderTime).toTimeString().split('T')[0] || '12:00:00'}`,
+      priority: editForm.priority,
+      category: editForm.category,
+      frequency: editForm.frequency,
+      notificationMethod: editForm.notificationMethod,
+      status: editForm.status
+    });
     
     setEditingReminder(null);
     setEditForm({});
@@ -303,15 +228,10 @@ const ReminderPage = () => {
     e?.stopPropagation();
     const reminder = reminders.find(r => r.id === reminderId);
     
-    setReminders(prev => prev.map(r => 
-      r.id === reminderId 
-        ? { 
-            ...r, 
-            reminderTime: new Date(new Date().getTime() + 30 * 60000).toISOString(),
-            status: 'upcoming'
-          }
-        : r
-    ));
+    updateReminder(reminderId, {
+      reminderTime: new Date(new Date().getTime() + 30 * 60000).toISOString(),
+      status: 'upcoming'
+    });
     
     if (activeReminder?.id === reminderId) {
       setActiveReminder(prev => ({
@@ -330,7 +250,7 @@ const ReminderPage = () => {
   // Handle dismiss
   const handleDismiss = (reminderId, e) => {
     e?.stopPropagation();
-    setReminders(prev => prev.filter(r => r.id !== reminderId));
+    deleteReminder(reminderId);
     
     if (activeReminder?.id === reminderId) {
       setActiveReminder(null);
@@ -339,7 +259,12 @@ const ReminderPage = () => {
 
   // Clear all completed
   const handleClearCompleted = () => {
-    setReminders(prev => prev.filter(r => r.status !== 'completed'));
+    reminders.forEach(reminder => {
+      if (reminder.status === 'completed') {
+        deleteReminder(reminder.id);
+      }
+    });
+    
     if (activeReminder?.status === 'completed') {
       setActiveReminder(null);
     }
@@ -354,24 +279,21 @@ const ReminderPage = () => {
   const handleToggleReminder = (reminderId, e) => {
     e?.stopPropagation();
     const reminder = reminders.find(r => r.id === reminderId);
-    const isCompleting = reminders.find(r => r.id === reminderId)?.status !== 'completed';
+    const isCompleting = reminder?.status !== 'completed';
     
-    setReminders(prev => prev.map(r => 
-      r.id === reminderId 
-        ? { 
-            ...r, 
-            status: r.status === 'completed' ? 'upcoming' : 'completed',
-            taskCompleted: r.status === 'completed' ? false : true
-          }
-        : r
-    ));
+    const newStatus = reminder.status === 'completed' ? 'upcoming' : 'completed';
     
-    if (activeReminder?.id === reminderId) {
-      setActiveReminder(prev => ({
-        ...prev,
-        status: prev.status === 'completed' ? 'upcoming' : 'completed',
-        taskCompleted: prev.status === 'completed' ? false : true
-      }));
+    updateReminder(reminderId, {
+      status: newStatus,
+      taskCompleted: newStatus === 'completed'
+    });
+    
+    // Also update the corresponding task
+    if (reminder?.taskId) {
+      updateTask(reminder.taskId, {
+        completed: newStatus === 'completed',
+        status: newStatus === 'completed' ? 'completed' : 'pending'
+      });
     }
     
     // Track completion if completing
@@ -384,48 +306,39 @@ const ReminderPage = () => {
   const handleViewTaskTracking = (reminder, e) => {
     e?.stopPropagation();
     
-    // Create a task object for the tracking detail view
-    const taskForTracking = {
-      id: reminder.taskId,
-      title: reminder.title,
-      description: reminder.note,
-      dueDate: reminder.dueDate,
-      priority: reminder.priority,
-      category: reminder.category,
-      completed: reminder.taskCompleted,
-      status: reminder.status
-    };
+    // Get task from context
+    const task = getTaskById(reminder.taskId);
     
-    const trackingStats = getNotificationStats(reminder.taskId, 'task');
-    
-    setSelectedTask(taskForTracking);
-    setSelectedTaskTracking(trackingStats);
-    setShowTrackingDetail(true);
-    
-    // Track this view action
-    trackView(reminder.taskId, 'task');
+    if (task) {
+      const trackingStats = getNotificationStats(reminder.taskId, 'task');
+      
+      setSelectedTask(task);
+      setSelectedTaskTracking(trackingStats);
+      setShowTrackingDetail(true);
+      
+      // Track this view action
+      trackView(reminder.taskId, 'task');
+    }
   };
 
   // Check for due reminders periodically
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
-      reminders.forEach(reminder => {
-        if (reminder.status === 'upcoming' || reminder.status === 'today') {
-          const reminderTime = new Date(reminder.reminderTime);
-          // If reminder is within the next minute
-          if (reminderTime > now && reminderTime - now < 60000) {
-            // Update status to today
-            setReminders(prev => prev.map(r => 
-              r.id === reminder.id ? { ...r, status: 'today' } : r
-            ));
-          }
+      const todayReminders = getTodayReminders();
+      
+      todayReminders.forEach(reminder => {
+        const reminderTime = new Date(reminder.reminderTime);
+        // If reminder is within the next minute and status is upcoming
+        if (reminder.status === 'upcoming' && reminderTime > now && reminderTime - now < 60000) {
+          // Update status to today
+          updateReminder(reminder.id, { status: 'today' });
         }
       });
     }, 30000); // Check every 30 seconds
 
     return () => clearInterval(interval);
-  }, [reminders]);
+  }, [reminders, updateReminder, getTodayReminders]);
 
   // Get tracking stats for active reminder
   const getActiveReminderTracking = () => {
@@ -1085,7 +998,7 @@ const ReminderPage = () => {
                   </label>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="flex flex-col sm:flexRow items-start sm:items-center justify-between gap-2">
                   <div>
                     <p className="font-medium text-gray-900">Default Snooze Time</p>
                     <p className="text-sm text-gray-500">When you snooze a reminder</p>
@@ -1102,7 +1015,7 @@ const ReminderPage = () => {
           </div>
         </div>
 
-        {/* How Automated Reminders Work Section - ADDED HERE */}
+        {/* How Automated Reminders Work Section */}
         <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">How Automated Reminders Work</h3>
           <div className="space-y-3">

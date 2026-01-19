@@ -1,3 +1,4 @@
+// src/components/TaskSidebar.jsx
 import React, { useState, useEffect } from "react";
 import { 
   FiCheckSquare as FiClipboard, 
@@ -34,12 +35,19 @@ import {
   X
 } from "lucide-react";
 import Button from "../Button";
+import { useTasks } from "../../context/TaskContext";
+
+// Move MobileOverlay outside the component
+const MobileOverlay = ({ isOpen, onClose }) => (
+  <div 
+    className={`fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 ${
+      isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+    }`}
+    onClick={onClose}
+  />
+);
 
 const TaskSidebar = () => {
-  const [activeView, setActiveView] = useState("all");
-  const [activeCategory, setActiveCategory] = useState(null);
-  const [activePriority, setActivePriority] = useState(null);
-  const [sortBy, setSortBy] = useState("dueDate");
   const [expandedSections, setExpandedSections] = useState({
     views: true,
     categories: true,
@@ -50,68 +58,30 @@ const TaskSidebar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: 'Review quarterly budget report',
-      description: '',
-      dueDate: '2024-01-20T20:00:00',
-      priority: 'high',
-      category: 'work',
-      completed: false,
-      overdue: true
-    },
-    {
-      id: 2,
-      title: 'Prepare presentation slides',
-      description: '',
-      dueDate: '2024-01-22T17:30:00',
-      priority: 'medium',
-      category: 'work',
-      completed: false,
-      overdue: false
-    },
-    {
-      id: 3,
-      title: 'Schedule dentist appointment',
-      description: '',
-      dueDate: '2024-01-23T10:00:00',
-      priority: 'low',
-      category: 'personal',
-      completed: false,
-      overdue: false
-    },
-    {
-      id: 4,
-      title: 'Morning workout routine',
-      description: '',
-      dueDate: '2024-01-22T08:00:00',
-      priority: 'medium',
-      category: 'health',
-      completed: true,
-      overdue: false
-    },
-    {
-      id: 5,
-      title: 'Buy groceries for the week',
-      description: '',
-      dueDate: '2024-01-26T21:00:00',
-      priority: 'low',
-      category: 'personal',
-      completed: false,
-      overdue: false
-    }
-  ]);
-
-  const pending = tasks.filter(t => !t.completed && !t.overdue).length;
-  const completed = tasks.filter(t => t.completed).length;
-  const overdue = tasks.filter(t => t.overdue && !t.completed).length;
+  // Get tasks and filter functions from context
+  const { 
+    tasks, 
+    getTaskStats, 
+    getTodayTasks, 
+    getOverdueTasks,
+    filters,
+    updateFilters,
+    resetFilters,
+    getFilteredTasks,
+    getWeekTasks
+  } = useTasks();
+  
+  const stats = getTaskStats();
+  const completed = stats.completed;
+  const overdue = stats.overdue;
+  const todayTasks = getTodayTasks();
+  const filteredTasks = getFilteredTasks();
+  const weekTasks = getWeekTasks ? getWeekTasks() : [];
 
   // Check for mobile screen size
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
-      // Auto-collapse on mobile
       if (window.innerWidth < 768) {
         setIsCollapsed(true);
       }
@@ -138,6 +108,55 @@ const TaskSidebar = () => {
     }
   };
 
+  // Handle filter button clicks
+  const handleViewFilter = (viewId) => {
+    updateFilters({ 
+      activeView: viewId,
+      activeCategory: null,
+      activePriority: null 
+    });
+    if (isMobile) {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  const handleCategoryFilter = (categoryId) => {
+    updateFilters({ 
+      activeCategory: categoryId,
+      activeView: null,
+      activePriority: null 
+    });
+    if (isMobile) {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  const handlePriorityFilter = (priorityId) => {
+    updateFilters({ 
+      activePriority: priorityId,
+      activeView: null,
+      activeCategory: null 
+    });
+    if (isMobile) {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  const handleSortChange = (sortId) => {
+    updateFilters({ sortBy: sortId });
+    if (isMobile) {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  const handleResetFilters = () => {
+    resetFilters();
+    if (isMobile) {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  // Get priority and category colors
   const getPriorityIconColor = (priority) => {
     switch (priority) {
       case 'high': return '#e67373';
@@ -156,31 +175,11 @@ const TaskSidebar = () => {
     }
   };
 
-  useEffect(() => {
-    localStorage.setItem('taskFilters', JSON.stringify({
-      activeView,
-      activeCategory,
-      activePriority,
-      sortBy
-    }));
-  }, [activeView, activeCategory, activePriority, sortBy]);
-
-  // Mobile sidebar overlay
-  const MobileOverlay = () => (
-    <div 
-      className={`fixed inset-0  bg-opacity-50 z-40 transition-opacity duration-300 ${
-        isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-      }`}
-      onClick={() => setIsMobileMenuOpen(false)}
-    />
-  );
-
   // Collapsed sidebar for desktop
   if (isCollapsed && !isMobile) {
     return (
       <div className="w-16 h-full bg-[#f2f5f7] shadow-md shadow-black overflow-y-auto transition-all duration-300 hidden md:block">
         <div className="p-4 flex flex-col items-center">
-          {/* Collapse/Expand Button */}
           <Button
             variant="icon"
             size="xs"
@@ -190,9 +189,7 @@ const TaskSidebar = () => {
             <PanelRightOpen className="text-sm" size={20} />
           </Button>
           
-          {/* Collapsed Icons Only */}
           <div className="space-y-4">
-            {/* Views Icons */}
             <div className="flex flex-col items-center space-y-2">
               <NotebookText size={20} className="text-[#3D9B9B] mb-7" />
               <Calendar size={20} className="text-[#313333] mb-7" />
@@ -206,7 +203,7 @@ const TaskSidebar = () => {
     );
   }
 
-  // Mobile Menu Button (only on mobile)
+  // Mobile Menu Button
   if (isMobile && !isMobileMenuOpen) {
     return (
       <>
@@ -224,11 +221,14 @@ const TaskSidebar = () => {
     );
   }
 
-  // Mobile Sidebar Drawer - Adjusted width for mobile/tablet only
+  // Mobile Sidebar Drawer
   if (isMobile && isMobileMenuOpen) {
     return (
       <>
-        <MobileOverlay />
+        <MobileOverlay 
+          isOpen={isMobileMenuOpen} 
+          onClose={() => setIsMobileMenuOpen(false)} 
+        />
         <div className={`fixed left-0 top-0 h-full w-[280px] sm:w-[320px] bg-[#f2f5f7] shadow-xl z-50 transition-transform duration-300 ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
@@ -262,8 +262,8 @@ const TaskSidebar = () => {
                 <div className="space-y-2">
                   {[
                     { id: 'all', label: 'All Tasks', icon: NotebookText, iconColor: '#3D9B9B', count: tasks.length },
-                    { id: 'today', label: 'Today', icon: Calendar, iconColor: '#3D9B9B', count: tasks.filter(t => new Date(t.dueDate).toDateString() === new Date().toDateString()).length },
-                    { id: 'week', label: 'This Week', icon: CalendarDays, iconColor: '#3D9B9B', count: 2 },
+                    { id: 'today', label: 'Today', icon: Calendar, iconColor: '#3D9B9B', count: todayTasks.length },
+                    { id: 'week', label: 'This Week', icon: CalendarDays, iconColor: '#3D9B9B', count: weekTasks.length },
                     { id: 'overdue', label: 'Overdue', icon: AlertCircle, iconColor: '#e67373', count: overdue },
                     { id: 'completed', label: 'Completed', icon: CheckCircle, iconColor: '#4cb04f', count: completed }
                   ].map(view => {
@@ -271,22 +271,17 @@ const TaskSidebar = () => {
                     return (
                       <Button
                         key={view.id}
-                        variant={activeView === view.id ? "primary" : "secondaryPro"}
+                        variant={filters.activeView === view.id ? "primary" : "secondaryPro"}
                         size="sm"
                         className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                          activeView === view.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                          filters.activeView === view.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
                         }`}
-                        onClick={() => {
-                          setActiveView(view.id);
-                          setActiveCategory(null);
-                          setActivePriority(null);
-                          setIsMobileMenuOpen(false);
-                        }}
+                        onClick={() => handleViewFilter(view.id)}
                       >
                         <div className="flex items-center gap-3">
                           <IconComponent 
                             style={{ 
-                              color: activeView === view.id ? 'white' : view.iconColor,
+                              color: filters.activeView === view.id ? 'white' : view.iconColor,
                               transition: 'color 0.3s ease'
                             }}
                             className="text-lg group-hover:text-white" 
@@ -295,7 +290,7 @@ const TaskSidebar = () => {
                           <span className="font-medium font-roboto text-sm">{view.label}</span>
                         </div>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
-                          activeView === view.id 
+                          filters.activeView === view.id 
                             ? "bg-white/20 text-white" 
                             : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
                         }`}>
@@ -331,22 +326,17 @@ const TaskSidebar = () => {
                     return (
                       <Button
                         key={category.id}
-                        variant={activeCategory === category.id ? "primary" : "secondaryPro"}
+                        variant={filters.activeCategory === category.id ? "primary" : "secondaryPro"}
                         size="sm"
                         className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                          activeCategory === category.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                          filters.activeCategory === category.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
                         }`}
-                        onClick={() => {
-                          setActiveCategory(category.id);
-                          setActiveView(null);
-                          setActivePriority(null);
-                          setIsMobileMenuOpen(false);
-                        }}
+                        onClick={() => handleCategoryFilter(category.id)}
                       >
                         <div className="flex items-center gap-3">
                           <CategoryIcon 
                             style={{ 
-                              color: activeCategory === category.id ? 'white' : category.iconColor,
+                              color: filters.activeCategory === category.id ? 'white' : category.iconColor,
                               transition: 'color 0.3s ease'
                             }}
                             className="text-lg group-hover:text-white" 
@@ -355,7 +345,7 @@ const TaskSidebar = () => {
                           <span className="font-medium font-roboto text-md">{category.label}</span>
                         </div>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
-                          activeCategory === category.id 
+                          filters.activeCategory === category.id 
                             ? "bg-white/20 text-white" 
                             : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
                         }`}>
@@ -391,22 +381,17 @@ const TaskSidebar = () => {
                     return (
                       <Button
                         key={priority.id}
-                        variant={activePriority === priority.id ? "primary" : "secondaryPro"}
+                        variant={filters.activePriority === priority.id ? "primary" : "secondaryPro"}
                         size="sm"
                         className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                          activePriority === priority.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                          filters.activePriority === priority.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
                         }`}
-                        onClick={() => {
-                          setActivePriority(priority.id);
-                          setActiveView(null);
-                          setActiveCategory(null);
-                          setIsMobileMenuOpen(false);
-                        }}
+                        onClick={() => handlePriorityFilter(priority.id)}
                       >
                         <div className="flex items-center gap-3">
                           <PriorityIcon 
                             style={{ 
-                              color: activePriority === priority.id ? 'white' : priority.iconColor,
+                              color: filters.activePriority === priority.id ? 'white' : priority.iconColor,
                               transition: 'color 0.3s ease'
                             }}
                             className="text-lg group-hover:text-white" 
@@ -415,7 +400,7 @@ const TaskSidebar = () => {
                           <span className="font-medium text-sm">{priority.label}</span>
                         </div>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
-                          activePriority === priority.id 
+                          filters.activePriority === priority.id 
                             ? "bg-white/20 text-white" 
                             : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
                         }`}>
@@ -452,19 +437,16 @@ const TaskSidebar = () => {
                     return (
                       <Button
                         key={sort.id}
-                        variant={sortBy === sort.id ? "primary" : "secondaryPro"}
+                        variant={filters.sortBy === sort.id ? "primary" : "secondaryPro"}
                         size="md"
                         className={`group flex items-center w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                          sortBy === sort.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                          filters.sortBy === sort.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
                         }`}
-                        onClick={() => {
-                          setSortBy(sort.id);
-                          setIsMobileMenuOpen(false);
-                        }}
+                        onClick={() => handleSortChange(sort.id)}
                       >
                         <SortIcon 
                           style={{ 
-                            color: sortBy === sort.id ? 'white' : sort.iconColor,
+                            color: filters.sortBy === sort.id ? 'white' : sort.iconColor,
                             transition: 'color 0.3s ease'
                           }}
                           className="text-lg mr-3 group-hover:text-white" 
@@ -483,10 +465,9 @@ const TaskSidebar = () => {
     );
   }
 
-  // Desktop Full Sidebar - Original width (unchanged)
+  // Desktop Full Sidebar
   return (
     <>
-      {/* Mobile Menu Button (hidden on desktop) */}
       <div className="fixed top-4 left-4 z-30 md:hidden">
         <Button
           variant="primary"
@@ -498,7 +479,6 @@ const TaskSidebar = () => {
         </Button>
       </div>
 
-      {/* Desktop Sidebar - Original width */}
       <div className="hidden md:block w-[280px] h-full bg-[#f2f5f7] shadow-md shadow-black overflow-y-auto transition-all duration-300">
         <div className="p-4">
           {/* Collapse Button */}
@@ -529,8 +509,8 @@ const TaskSidebar = () => {
               <div className="space-y-2">
                 {[
                   { id: 'all', label: 'All Tasks', icon: NotebookText, iconColor: '#3D9B9B', count: tasks.length },
-                  { id: 'today', label: 'Today', icon: Calendar, iconColor: '#3D9B9B', count: tasks.filter(t => new Date(t.dueDate).toDateString() === new Date().toDateString()).length },
-                  { id: 'week', label: 'This Week', icon: CalendarDays, iconColor: '#3D9B9B', count: 2 },
+                  { id: 'today', label: 'Today', icon: Calendar, iconColor: '#3D9B9B', count: todayTasks.length },
+                  { id: 'week', label: 'This Week', icon: CalendarDays, iconColor: '#3D9B9B', count: weekTasks.length },
                   { id: 'overdue', label: 'Overdue', icon: AlertCircle, iconColor: '#e67373', count: overdue },
                   { id: 'completed', label: 'Completed', icon: CheckCircle, iconColor: '#4cb04f', count: completed }
                 ].map(view => {
@@ -538,21 +518,17 @@ const TaskSidebar = () => {
                   return (
                     <Button
                       key={view.id}
-                      variant={activeView === view.id ? "primary" : "secondaryPro"}
+                      variant={filters.activeView === view.id ? "primary" : "secondaryPro"}
                       size="sm"
                       className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                        activeView === view.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                        filters.activeView === view.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
                       }`}
-                      onClick={() => {
-                        setActiveView(view.id);
-                        setActiveCategory(null);
-                        setActivePriority(null);
-                      }}
+                      onClick={() => handleViewFilter(view.id)}
                     >
                       <div className="flex items-center gap-3">
                         <IconComponent 
                           style={{ 
-                            color: activeView === view.id ? 'white' : view.iconColor,
+                            color: filters.activeView === view.id ? 'white' : view.iconColor,
                             transition: 'color 0.3s ease'
                           }}
                           className="text-lg group-hover:text-white" 
@@ -561,7 +537,7 @@ const TaskSidebar = () => {
                         <span className="font-medium font-roboto text-sm">{view.label}</span>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
-                        activeView === view.id 
+                        filters.activeView === view.id 
                           ? "bg-white/20 text-white" 
                           : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
                       }`}>
@@ -597,21 +573,17 @@ const TaskSidebar = () => {
                   return (
                     <Button
                       key={category.id}
-                      variant={activeCategory === category.id ? "primary" : "secondaryPro"}
+                      variant={filters.activeCategory === category.id ? "primary" : "secondaryPro"}
                       size="sm"
                       className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                        activeCategory === category.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                        filters.activeCategory === category.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
                       }`}
-                      onClick={() => {
-                        setActiveCategory(category.id);
-                        setActiveView(null);
-                        setActivePriority(null);
-                      }}
+                      onClick={() => handleCategoryFilter(category.id)}
                     >
                       <div className="flex items-center gap-3">
                         <CategoryIcon 
                           style={{ 
-                            color: activeCategory === category.id ? 'white' : category.iconColor,
+                            color: filters.activeCategory === category.id ? 'white' : category.iconColor,
                             transition: 'color 0.3s ease'
                           }}
                           className="text-lg group-hover:text-white" 
@@ -620,7 +592,7 @@ const TaskSidebar = () => {
                         <span className="font-medium font-roboto text-md">{category.label}</span>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
-                        activeCategory === category.id 
+                        filters.activeCategory === category.id 
                           ? "bg-white/20 text-white" 
                           : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
                       }`}>
@@ -656,21 +628,17 @@ const TaskSidebar = () => {
                   return (
                     <Button
                       key={priority.id}
-                      variant={activePriority === priority.id ? "primary" : "secondaryPro"}
+                      variant={filters.activePriority === priority.id ? "primary" : "secondaryPro"}
                       size="sm"
                       className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                        activePriority === priority.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                        filters.activePriority === priority.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
                       }`}
-                      onClick={() => {
-                        setActivePriority(priority.id);
-                        setActiveView(null);
-                        setActiveCategory(null);
-                      }}
+                      onClick={() => handlePriorityFilter(priority.id)}
                     >
                       <div className="flex items-center gap-3">
                         <PriorityIcon 
                           style={{ 
-                            color: activePriority === priority.id ? 'white' : priority.iconColor,
+                            color: filters.activePriority === priority.id ? 'white' : priority.iconColor,
                             transition: 'color 0.3s ease'
                           }}
                           className="text-lg group-hover:text-white" 
@@ -679,7 +647,7 @@ const TaskSidebar = () => {
                         <span className="font-medium text-sm">{priority.label}</span>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
-                        activePriority === priority.id 
+                        filters.activePriority === priority.id 
                           ? "bg-white/20 text-white" 
                           : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
                       }`}>
@@ -716,16 +684,16 @@ const TaskSidebar = () => {
                   return (
                     <Button
                       key={sort.id}
-                      variant={sortBy === sort.id ? "primary" : "secondaryPro"}
+                      variant={filters.sortBy === sort.id ? "primary" : "secondaryPro"}
                       size="md"
                       className={`group flex items-center w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                        sortBy === sort.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                        filters.sortBy === sort.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
                       }`}
-                      onClick={() => setSortBy(sort.id)}
+                      onClick={() => handleSortChange(sort.id)}
                     >
                       <SortIcon 
                         style={{ 
-                          color: sortBy === sort.id ? 'white' : sort.iconColor,
+                          color: filters.sortBy === sort.id ? 'white' : sort.iconColor,
                           transition: 'color 0.3s ease'
                         }}
                         className="text-lg mr-3 group-hover:text-white" 
@@ -737,6 +705,29 @@ const TaskSidebar = () => {
                 })}
               </div>
             )}
+          </div>
+
+          {/* Results Summary */}
+          <div className="mt-8 p-4 bg-white rounded-lg border border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Filter Results</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Filtered Tasks</span>
+                <span className="text-sm font-medium text-gray-800">{filteredTasks.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Total Tasks</span>
+                <span className="text-sm font-medium text-gray-800">{tasks.length}</span>
+              </div>
+              <div className="pt-2 border-t border-gray-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Match Rate</span>
+                  <span className="text-sm font-medium text-blue-600">
+                    {tasks.length > 0 ? Math.round((filteredTasks.length / tasks.length) * 100) : 0}%
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
