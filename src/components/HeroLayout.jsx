@@ -4,12 +4,7 @@ import { FiMail, FiCheckCircle, FiClock, FiTarget } from 'react-icons/fi'
 
 const HeroLayout = () => {
   return (
-    <div className='relative flex justify-center items-center h-60 w-full'>
-      
-      {/* Outer glass layer */}
-      {/* <div className='absolute w-full h-full border-4 border-yellow-900/40 rounded-2xl 
-                     backdrop-blur-lg bg-gradient-to-br from-white/20 via-amber-50/15 to-transparent
-                     shadow-2xl shadow-amber-900/30'></div> */}
+    <div className='relative flex justify-center items-center h-48 sm:h-52 md:h-60 w-full overflow-visible'>
       
       {/* Inner glass layer */}
       <div className='absolute w-full h-full border-2 border-gray-100/40 rounded-xl 
@@ -24,63 +19,62 @@ const HeroLayout = () => {
         <img 
           src={Heroimg}
           alt="layout"
-          className='max-w-[90%] max-h-full object-contain p-3 rounded-2xl'
+          className='max-w-[90%] max-h-full object-contain p-2 md:p-3 rounded-xl md:rounded-2xl'
         />
       </div>
       
-      {/* Positioned items around the edges */}
-      
-      {/* Top Left */}
-<div className='absolute bottom-53 right-65 z-20 '>
-  <div className='flex justify-between bg-white/5 backdrop-blur-md bg-opacity-  inset-4 px-3 py-2 rounded-lg shadow-lg border border-gray-200 bg-linear-30 min-w-[140px]'>
-    <div className=' items-center gap-2 mb-1 p-2 backdrop-blur-4xl bg-white/35 border border-gray-200 rounded-lg'>
-      <FiMail className='text-blue-500' />
-    </div>
-    <div>
-        <p className='text-xs font-semibold text-gray-800'>Email Draft</p>
-    <p className='text-[10px] text-gray-600'>Follow up sent</p>
-    </div>
-  </div>
-</div>
+      {/* Top Left - Email Draft */}
+      <div className='absolute top-2 left-2 sm:top-3 sm:left-3 md:top-4 md:left-4 z-20'>
+        <div className='flex bg-white/90 backdrop-blur-sm px-2 py-1.5 sm:px-2.5 sm:py-2 md:px-3 md:py-2 rounded-lg shadow-lg border border-gray-200/70 min-w-[110px] sm:min-w-[120px] md:min-w-[130px] lg:min-w-[140px]'>
+          <div className='flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 mr-2 bg-white/70 border border-gray-200 rounded-lg'>
+            <FiMail className='text-blue-500 text-xs sm:text-sm md:text-base' />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <p className='text-[10px] sm:text-[11px] md:text-xs font-semibold text-gray-800 truncate'>Email Draft</p>
+            <p className='text-[8px] sm:text-[9px] md:text-[10px] text-gray-600 truncate'>Follow up sent</p>
+          </div>
+        </div>
+      </div>
 
-{/* Top Right - 3s ping */}
-<div className='absolute top-3 right-7 z-20'>
-  <div className='flex justify-between bg-white/5 backdrop-blur-md bg-opacity- inset-4 px-3 py-2 rounded-lg shadow-lg border border-gray-200 bg-linear-30 min-w-[140px] animate-[ping_3s_ease-in-out_infinite]'>
-    <div className='flex items-center gap-2 mb-1'>
-      <FiCheckCircle className='text-green-500' />
-      <p className='text-xs font-semibold text-gray-800'>5 Tasks Done</p>
-    </div>
-    <p className='text-[10px] text-gray-600'>Today's progress</p>
-  </div>
-</div>
+      {/* Top Right - Tasks Done */}
+      <div className='absolute top-2 right-2 sm:top-3 sm:right-3 md:top-4 md:right-4 z-20'>
+        <div className='flex bg-white/90 backdrop-blur-sm px-2 py-1.5 sm:px-2.5 sm:py-2 md:px-3 md:py-2 rounded-lg shadow-lg border border-gray-200/70 min-w-[110px] sm:min-w-[120px] md:min-w-[130px] lg:min-w-[140px] animate-[ping_3s_ease-in-out_infinite]'>
+          <div className='flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 mr-2'>
+            <FiCheckCircle className='text-green-500 text-xs sm:text-sm md:text-base' />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <p className='text-[10px] sm:text-[11px] md:text-xs font-semibold text-gray-800 truncate'>5 Tasks Done</p>
+            <p className='text-[8px] sm:text-[9px] md:text-[10px] text-gray-600 truncate'>Today's progress</p>
+          </div>
+        </div>
+      </div>
 
-{/* Bottom right - 1.5s ping (more urgent) */}
-<div className='absolute bottom-3 right-7 z-24'>
-  <div className='flex justify-between bg-white/5 backdrop-blur-md bg-opacity- inset-4 px-3 py-2 rounded-lg shadow-lg border border-gray-200 bg-linear-30 min-w-[140px] animate-[ping_1.5s_ease-in-out_infinite] opacity-75'>
-    <div className='items-center gap-2 mb-1 p-2 backdrop-blur-4xl bg-white/35 border border-gray-200 rounded-lg'>
-      <FiClock className='flex text-white items-center justify-center' />
-    </div>
-    <div className='text-[10px] text-gray-100 font-medium font-roboto'>
-      <p>Meeting</p>
-      <p>In 30 minutes</p>
-    </div>
-  </div>
-</div>
+      {/* Bottom Right - Meeting */}
+      <div className='absolute bottom-2 right-2 sm:bottom-3 sm:right-3 md:bottom-4 md:right-4 z-24'>
+        <div className='flex bg-white/90 backdrop-blur-sm px-2 py-1.5 sm:px-2.5 sm:py-2 md:px-3 md:py-2 rounded-lg shadow-lg border border-gray-200/70 min-w-[110px] sm:min-w-[120px] md:min-w-[130px] lg:min-w-[140px] animate-[ping_1.5s_ease-in-out_infinite] opacity-90'>
+          <div className='flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 mr-2 bg-blue-100/70 border border-blue-200 rounded-lg'>
+            <FiClock className='text-blue-500 text-xs sm:text-sm md:text-base' />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <p className='text-[10px] sm:text-[11px] md:text-xs font-medium text-gray-800 truncate'>Meeting</p>
+            <p className='text-[8px] sm:text-[9px] md:text-[10px] text-gray-600 truncate'>In 30 minutes</p>
+          </div>
+        </div>
+      </div>
 
-{/* Bottom left - 2s ping */}
-<div className='absolute bottom-3 left-3 z-20'>
-  <div className='flex font-roboto justify-between bg-white/5 backdrop-blur-md bg-opacity- inset-4 px-3 py-2 rounded-lg border border-gray-200 bg-linear-30 min-w-[140px] animate-[ping_5s_ease-in-out_infinite]'>
-    <div className='flex items-center gap-2 mb-1'>
-      <FiTarget className='text-red-500' />
-      <p className='text-xs font-semibold text-gray-800'>Deadline</p>
-    </div>
-    <p className='text-[10px] text-gray-600'>Tomorrow, 10 AM</p>
-  </div>
-</div>
-{/* double pingss  */}
+      {/* Bottom Left - Deadline */}
+      <div className='absolute bottom-2 left-2 sm:bottom-3 sm:left-3 md:bottom-4 md:left-4 z-20'>
+        <div className='flex bg-white/90 backdrop-blur-sm px-2 py-1.5 sm:px-2.5 sm:py-2 md:px-3 md:py-2 rounded-lg shadow-lg border border-gray-200/70 min-w-[110px] sm:min-w-[120px] md:min-w-[130px] lg:min-w-[140px] animate-[ping_2s_ease-in-out_infinite]'>
+          <div className='flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 mr-2'>
+            <FiTarget className='text-red-500 text-xs sm:text-sm md:text-base' />
+          </div>
+          <div className='flex-1 min-w-0'>
+            <p className='text-[10px] sm:text-[11px] md:text-xs font-semibold text-gray-800 truncate'>Deadline</p>
+            <p className='text-[8px] sm:text-[9px] md:text-[10px] text-gray-600 truncate'>Tomorrow, 10 AM</p>
+          </div>
+        </div>
+      </div>
 
-
-      
     </div>
   )
 }

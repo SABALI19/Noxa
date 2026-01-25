@@ -37,6 +37,8 @@ export const NotificationTrackingProvider = ({ children }) => {
         lastViewed: null,
         progressUpdates: [],
         completions: 0,
+        notificationHistory: [],
+        notificationTypes: {},
         itemType,
         itemId
       };
@@ -45,7 +47,8 @@ export const NotificationTrackingProvider = ({ children }) => {
         ...prev,
         [key]: {
           ...current,
-          lastViewed: new Date().toISOString()
+          lastViewed: new Date().toISOString(),
+          viewCount: (current.viewCount || 0) + 1
         }
       };
     });
@@ -61,6 +64,8 @@ export const NotificationTrackingProvider = ({ children }) => {
         lastViewed: null,
         progressUpdates: [],
         completions: 0,
+        notificationHistory: [],
+        notificationTypes: {},
         itemType,
         itemId
       };
@@ -70,7 +75,8 @@ export const NotificationTrackingProvider = ({ children }) => {
         [key]: {
           ...current,
           completions: current.completions + 1,
-          lastCompletion: new Date().toISOString()
+          lastCompletion: new Date().toISOString(),
+          completedAt: new Date().toISOString()
         }
       };
     });
@@ -86,6 +92,8 @@ export const NotificationTrackingProvider = ({ children }) => {
         lastViewed: null,
         progressUpdates: [],
         completions: 0,
+        notificationHistory: [],
+        notificationTypes: {},
         itemType,
         itemId
       };
@@ -101,14 +109,14 @@ export const NotificationTrackingProvider = ({ children }) => {
         ...prev,
         [key]: {
           ...current,
-          progressUpdates: [...current.progressUpdates, progressUpdate].slice(-10) // Keep last 10 updates
+          progressUpdates: [...current.progressUpdates, progressUpdate].slice(-50) // Keep last 50 updates
         }
       };
     });
   }, []);
 
   // Track notification interactions
-  const trackNotification = useCallback((itemId, itemType = 'goal', action = 'viewed', notificationType) => {
+  const trackNotification = useCallback((itemId, itemType = 'goal', action = 'viewed', notificationType = null) => {
     setTrackingData(prev => {
       const key = `${itemType}_${itemId}`;
       const current = prev[key] || {
@@ -117,8 +125,22 @@ export const NotificationTrackingProvider = ({ children }) => {
         lastViewed: null,
         progressUpdates: [],
         completions: 0,
+        notificationHistory: [],
+        notificationTypes: {},
         itemType,
         itemId
+      };
+      
+      const notificationTypes = { ...current.notificationTypes };
+      if (notificationType && action === 'sent') {
+        notificationTypes[notificationType] = (notificationTypes[notificationType] || 0) + 1;
+      }
+      
+      const historyEntry = {
+        timestamp: new Date().toISOString(),
+        action,
+        notificationType,
+        metadata: {}
       };
       
       const updates = {
@@ -126,7 +148,9 @@ export const NotificationTrackingProvider = ({ children }) => {
         snoozedCount: current.snoozedCount + (action === 'snoozed' ? 1 : 0),
         lastNotification: action === 'sent' ? new Date().toISOString() : current.lastNotification,
         lastNotificationAction: action,
-        lastNotificationType: notificationType
+        lastNotificationType: notificationType || current.lastNotificationType,
+        notificationTypes,
+        notificationHistory: [...current.notificationHistory, historyEntry].slice(-100) // Keep last 100 history items
       };
       
       return {
@@ -148,14 +172,27 @@ export const NotificationTrackingProvider = ({ children }) => {
       lastViewed: null,
       progressUpdates: [],
       completions: 0,
+      notificationHistory: [],
+      notificationTypes: {},
       itemType,
-      itemId
+      itemId,
+      viewCount: 0
     };
   }, [trackingData]);
 
   // Get all tracking data
   const getAllTrackingData = useCallback(() => {
     return trackingData;
+  }, [trackingData]);
+
+  // Get tracking data by type
+  const getTrackingByType = useCallback((itemType) => {
+    return Object.entries(trackingData)
+      .filter(([key]) => key.startsWith(`${itemType}_`))
+      .reduce((acc, [key, value]) => {
+        acc[key] = value;
+        return acc;
+      }, {});
   }, [trackingData]);
 
   // Clear tracking data for a specific item
@@ -173,6 +210,20 @@ export const NotificationTrackingProvider = ({ children }) => {
     setTrackingData({});
   }, []);
 
+  // Get summary statistics
+  const getSummaryStats = useCallback(() => {
+    const allData = Object.values(trackingData);
+    
+    return {
+      totalItems: allData.length,
+      totalNotifications: allData.reduce((sum, item) => sum + (item.totalNotifications || 0), 0),
+      totalSnoozes: allData.reduce((sum, item) => sum + (item.snoozedCount || 0), 0),
+      totalCompletions: allData.reduce((sum, item) => sum + (item.completions || 0), 0),
+      totalProgressUpdates: allData.reduce((sum, item) => sum + (item.progressUpdates?.length || 0), 0),
+      totalViews: allData.reduce((sum, item) => sum + (item.viewCount || 0), 0)
+    };
+  }, [trackingData]);
+
   // Context value
   const contextValue = {
     trackingData,
@@ -182,8 +233,10 @@ export const NotificationTrackingProvider = ({ children }) => {
     trackNotification,
     getNotificationStats,
     getAllTrackingData,
+    getTrackingByType,
     clearTrackingForItem,
-    clearAllTrackingData
+    clearAllTrackingData,
+    getSummaryStats
   };
 
   return (
@@ -193,5 +246,4 @@ export const NotificationTrackingProvider = ({ children }) => {
   );
 };
 
-// Only export the provider component
 export default NotificationTrackingContext;

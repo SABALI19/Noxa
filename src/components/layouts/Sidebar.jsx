@@ -1,14 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Button from "../Button";
 import { FiBell, FiUser } from "react-icons/fi";
 import { IoColorPaletteOutline } from "react-icons/io5";
 import { MdOutlineShield } from "react-icons/md";
 import { IoIosHelpCircleOutline } from "react-icons/io";
 import { Link, useLocation } from "react-router-dom";
-import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
+import { PanelLeftOpen, PanelRightOpen, Menu } from "lucide-react";
 
 const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [fabPosition, setFabPosition] = useState({ x: window.innerWidth - 72, y: 80 }); // Top right position
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
+  const fabRef = useRef(null);
   const location = useLocation();
   
   // Sync with isOpen prop and handle mobile behavior
@@ -21,6 +26,116 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
       setIsCollapsed(!isOpen);
     }
   }, [isMobile, isOpen]);
+
+  // Initialize FAB position to top right and update on resize
+  useEffect(() => {
+    const updateFabPosition = () => {
+      if (isMobile) {
+        setFabPosition({ x: window.innerWidth - 72, y: 80 });
+      }
+    };
+    
+    updateFabPosition();
+    window.addEventListener('resize', updateFabPosition);
+    
+    return () => window.removeEventListener('resize', updateFabPosition);
+  }, [isMobile]);
+
+  // FAB drag handlers
+  const handleTouchStart = (e) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    setIsDragging(true);
+    setHasMoved(false);
+    setDragStart({
+      x: touch.clientX - fabPosition.x,
+      y: touch.clientY - fabPosition.y
+    });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || !isMobile) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    
+    const newX = touch.clientX - dragStart.x;
+    const newY = touch.clientY - dragStart.y;
+    
+    // Check if moved more than 5px to distinguish from tap
+    if (Math.abs(newX - fabPosition.x) > 5 || Math.abs(newY - fabPosition.y) > 5) {
+      setHasMoved(true);
+    }
+    
+    // Get viewport dimensions
+    const maxX = window.innerWidth - 56; // 56px is the FAB width
+    const maxY = window.innerHeight - 56;
+    
+    // Constrain to viewport
+    const constrainedX = Math.max(0, Math.min(newX, maxX));
+    const constrainedY = Math.max(0, Math.min(newY, maxY));
+    
+    setFabPosition({ x: constrainedX, y: constrainedY });
+  };
+
+  const handleTouchEnd = () => {
+    if (!isMobile) return;
+    setIsDragging(false);
+  };
+
+  const handleMouseDown = (e) => {
+    if (!isMobile) return;
+    setIsDragging(true);
+    setHasMoved(false);
+    setDragStart({
+      x: e.clientX - fabPosition.x,
+      y: e.clientY - fabPosition.y
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !isMobile) return;
+    
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    
+    // Check if moved more than 5px to distinguish from click
+    if (Math.abs(newX - fabPosition.x) > 5 || Math.abs(newY - fabPosition.y) > 5) {
+      setHasMoved(true);
+    }
+    
+    // Get viewport dimensions
+    const maxX = window.innerWidth - 56;
+    const maxY = window.innerHeight - 56;
+    
+    // Constrain to viewport
+    const constrainedX = Math.max(0, Math.min(newX, maxX));
+    const constrainedY = Math.max(0, Math.min(newY, maxY));
+    
+    setFabPosition({ x: constrainedX, y: constrainedY });
+  };
+
+  const handleMouseUp = () => {
+    if (!isMobile) return;
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isMobile) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, isMobile, dragStart]);
+
+  const handleFabClick = () => {
+    if (!hasMoved) {
+      toggleSidebar();
+    }
+  };
 
   const menuItems = [
     { id: "account", icon: <FiUser className="text-xl" />, label: "Account", path: "/account" },
@@ -52,51 +167,90 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
     }
   };
 
-  // Mobile sidebar - slides in from left without overlay
-  if (isMobile) {
+  // Mobile FAB button when sidebar is closed
+  if (isMobile && !isOpen) {
     return (
       <div 
-        className={`fixed left-0 top-14 h-[calc(100vh-3.5rem)] w-20 bg-[#f2f5f7] shadow-lg z-40 p-4 transition-transform duration-300 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        ref={fabRef}
+        className="fixed z-50 cursor-move touch-none"
+        style={{
+          left: `${fabPosition.x}px`,
+          top: `${fabPosition.y}px`,
+          transition: isDragging ? 'none' : 'all 0.3s ease'
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
       >
-        {/* Close button for mobile */}
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-gray-200 transition-colors"
-            aria-label="Close sidebar"
-          >
-            <PanelRightOpen className="text-sm text-[#3D9B9B]" />
-          </button>
-        </div>
-
-        <div className="mt-2">
-          {menuItems.map((item) => {
-            const active = isActive(item.path);
-            
-            return (
-              <Link 
-                key={item.id} 
-                to={item.path}
-                onClick={handleLinkClick}
-                className="block mb-2"
-              >
-                <Button
-                  variant={active ? "primary" : "secondaryPro"}
-                  className={`group flex items-center justify-center hover:text-white hover:bg-[#3D9B9B] w-full rounded-2xl p-3 ${
-                    active ? "bg-[#3D9B9B] text-white" : ""
-                  }`}
-                >
-                  <span className={active ? "text-white" : "text-[#3D9B9B] group-hover:text-white"}>
-                    {item.icon}
-                  </span>
-                </Button>
-              </Link>
-            );
-          })}
-        </div>
+        <button
+          className="bg-[#3D9B9B] hover:bg-[#2d7b7b] text-white rounded-full p-4 shadow-lg active:shadow-xl transition-all duration-200"
+          onClick={handleFabClick}
+        >
+          <Menu size={24} />
+        </button>
       </div>
+    );
+  }
+
+  // Mobile sidebar - slides in from left
+  if (isMobile && isOpen) {
+    return (
+      <>
+        {/* Overlay */}
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+          onClick={() => onToggle(false)}
+        />
+        
+        {/* Sidebar */}
+        <div 
+          className={`fixed left-0 top-0 h-full w-64 bg-[#f2f5f7] shadow-xl z-50 p-4 transition-transform duration-300 ${
+            isOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {/* Close button for mobile */}
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => onToggle(false)}
+              className="p-2 rounded-lg hover:bg-gray-200 transition-colors"
+              aria-label="Close sidebar"
+            >
+              <PanelRightOpen className="text-sm text-[#3D9B9B]" />
+            </button>
+          </div>
+
+          <div className="mt-2">
+            {menuItems.map((item) => {
+              const active = isActive(item.path);
+              
+              return (
+                <Link 
+                  key={item.id} 
+                  to={item.path}
+                  onClick={handleLinkClick}
+                  className="block mb-2"
+                >
+                  <Button
+                    variant={active ? "primary" : "secondaryPro"}
+                    className={`group flex items-center hover:text-white hover:bg-[#3D9B9B] gap-4 w-full rounded-2xl p-3 ${
+                      active ? "bg-[#3D9B9B] text-white" : ""
+                    }`}
+                  >
+                    <span className={active ? "text-white" : "text-[#3D9B9B] group-hover:text-white"}>
+                      {item.icon}
+                    </span>
+                    <p className={`${active ? "text-white" : "group-hover:text-white"} 
+                      text-sm md:text-base font-medium whitespace-nowrap`}>
+                      {item.label}
+                    </p>
+                  </Button>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </>
     );
   }
 

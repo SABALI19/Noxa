@@ -28,72 +28,7 @@ import { useNotificationTracking } from '../hooks/useNotificationTracking';
 import Button from "../components/Button";
 import SortDropdown from "../components/SortDropdown";
 import GoalTrackingDetail from '../components/tracking/GoalTrackingDetail';
-import AiCrierCard from "../components/cards/AiCrierCard";
-
-// Dropdown Menu Component
-const GoalDropdownMenu = ({ goalId, isOpen, onClose, onMenuAction }) => {
-  const menuRef = React.useRef(null);
-
-  React.useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
-  const menuItems = [
-    { id: "view", label: "View Details", icon: <FiFileText className="text-lg" /> },
-    { id: "view_tracking", label: "View Tracking", icon: <FiBarChart2 className="text-lg" /> },
-    { id: "edit", label: "Edit Goal", icon: <FiEdit3 className="text-lg" /> },
-    { id: "complete", label: "Mark Complete", icon: <FiCheckSquare className="text-lg" /> },
-    { id: "progress", label: "Track Progress", icon: <FiTrendingUp className="text-lg" /> },
-    { id: "share", label: "Share", icon: <FiShare2 className="text-lg" /> },
-    { id: "milestone", label: "Add Milestone", icon: <FiFlag className="text-lg" /> },
-    { id: "notes", label: "Add Notes", icon: <FiEdit3 className="text-lg" /> },
-    { id: "reminder", label: "Set Reminder", icon: <FiCalendar className="text-lg" /> },
-    { id: "priority", label: "Change Priority", icon: <FiFlag className="text-lg" /> },
-    { id: "archive", label: "Archive", icon: <FiFileText className="text-lg" /> },
-    { id: "duplicate", label: "Duplicate", icon: <FiEdit3 className="text-lg" /> },
-    { id: "export", label: "Export", icon: <FiShare2 className="text-lg" /> },
-    { id: "delete", label: "Delete", icon: <FiTrash2 className="text-lg" />, danger: true },
-  ];
-
-  const handleItemClick = (itemId) => {
-    onMenuAction(goalId, itemId);
-    onClose();
-  };
-
-  return (
-    <div
-      ref={menuRef}
-      className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-2 max-h-64 overflow-y-auto"
-    >
-      {menuItems.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => handleItemClick(item.id)}
-          className={`w-full px-4 py-3 text-sm flex items-center gap-3 hover:bg-gray-50 transition-colors ${
-            item.danger ? "text-red-600 hover:bg-red-50" : "text-gray-700"
-          }`}
-        >
-          {item.icon}
-          <span>{item.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-};
+import GoalDropdownMenuPortal from '../components/GoalDropdownMenu';
 
 const GoalsPage = () => {
   const navigate = useNavigate();
@@ -200,9 +135,16 @@ const GoalsPage = () => {
   const [showTrackingDetail, setShowTrackingDetail] = useState(false);
   const [selectedGoalTracking, setSelectedGoalTracking] = useState(null);
   const [selectedGoal, setSelectedGoal] = useState(null);
+  const [menuTriggerRect, setMenuTriggerRect] = useState(null);
   
-  const { addTaskNotification } = useNotifications();
-  const { trackView, trackCompletion, trackProgressUpdate, getNotificationStats } = useNotificationTracking();
+  const { addNotification } = useNotifications();
+  const { 
+    trackView, 
+    trackCompletion, 
+    trackProgressUpdate, 
+    getNotificationStats,
+    trackNotification 
+  } = useNotificationTracking();
 
   // Handle goal creation/update from navigation state
   const pendingGoalUpdateRef = useRef(null);
@@ -232,12 +174,20 @@ const GoalsPage = () => {
         currentValue: 0,
         unit: '',
         description: newGoalData.description || '',
-        priority: 'medium',
+        priority: newGoalData.priority || 'medium',
         milestones: newGoalData.milestones || []
       };
       
       // Set pending update
       pendingGoalUpdateRef.current = { action: 'add', goal: newGoal };
+      
+      // Send notification for goal creation
+      addNotification('goal_created', newGoal, () => {
+        navigate(`/goals/${newGoal.id}`);
+      });
+      
+      // Track notification
+      trackNotification(newGoal.id, 'goal', 'sent', 'goal_created');
       
       // Clear the navigation state
       window.history.replaceState({}, document.title);
@@ -247,21 +197,25 @@ const GoalsPage = () => {
       
       pendingGoalUpdateRef.current = { action: 'update', goal: updatedGoalData };
       
+      // Send notification for goal update
+      addNotification('goal_updated', updatedGoalData, () => {
+        navigate(`/goals/${updatedGoalData.id}`);
+      });
+      
+      // Track notification
+      trackNotification(updatedGoalData.id, 'goal', 'sent', 'goal_updated');
+      
       // Clear the navigation state
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, goals]); // Added goals to dependencies
+  }, [location.state, goals, addNotification, trackNotification, navigate]);
 
   // Handle pending goal updates
   useEffect(() => {
     if (pendingGoalUpdateRef.current) {
-      // Store the pending update in a local variable
       const update = pendingGoalUpdateRef.current;
-      
-      // Clear pending update immediately to prevent re-running
       pendingGoalUpdateRef.current = null;
       
-      // Update goals using functional update
       setGoals((prevGoals) => {
         if (update.action === 'add') {
           return [update.goal, ...prevGoals];
@@ -274,7 +228,8 @@ const GoalsPage = () => {
                 category: update.goal.category,
                 targetDate: update.goal.targetDate,
                 description: update.goal.description,
-                milestones: update.goal.milestones
+                milestones: update.goal.milestones,
+                priority: update.goal.priority
               };
             }
             return goal;
@@ -283,7 +238,7 @@ const GoalsPage = () => {
         return prevGoals;
       });
     }
-  }, [goals]); // Only depend on goals
+  }, [goals]);
 
   const sortedActiveGoals = useMemo(() => {
     const activeGoals = goals.filter(goal => !goal.completed);
@@ -367,8 +322,16 @@ const GoalsPage = () => {
     }
   };
 
-  const handleMenuToggle = (goalId) => {
-    setOpenMenuId(openMenuId === goalId ? null : goalId);
+  // Update the menu toggle handler
+  const handleMenuToggle = (goalId, event) => {
+    if (openMenuId === goalId) {
+      setOpenMenuId(null);
+      setMenuTriggerRect(null);
+    } else {
+      const buttonRect = event.currentTarget.getBoundingClientRect();
+      setMenuTriggerRect(buttonRect);
+      setOpenMenuId(goalId);
+    }
   };
 
   const handleMenuAction = (goalId, action) => {
@@ -377,6 +340,8 @@ const GoalsPage = () => {
     switch (action) {
       case "view":
         navigate(`/goals/${goalId}`);
+        trackView(goalId, 'goal');
+        trackNotification(goalId, 'goal', 'viewed', 'goal_view');
         break;
         
       case "view_tracking":
@@ -390,30 +355,36 @@ const GoalsPage = () => {
         
       case "progress":
         navigate(`/goals/${goalId}/track`);
+        trackNotification(goalId, 'goal', 'viewed', 'progress_tracking');
         break;
         
       case "complete":
-        setGoals(prev => prev.map(goal => {
-          if (goal.id === goalId) {
-            const updated = { ...goal, completed: true, progress: 100 };
-            try {
-              addTaskNotification('task_completed', updated);
-            } catch (e) {
-              console.error('Failed to add task notification:', e);
-            }
+        setGoals(prev => prev.map(g => {
+          if (g.id === goalId) {
+            const updated = { ...g, completed: true, progress: 100 };
+            
+            // Send completion notification
+            addNotification('goal_completed', updated, () => {
+              navigate(`/goals/${goalId}`);
+            });
+            
+            // Track completion
             trackCompletion(goalId, 'goal');
+            trackNotification(goalId, 'goal', 'sent', 'goal_completed');
+            
             return updated;
           }
-          return goal;
+          return g;
         }));
         break;
         
       case "delete":
         if (window.confirm("Are you sure you want to delete this goal?")) {
           const toDelete = goals.find(g => g.id === goalId);
-          setGoals(prev => prev.filter(goal => goal.id !== goalId));
+          setGoals(prev => prev.filter(g => g.id !== goalId));
           if (toDelete) {
-            try { addTaskNotification('task_deleted', toDelete); } catch(e) { console.error('Error adding task notification for deletion:', e); }
+            addNotification('goal_deleted', toDelete);
+            trackNotification(goalId, 'goal', 'sent', 'goal_deleted');
           }
         }
         break;
@@ -429,6 +400,10 @@ const GoalsPage = () => {
       default:
         alert(`Action "${action}" will be implemented soon!`);
     }
+    
+    // Close menu after action
+    setOpenMenuId(null);
+    setMenuTriggerRect(null);
   };
 
   // Handle view goal tracking
@@ -437,8 +412,8 @@ const GoalsPage = () => {
     setSelectedGoal(goal);
     setSelectedGoalTracking(getNotificationStats(goal.id, 'goal'));
     setShowTrackingDetail(true);
-    // Track view
     trackView(goal.id, 'goal');
+    trackNotification(goal.id, 'goal', 'viewed', 'tracking_view');
   };
 
   // Handle update progress with tracking
@@ -456,17 +431,17 @@ const GoalsPage = () => {
         g.id === goalId ? { ...g, progress: progressNum } : g
       ));
       
-      try { 
-        addTaskNotification('task_updated', { 
-          ...goal, 
-          progress: progressNum 
-        }); 
-      } catch (error) {
-        console.error('Error adding task notification:', error);
-      }
+      // Send progress notification
+      addNotification('goal_progress', { 
+        ...goal, 
+        progress: progressNum 
+      }, () => {
+        navigate(`/goals/${goalId}`);
+      });
       
       // Track progress update
       trackProgressUpdate(goalId, oldProgress, progressNum);
+      trackNotification(goalId, 'goal', 'sent', 'progress_update');
     }
   };
 
@@ -474,25 +449,26 @@ const GoalsPage = () => {
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header with Back Button */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+        <div className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
             <button
               onClick={() => navigate(-1)}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <FiChevronLeft className="text-xl text-gray-600" />
             </button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">Goals</h1>
-              <p className="text-gray-600">Track and manage your objectives</p>
+            <div className="flex-1">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Goals</h1>
+              <p className="text-sm md:text-base text-gray-600">Track and manage your objectives</p>
             </div>
           </div>
           
-          <div>
+          {/* Create Goal Button - Now under header */}
+          <div className="mt-4">
             <Button
               variant="primary"
               size="md"
-              className="rounded-xl"
+              className="w-full sm:w-auto rounded-xl"
               onClick={() => navigate('/goals/new')}
             >
               + Create goal
@@ -501,11 +477,11 @@ const GoalsPage = () => {
         </div>
 
         {/* Goal filter buttons */}
-        <div className="flex mb-4 gap-2">
+        <div className="flex flex-wrap mb-4 gap-2">
           <Button 
             variant="primary"
             size="md"
-            className="rounded-full"
+            className="rounded-full flex-1 sm:flex-none"
           >
             Active
           </Button>
@@ -513,7 +489,7 @@ const GoalsPage = () => {
           <Button
             variant="soft"
             size="md"
-            className="rounded-full"
+            className="rounded-full flex-1 sm:flex-none"
           >
             Completed
           </Button>
@@ -521,17 +497,17 @@ const GoalsPage = () => {
           <Button
             variant="soft"
             size="md"
-            className="rounded-full"
+            className="rounded-full flex-1 sm:flex-none"
           >
             All
           </Button>
         </div>
 
         {/* Active goals header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Active Goals</h2>
-            <p className="text-gray-600">{getSortSubtitle()}</p>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800">Active Goals</h2>
+            <p className="text-sm md:text-base text-gray-600">{getSortSubtitle()}</p>
           </div>
           
           <SortDropdown
@@ -542,7 +518,7 @@ const GoalsPage = () => {
         </div>
 
         {/* Active Goals Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8">
           {sortedActiveGoals.length > 0 ? (
             sortedActiveGoals.map((goal) => {
               const goalTracking = getNotificationStats(goal.id, 'goal');
@@ -550,43 +526,34 @@ const GoalsPage = () => {
               return (
                 <div
                   key={goal.id}
-                  className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow duration-300"
+                  className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300"
                 >
                   <div className="p-4">
                     {/* Header with Icon and Status */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center">
-                        <div>
-                          <h3 className="text-xl font-semibold text-gray-800">
-                            {goal.title}
-                          </h3>
-                          <div className="flex items-center gap-2">
-                            {goal.completed && (
-                              <span className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-800 px-2 rounded-full">
-                                <FiCheckCircle className="text-sm" />
-                                Completed
-                              </span>
-                            )}
-                          </div>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg md:text-xl font-semibold text-gray-800 truncate">
+                          {goal.title}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          {goal.completed && (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              <FiCheckCircle className="text-sm" />
+                              Completed
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       {/* Three dots menu */}
                       {!goal.completed && (
-                        <div className="relative">
+                        <div className="relative ml-2 shrink-0">
                           <button 
-                            onClick={() => handleMenuToggle(goal.id)}
-                            className="text-gray-400 hover:text-gray-600"
+                            onClick={(e) => handleMenuToggle(goal.id, e)}
+                            className="text-gray-400 hover:text-gray-600 p-1 relative z-10"
                           >
                             <FiMoreHorizontal className="text-xl" />
                           </button>
-                          
-                          <GoalDropdownMenu
-                            goalId={goal.id}
-                            isOpen={openMenuId === goal.id}
-                            onClose={() => setOpenMenuId(null)}
-                            onMenuAction={handleMenuAction}
-                          />
                         </div>
                       )}
                     </div>
@@ -594,7 +561,7 @@ const GoalsPage = () => {
                     {/* Due Date */}
                     <div className="mb-4">
                       <div className="flex items-center gap-2 text-gray-600">
-                        <FiCalendar className="text-gray-400" />
+                        <FiCalendar className="text-gray-400 shrink-0" />
                         <span className="text-sm font-medium">
                           Due: {goal.targetDate}
                         </span>
@@ -624,18 +591,18 @@ const GoalsPage = () => {
                       </div>
 
                       {/* Category and Check-in */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <span className="block text-xs text-gray-500 mb-1 p-1 bg-[#d5f8f8] rounded-2xl w-24 text-center">
+                          <span className="inline-block text-xs text-gray-500 px-3 py-1 bg-[#d5f8f8] rounded-2xl text-center">
                             {goal.category}
                           </span>
                         </div>
                         {!goal.completed && goal.nextCheckin && (
                           <div className="flex items-center gap-1">
-                            <FiCalendar className="text-blue-500 text-sm" />
-                            <div>
+                            <FiCalendar className="text-blue-500 text-sm flex-shrink-0" />
+                            <div className="min-w-0">
                               <span className="block text-xs text-gray-500">Next check-in</span>
-                              <p className="text-sm font-medium text-blue-600">
+                              <p className="text-sm font-medium text-blue-600 truncate">
                                 {goal.nextCheckin}
                               </p>
                             </div>
@@ -645,8 +612,8 @@ const GoalsPage = () => {
 
                       {/* Tracking Stats */}
                       {goalTracking && goalTracking.totalNotifications > 0 && (
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <div className="flex items-center justify-between text-xs">
+                        <div className="pt-3 border-t border-gray-100">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                             <div className="flex items-center gap-1">
                               <FiBell className="text-blue-500" size={12} />
                               <span className="text-gray-600">
@@ -664,33 +631,33 @@ const GoalsPage = () => {
                       )}
 
                       {/* Buttons */}
-                      {!goal.completed && (
-                        <div className="flex gap-4">
-                          <Button 
-                            variant="primary"
-                            size="md"
-                            className="group flex items-center hover:text-white hover:bg-[#3D9B9B] gap-2 rounded-2xl"
-                            onClick={() => navigate(`/goals/${goal.id}`)}
-                          >
-                            <FiEye className="text-lg" />
-                            View Details
-                          </Button>
-                          <Button
-                            variant="soft"
-                            size="md"
-                            className="rounded-xl"
-                            onClick={(e) => handleUpdateProgress(goal.id, e)}
-                          >
-                            Update
-                          </Button>
-                        </div>
-                      )}
+{!goal.completed && (
+  <div className="flex flex-wrap sm:flex-nowrap gap-3">
+    <Button 
+      variant="primary"
+      size="md"
+      className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl flex-1 min-w-[140px] sm:min-w-0"
+      onClick={() => navigate(`/goals/${goal.id}`)}
+    >
+      <FiEye className="text-lg sm:text-base" />
+      <span className="whitespace-nowrap">View Details</span>
+    </Button>
+    <Button
+      variant="soft"
+      size="md"
+      className="flex items-center justify-center rounded-xl sm:rounded-2xl flex-1 min-w-[140px] sm:flex-shrink-0 sm:w-auto sm:px-6"
+      onClick={(e) => handleUpdateProgress(goal.id, e)}
+    >
+      <span className="whitespace-nowrap">Update</span>
+    </Button>
+  </div>
+)}
 
                       {/* Completed State */}
                       {goal.completed && (
                         <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-100">
-                          <FiCheckCircle className="text-green-500 text-xl" />
-                          <span className="text-lg font-medium text-green-600">
+                          <FiCheckCircle className="text-green-500 text-xl flex-shrink-0" />
+                          <span className="text-base md:text-lg font-medium text-green-600">
                             Completed on {goal.targetDate}
                           </span>
                         </div>
@@ -701,7 +668,7 @@ const GoalsPage = () => {
               );
             })
           ) : (
-            <div className="col-span-2 text-center py-12">
+            <div className="col-span-full text-center py-12">
               <p className="text-gray-500 text-lg">No active goals found</p>
               <p className="text-gray-400 mt-2">Add a new goal to get started</p>
             </div>
@@ -711,53 +678,47 @@ const GoalsPage = () => {
         {/* Completed Goals Section */}
         {completedGoals.length > 0 && (
           <>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-gray-800">Completed Goals</h2>
-                <p className="text-gray-600">Recently completed</p>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-800">Completed Goals</h2>
+                <p className="text-sm md:text-base text-gray-600">Recently completed</p>
               </div>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8">
               {completedGoals.map((goal) => {
                 const goalTracking = getNotificationStats(goal.id, 'goal');
                 
                 return (
                   <div
                     key={goal.id}
-                    className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow duration-300"
+                    className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300"
                   >
                     <div className="p-4">
-                      {/* Header with Icon and Status */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center">
-                          <div>
-                            <h3 className="text-xl font-semibold text-gray-800">
-                              {goal.title}
-                            </h3>
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-800 px-2 rounded-full">
-                                <FiCheckCircle className="text-sm" />
-                                Completed
-                              </span>
-                            </div>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg md:text-xl font-semibold text-gray-800 truncate">
+                            {goal.title}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              <FiCheckCircle className="text-sm" />
+                              Completed
+                            </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Due Date */}
                       <div className="mb-4">
                         <div className="flex items-center gap-2 text-gray-600">
-                          <FiCalendar className="text-gray-400" />
+                          <FiCalendar className="text-gray-400 flex-shrink-0" />
                           <span className="text-sm font-medium">
                             Due: {goal.targetDate}
                           </span>
                         </div>
                       </div>
 
-                      {/* Progress Section */}
                       <div className="space-y-4">
-                        {/* Progress Bar */}
                         <div>
                           <div className="flex justify-between items-center mb-3">
                             <span className="text-sm font-medium text-gray-600">
@@ -777,17 +738,15 @@ const GoalsPage = () => {
                           </div>
                         </div>
 
-                        {/* Category */}
                         <div>
-                          <span className="block text-xs text-gray-500 mb-1 p-1 bg-[#d5f8f8] rounded-2xl w-24 text-center">
+                          <span className="inline-block text-xs text-gray-500 px-3 py-1 bg-[#d5f8f8] rounded-2xl text-center">
                             {goal.category}
                           </span>
                         </div>
 
-                        {/* Tracking Stats */}
                         {goalTracking && goalTracking.totalNotifications > 0 && (
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <div className="flex items-center justify-between text-xs">
+                          <div className="pt-3 border-t border-gray-100">
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                               <div className="flex items-center gap-1">
                                 <FiBell className="text-blue-500" size={12} />
                                 <span className="text-gray-600">
@@ -804,10 +763,9 @@ const GoalsPage = () => {
                           </div>
                         )}
 
-                        {/* Completed State */}
                         <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-100">
-                          <FiCheckCircle className="text-green-500 text-xl" />
-                          <span className="text-lg font-medium text-green-600">
+                          <FiCheckCircle className="text-green-500 text-xl flex-shrink-0" />
+                          <span className="text-base md:text-lg font-medium text-green-600">
                             Completed on {goal.targetDate}
                           </span>
                         </div>
@@ -821,19 +779,19 @@ const GoalsPage = () => {
         )}
 
         {/* Category Distribution */}
-        <div className="mt-8 bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-          <h3 className="text-xl font-bold text-gray-800 mb-6">
+        <div className="mt-8 bg-white rounded-2xl shadow-lg p-4 md:p-6 border border-gray-200">
+          <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-6">
             Goal Categories Distribution
           </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {categoryDistribution.map((category) => (
               <div key={category.name} className="text-center">
                 <div
-                  className={`h-16 w-16 rounded-full ${category.color} mx-auto mb-3 flex items-center justify-center text-white font-bold text-xl shadow-md`}
+                  className={`h-12 w-12 sm:h-16 sm:w-16 rounded-full ${category.color} mx-auto mb-3 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-md`}
                 >
                   {category.count}
                 </div>
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-xs sm:text-sm font-medium text-gray-700">
                   {category.name}
                 </p>
               </div>
@@ -841,6 +799,20 @@ const GoalsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Portal-based Dropdown Menu */}
+      {openMenuId && (
+        <GoalDropdownMenuPortal
+          goalId={openMenuId}
+          isOpen={true}
+          onClose={() => {
+            setOpenMenuId(null);
+            setMenuTriggerRect(null);
+          }}
+          onMenuAction={handleMenuAction}
+          triggerRect={menuTriggerRect}
+        />
+      )}
 
       {/* Tracking Detail Modal */}
       {showTrackingDetail && selectedGoal && (

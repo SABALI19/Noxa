@@ -24,12 +24,15 @@ import {
 } from "react-icons/fi";
 import Button from '../components/Button';
 import { useNotifications } from '../hooks/useNotifications';
+import { useNotificationTracking } from '../hooks/useNotificationTracking';
 
 const GoalDetailsPage = () => {
   const { goalId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { addTaskNotification } = useNotifications();
+  const { addNotification } = useNotifications();
+  const { trackView, trackCompletion, trackProgressUpdate, trackNotification } = useNotificationTracking();
+  
   const [goal, setGoal] = useState(null);
   const [newMilestone, setNewMilestone] = useState('');
   const [progressUpdate, setProgressUpdate] = useState('');
@@ -57,6 +60,7 @@ const GoalDetailsPage = () => {
       completed: false,
       icon: <FiBook className="text-blue-500" />,
       description: "Reading 2 books per month to improve knowledge and relax",
+      priority: "medium",
       milestones: [
         { id: 1, title: "Read 6 books", completed: true, date: "Mar 31, 2024" },
         { id: 2, title: "Read 12 books", completed: true, date: "Jun 30, 2024" },
@@ -90,6 +94,7 @@ const GoalDetailsPage = () => {
       completed: false,
       icon: <FiActivity className="text-green-500" />,
       description: "Maintain consistent exercise routine for better health",
+      priority: "high",
       milestones: [
         { id: 1, title: "First month complete", completed: true, date: "Feb 1, 2024" },
         { id: 2, title: "100 days streak", completed: true, date: "Apr 10, 2024" },
@@ -113,6 +118,7 @@ const GoalDetailsPage = () => {
       currentValue: 75,
       targetValue: 100,
       unit: "proficiency",
+      priority: "medium",
       milestones: [],
       notes: [],
       trackingHistory: [],
@@ -130,6 +136,7 @@ const GoalDetailsPage = () => {
       currentValue: 100,
       targetValue: 100,
       unit: "pages",
+      priority: "low",
       milestones: [],
       notes: [],
       trackingHistory: [],
@@ -149,6 +156,7 @@ const GoalDetailsPage = () => {
       currentValue: 1500,
       targetValue: 5000,
       unit: "dollars",
+      priority: "high",
       milestones: [],
       notes: [],
       trackingHistory: [],
@@ -168,6 +176,7 @@ const GoalDetailsPage = () => {
       currentValue: 46,
       targetValue: 100,
       unit: "chapters",
+      priority: "medium",
       milestones: [],
       notes: [],
       trackingHistory: [],
@@ -181,6 +190,10 @@ const GoalDetailsPage = () => {
       setGoal(foundGoal);
       setEditedGoal({ ...foundGoal });
       
+      // Track view when goal is loaded
+      trackView(parseInt(goalId), 'goal');
+      trackNotification(parseInt(goalId), 'goal', 'viewed', 'goal_view');
+      
       const editMode = searchParams.get('edit') === 'true';
       const tabParam = searchParams.get('tab');
       
@@ -191,16 +204,19 @@ const GoalDetailsPage = () => {
     } else {
       navigate('/goals');
     }
-  }, [goalId, navigate, searchParams]);
+  }, [goalId, navigate, searchParams, trackView, trackNotification]);
 
   const handleSaveGoal = () => {
     setGoal(editedGoal);
     setIsEditing(false);
-    try {
-      addTaskNotification('task_updated', editedGoal);
-    } catch(e) {
-      console.error('Notification error:', e);
-    }
+    
+    // Send update notification
+    addNotification('goal_updated', editedGoal, () => {
+      navigate(`/goals/${goalId}`);
+    });
+    
+    // Track notification
+    trackNotification(parseInt(goalId), 'goal', 'sent', 'goal_updated');
   };
 
   const handleMarkComplete = () => {
@@ -211,20 +227,25 @@ const GoalDetailsPage = () => {
       completedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
     setGoal(updatedGoal);
-    try {
-      addTaskNotification('task_completed', updatedGoal);
-    } catch(e) {
-      console.error('Notification error:', e);
-    }
+    
+    // Send completion notification
+    addNotification('goal_completed', updatedGoal, () => {
+      navigate('/goals');
+    });
+    
+    // Track completion
+    trackCompletion(parseInt(goalId), 'goal');
+    trackNotification(parseInt(goalId), 'goal', 'sent', 'goal_completed');
   };
 
   const handleDeleteGoal = () => {
     if (window.confirm("Are you sure you want to delete this goal?")) {
-      try {
-        addTaskNotification('task_deleted', goal);
-      } catch(e) {
-        console.error('Notification error:', e);
-      }
+      // Send deletion notification
+      addNotification('goal_deleted', goal);
+      
+      // Track notification
+      trackNotification(parseInt(goalId), 'goal', 'sent', 'goal_deleted');
+      
       navigate('/goals');
     }
   };
@@ -247,6 +268,14 @@ const GoalDetailsPage = () => {
     setGoal(updatedGoal);
     setNewMilestone('');
     setShowAddMilestone(false);
+    
+    // Send milestone notification
+    addNotification('goal_milestone', {
+      ...updatedGoal,
+      title: `Added milestone: ${newMilestone}`
+    });
+    
+    trackNotification(parseInt(goalId), 'goal', 'sent', 'milestone_added');
   };
 
   const handleAddNote = () => {
@@ -272,7 +301,8 @@ const GoalDetailsPage = () => {
     if (!progressUpdate.trim()) return;
     
     const newValue = parseInt(progressUpdate) || 0;
-    const newProgress = Math.min(goal.progress + 5, 100);
+    const oldProgress = goal.progress;
+    const newProgress = Math.min(Math.round((goal.currentValue + newValue) / goal.targetValue * 100), 100);
     
     const newProgressEntry = {
       id: goal.trackingHistory.length + 1,
@@ -293,6 +323,18 @@ const GoalDetailsPage = () => {
     setProgressUpdate('');
     setProgressNotes('');
     setShowProgressForm(false);
+    
+    // Send progress notification
+    addNotification('goal_progress', {
+      ...updatedGoal,
+      progress: newProgress
+    }, () => {
+      navigate(`/goals/${goalId}`);
+    });
+    
+    // Track progress update
+    trackProgressUpdate(parseInt(goalId), oldProgress, newProgress, 'goal');
+    trackNotification(parseInt(goalId), 'goal', 'sent', 'progress_update');
   };
 
   const toggleMilestone = (milestoneId) => {
@@ -302,8 +344,19 @@ const GoalDetailsPage = () => {
         : milestone
     );
     
+    const milestone = goal.milestones.find(m => m.id === milestoneId);
     const updatedGoal = { ...goal, milestones: updatedMilestones };
     setGoal(updatedGoal);
+    
+    // Send milestone completion notification
+    if (milestone && !milestone.completed) {
+      addNotification('goal_milestone', {
+        ...updatedGoal,
+        title: `Completed milestone: ${milestone.title}`
+      });
+      
+      trackNotification(parseInt(goalId), 'goal', 'sent', 'milestone_completed');
+    }
   };
 
   const getProgressColor = (progress) => {
@@ -339,7 +392,7 @@ const GoalDetailsPage = () => {
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header - FIXED BACK BUTTON */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate('/goals')}
@@ -348,35 +401,35 @@ const GoalDetailsPage = () => {
               <FiChevronLeft className="text-xl text-gray-600" />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-800">Goal Details</h1>
-              <p className="text-gray-600">Track and manage your goal</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Goal Details</h1>
+              <p className="text-sm md:text-base text-gray-600">Track and manage your goal</p>
             </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Button
               variant="soft"
               size="md"
-              className="rounded-xl"
+              className="rounded-xl flex-1 sm:flex-none"
               onClick={() => setIsEditing(!isEditing)}
             >
               <FiEdit className="mr-2" />
-              {isEditing ? 'Cancel Edit' : 'Edit Goal'}
+              {isEditing ? 'Cancel' : 'Edit'}
             </Button>
             <Button
               variant="primary"
               size="md"
-              className="rounded-xl"
+              className="rounded-xl flex-1 sm:flex-none"
               onClick={() => navigate(`/goals/${goalId}/track`)}
             >
               <FiTrendingUp className="mr-2" />
-              Track Progress
+              Track
             </Button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex mb-6 border-b border-gray-200">
+        <div className="flex overflow-x-auto mb-6 border-b border-gray-200">
           <button
             onClick={() => setActiveTab('overview')}
             className={`px-4 py-3 font-medium whitespace-nowrap border-b-2 ${
@@ -415,7 +468,7 @@ const GoalDetailsPage = () => {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            Progress History
+            Progress
           </button>
         </div>
 
@@ -424,14 +477,14 @@ const GoalDetailsPage = () => {
           {/* Left Column - Goal Info */}
           <div className="lg:col-span-2 space-y-6">
             {/* Goal Card */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 md:p-6">
               {isEditing ? (
                 <div className="space-y-4">
                   <input
                     type="text"
                     value={editedGoal.title}
                     onChange={(e) => setEditedGoal({...editedGoal, title: e.target.value})}
-                    className="w-full text-2xl font-bold p-3 border rounded-lg bg-gray-50"
+                    className="w-full text-xl md:text-2xl font-bold p-3 border rounded-lg bg-gray-50"
                   />
                   <textarea
                     value={editedGoal.description}
@@ -439,7 +492,7 @@ const GoalDetailsPage = () => {
                     className="w-full p-3 border rounded-lg bg-gray-50"
                     rows="3"
                   />
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Target Date</label>
                       <input
@@ -482,9 +535,9 @@ const GoalDetailsPage = () => {
               ) : (
                 <>
                   <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-800 mb-2">{goal.title}</h2>
-                      <div className="flex items-center gap-2 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2 break-words">{goal.title}</h2>
+                      <div className="flex flex-wrap items-center gap-2 mb-4">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryBgColor(goal.category)}`}>
                           {goal.category}
                         </span>
@@ -496,7 +549,7 @@ const GoalDetailsPage = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 ml-2 flex-shrink-0">
                       <button className="p-2 hover:bg-gray-100 rounded-lg">
                         <FiShare2 className="text-gray-600" />
                       </button>
@@ -511,20 +564,20 @@ const GoalDetailsPage = () => {
 
                   <p className="text-gray-600 mb-6">{goal.description}</p>
 
-                  <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                     <div className="bg-gray-50 p-4 rounded-xl">
                       <div className="flex items-center gap-2 text-gray-600 mb-1">
-                        <FiCalendar className="text-gray-400" />
+                        <FiCalendar className="text-gray-400 flex-shrink-0" />
                         <span className="text-sm font-medium">Target Date</span>
                       </div>
-                      <p className="text-lg font-semibold">{goal.targetDate}</p>
+                      <p className="text-base md:text-lg font-semibold">{goal.targetDate}</p>
                     </div>
                     <div className="bg-gray-50 p-4 rounded-xl">
                       <div className="flex items-center gap-2 text-gray-600 mb-1">
-                        <FiCalendar className="text-gray-400" />
+                        <FiCalendar className="text-gray-400 flex-shrink-0" />
                         <span className="text-sm font-medium">Created</span>
                       </div>
-                      <p className="text-lg font-semibold">{goal.createdAt}</p>
+                      <p className="text-base md:text-lg font-semibold">{goal.createdAt}</p>
                     </div>
                   </div>
 
@@ -547,7 +600,7 @@ const GoalDetailsPage = () => {
                   </div>
 
                   {!goal.completed && (
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <Button
                         variant="primary"
                         className="flex-1"
@@ -558,10 +611,11 @@ const GoalDetailsPage = () => {
                       </Button>
                       <Button
                         variant="soft"
+                        className="flex-1 sm:flex-none"
                         onClick={handleMarkComplete}
                       >
                         <FiCheckSquare className="mr-2" />
-                        Mark Complete
+                        Complete
                       </Button>
                     </div>
                   )}
@@ -571,16 +625,16 @@ const GoalDetailsPage = () => {
 
             {/* Tab Content */}
             {activeTab === 'milestones' && (
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 md:p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-gray-800">Milestones</h3>
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800">Milestones</h3>
                   <Button
                     variant="soft"
                     size="sm"
                     onClick={() => setShowAddMilestone(true)}
                   >
                     <FiPlus className="mr-2" />
-                    Add Milestone
+                    Add
                   </Button>
                 </div>
 
@@ -596,7 +650,7 @@ const GoalDetailsPage = () => {
                       />
                       <button
                         onClick={() => setShowAddMilestone(false)}
-                        className="p-3 hover:bg-gray-200 rounded-lg"
+                        className="p-3 hover:bg-gray-200 rounded-lg flex-shrink-0"
                       >
                         <FiX />
                       </button>
@@ -619,10 +673,10 @@ const GoalDetailsPage = () => {
                         milestone.completed ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
                         <button
                           onClick={() => toggleMilestone(milestone.id)}
-                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                          className={`w-6 h-6 flex-shrink-0 rounded-full border-2 flex items-center justify-center ${
                             milestone.completed 
                               ? 'bg-green-500 border-green-500 text-white' 
                               : 'border-gray-300'
@@ -630,8 +684,8 @@ const GoalDetailsPage = () => {
                         >
                           {milestone.completed && <FiCheckSquare className="text-sm" />}
                         </button>
-                        <div>
-                          <h4 className={`font-medium ${
+                        <div className="min-w-0 flex-1">
+                          <h4 className={`font-medium break-words ${
                             milestone.completed ? 'text-green-800 line-through' : 'text-gray-800'
                           }`}>
                             {milestone.title}
@@ -640,7 +694,7 @@ const GoalDetailsPage = () => {
                         </div>
                       </div>
                       {milestone.completed && (
-                        <FiCheckCircle className="text-green-500 text-xl" />
+                        <FiCheckCircle className="text-green-500 text-xl flex-shrink-0 ml-2" />
                       )}
                     </div>
                   ))}
@@ -652,16 +706,16 @@ const GoalDetailsPage = () => {
             )}
 
             {activeTab === 'notes' && (
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 md:p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-gray-800">Notes</h3>
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800">Notes</h3>
                   <Button
                     variant="soft"
                     size="sm"
                     onClick={() => setShowNoteForm(true)}
                   >
                     <FiPlus className="mr-2" />
-                    Add Note
+                    Add
                   </Button>
                 </div>
 
@@ -701,7 +755,7 @@ const GoalDetailsPage = () => {
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-medium text-gray-800">{note.date}</span>
                       </div>
-                      <p className="text-gray-600">{note.content}</p>
+                      <p className="text-gray-600 break-words">{note.content}</p>
                     </div>
                   ))}
                   {goal.notes.length === 0 && (
@@ -712,16 +766,16 @@ const GoalDetailsPage = () => {
             )}
 
             {activeTab === 'progress' && (
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-6">Progress History</h3>
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 md:p-6">
+                <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-6">Progress History</h3>
                 <div className="space-y-4">
                   {goal.trackingHistory.map((entry) => (
                     <div key={entry.id} className="border-l-4 border-blue-500 pl-4 py-3">
-                      <div className="flex justify-between">
+                      <div className="flex justify-between flex-wrap gap-2">
                         <span className="font-medium text-gray-800">{entry.date}</span>
                         <span className="text-green-600 font-semibold">+{entry.value}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">{entry.notes}</p>
+                      <p className="text-sm text-gray-600 mt-1 break-words">{entry.notes}</p>
                       <div className="flex items-center gap-2 mt-2">
                         <div className="w-full bg-gray-200 rounded-full h-1.5">
                           <div 
@@ -729,7 +783,7 @@ const GoalDetailsPage = () => {
                             style={{ width: `${entry.progress}%` }}
                           ></div>
                         </div>
-                        <span className="text-xs font-medium">{entry.progress}%</span>
+                        <span className="text-xs font-medium flex-shrink-0">{entry.progress}%</span>
                       </div>
                     </div>
                   ))}
@@ -744,8 +798,8 @@ const GoalDetailsPage = () => {
           {/* Right Column - Quick Actions & Stats */}
           <div className="space-y-6">
             {/* Quick Actions */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h3>
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 md:p-6">
+              <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <Button
                   variant="soft"
@@ -774,7 +828,7 @@ const GoalDetailsPage = () => {
                 <Button
                   variant="soft"
                   className="w-full justify-start"
-                  onClick={() => alert('Reminder feature coming soon!')}
+                  onClick={() => navigate('/reminders')}
                 >
                   <FiCalendar className="mr-3" />
                   Set Reminder
@@ -783,41 +837,41 @@ const GoalDetailsPage = () => {
             </div>
 
             {/* Stats Overview */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Stats</h3>
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 md:p-6">
+              <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-4">Quick Stats</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
+                    <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
                       <FiTrendingUp className="text-blue-500" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm text-gray-500">Current Progress</p>
-                      <p className="text-lg font-bold">{goal.progress}%</p>
+                      <p className="text-base md:text-lg font-bold">{goal.progress}%</p>
                     </div>
                   </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
+                    <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
                       <FiTarget className="text-green-500" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm text-gray-500">Milestones</p>
-                      <p className="text-lg font-bold">{goal.milestones.filter(m => m.completed).length}/{goal.milestones.length}</p>
+                      <p className="text-base md:text-lg font-bold">{goal.milestones.filter(m => m.completed).length}/{goal.milestones.length}</p>
                     </div>
                   </div>
                 </div>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-yellow-100 rounded-lg">
+                    <div className="p-2 bg-yellow-100 rounded-lg flex-shrink-0">
                       <FiClock className="text-yellow-500" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm text-gray-500">Next Check-in</p>
-                      <p className="text-lg font-bold">{goal.nextCheckin || 'Not set'}</p>
+                      <p className="text-base md:text-lg font-bold truncate">{goal.nextCheckin || 'Not set'}</p>
                     </div>
                   </div>
                 </div>

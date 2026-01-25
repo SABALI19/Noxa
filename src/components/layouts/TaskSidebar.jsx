@@ -1,5 +1,5 @@
 // src/components/TaskSidebar.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { 
   FiCheckSquare as FiClipboard, 
   FiCalendar, 
@@ -57,6 +57,11 @@ const TaskSidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [fabPosition, setFabPosition] = useState({ x: 16, y: 16 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
+  const fabRef = useRef(null);
   
   // Get tasks and filter functions from context
   const { 
@@ -92,6 +97,102 @@ const TaskSidebar = () => {
     
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // FAB drag handlers
+  const handleTouchStart = (e) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    setIsDragging(true);
+    setHasMoved(false);
+    setDragStart({
+      x: touch.clientX - fabPosition.x,
+      y: touch.clientY - fabPosition.y
+    });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || !isMobile) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    
+    const newX = touch.clientX - dragStart.x;
+    const newY = touch.clientY - dragStart.y;
+    
+    // Check if moved more than 5px to distinguish from tap
+    if (Math.abs(newX - fabPosition.x) > 5 || Math.abs(newY - fabPosition.y) > 5) {
+      setHasMoved(true);
+    }
+    
+    // Get viewport dimensions
+    const maxX = window.innerWidth - 56; // 56px is the FAB width
+    const maxY = window.innerHeight - 56;
+    
+    // Constrain to viewport
+    const constrainedX = Math.max(0, Math.min(newX, maxX));
+    const constrainedY = Math.max(0, Math.min(newY, maxY));
+    
+    setFabPosition({ x: constrainedX, y: constrainedY });
+  };
+
+  const handleTouchEnd = () => {
+    if (!isMobile) return;
+    setIsDragging(false);
+  };
+
+  const handleMouseDown = (e) => {
+    if (!isMobile) return;
+    setIsDragging(true);
+    setHasMoved(false);
+    setDragStart({
+      x: e.clientX - fabPosition.x,
+      y: e.clientY - fabPosition.y
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !isMobile) return;
+    
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    
+    // Check if moved more than 5px to distinguish from click
+    if (Math.abs(newX - fabPosition.x) > 5 || Math.abs(newY - fabPosition.y) > 5) {
+      setHasMoved(true);
+    }
+    
+    // Get viewport dimensions
+    const maxX = window.innerWidth - 56;
+    const maxY = window.innerHeight - 56;
+    
+    // Constrain to viewport
+    const constrainedX = Math.max(0, Math.min(newX, maxX));
+    const constrainedY = Math.max(0, Math.min(newY, maxY));
+    
+    setFabPosition({ x: constrainedX, y: constrainedY });
+  };
+
+  const handleMouseUp = () => {
+    if (!isMobile) return;
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isMobile) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, isMobile, dragStart]);
+
+  const handleFabClick = () => {
+    if (!hasMoved) {
+      toggleSidebar();
+    }
+  };
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -203,19 +304,29 @@ const TaskSidebar = () => {
     );
   }
 
-  // Mobile Menu Button
+  // Mobile Menu Button (Draggable FAB)
   if (isMobile && !isMobileMenuOpen) {
     return (
       <>
-        <div className="fixed top-4 left-4 z-30 md:hidden">
-          <Button
-            variant="primary"
-            size="sm"
-            className="rounded-full p-3 shadow-lg"
-            onClick={toggleSidebar}
+        <div 
+          ref={fabRef}
+          className="fixed z-50 md:hidden cursor-move touch-none"
+          style={{
+            left: `${fabPosition.x}px`,
+            top: `${fabPosition.y}px`,
+            transition: isDragging ? 'none' : 'all 0.3s ease'
+          }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleMouseDown}
+        >
+          <button
+            className="bg-[#3D9B9B] hover:bg-[#2d7b7b] text-white rounded-full p-4 shadow-lg active:shadow-xl transition-all duration-200"
+            onClick={handleFabClick}
           >
-            <Menu size={20} />
-          </Button>
+            <Menu size={24} />
+          </button>
         </div>
       </>
     );
@@ -468,17 +579,6 @@ const TaskSidebar = () => {
   // Desktop Full Sidebar
   return (
     <>
-      <div className="fixed top-4 left-4 z-30 md:hidden">
-        <Button
-          variant="primary"
-          size="sm"
-          className="rounded-full p-3 shadow-lg"
-          onClick={toggleSidebar}
-        >
-          <Menu size={20} />
-        </Button>
-      </div>
-
       <div className="hidden md:block w-[280px] h-full bg-[#f2f5f7] shadow-md shadow-black overflow-y-auto transition-all duration-300">
         <div className="p-4">
           {/* Collapse Button */}

@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { GiRobotGolem } from 'react-icons/gi';
 import { FiMessageSquare, FiZap } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 
 const AiCrierCard = ({ 
   title = "AI Crier", 
   status = "active",
   recentActivities = 12,
   color = "#10B981",
-  onActivate,
-  onChat
+  onActivate
 }) => {
+  const navigate = useNavigate();
   const [isActive, setIsActive] = useState(status === "active");
   
   const handleToggle = () => {
@@ -25,8 +26,12 @@ const AiCrierCard = ({
     return isActive ? "Active & Monitoring" : "Sleep Mode";
   };
   
+  const handleChatClick = () => {
+    navigate('/ai');
+  };
+  
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm   hover:shadow-md transition-shadow cursor-pointer  h-55">
+    <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer h-55">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div 
@@ -75,8 +80,8 @@ const AiCrierCard = ({
       
       <div className="flex gap-3">
         <button
-          onClick={onChat}
-          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium text-sm"
+          onClick={handleChatClick}
+          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity"
           style={{ 
             backgroundColor: `${color}15`,
             color
@@ -88,7 +93,7 @@ const AiCrierCard = ({
         
         <button
           onClick={handleToggle}
-          className="flex-1 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200"
+          className="flex-1 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
         >
           {isActive ? 'Deactivate' : 'Activate'}
         </button>

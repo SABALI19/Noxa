@@ -39,6 +39,7 @@ const Layout = () => {
   useEffect(() => {
     if (isMobile) {
       // Close sidebar on mobile when navigating
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsSidebarOpen(false);
     } else {
       // On desktop, sidebar is open for non-task pages, closed for task pages

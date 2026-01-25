@@ -12,6 +12,7 @@ import Button from '../components/Button';
 import { useNotificationTracking } from '../hooks/useNotificationTracking';
 import TaskTrackingDetail from '../components/tracking/TaskTrackingDetail';
 import { useTasks } from '../context/TaskContext';
+import SetReminderModal from '../components/reminders/SetReminderModal'; // Import the modal
 
 const ReminderPage = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const ReminderPage = () => {
     reminders, 
     updateReminder, 
     deleteReminder,
+    addReminder, // Make sure this function exists in your context
     updateTask,
     getReminderStats,
     getTaskById,
@@ -37,6 +39,9 @@ const ReminderPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingReminder, setEditingReminder] = useState(null);
   const [editForm, setEditForm] = useState({});
+  
+  // State for the Set Reminder Modal
+  const [showSetReminderModal, setShowSetReminderModal] = useState(false);
   
   // Calculate stats from shared context
   const stats = getReminderStats();
@@ -156,6 +161,42 @@ const ReminderPage = () => {
     }
   };
 
+  // Handle set reminder button click
+  const handleSetReminder = () => {
+    setShowSetReminderModal(true);
+  };
+
+  // Handle creating a new reminder from the modal
+  const handleCreateReminder = async (reminderData) => {
+    try {
+      // Generate a unique ID for the reminder
+      const newReminder = {
+        id: `reminder_${Date.now()}`,
+        ...reminderData,
+        taskId: `task_${Date.now()}`, // Create a dummy task ID
+        note: reminderData.description,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Add the reminder using your context function
+      if (addReminder) {
+        addReminder(newReminder);
+      } else {
+        console.warn('addReminder function not found in context. Using fallback.');
+        // Fallback: You might need to handle this differently based on your context
+      }
+      
+      // Track the creation
+      trackView(newReminder.taskId, 'task');
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error creating reminder:', error);
+      throw error;
+    }
+  };
+
   // Handle reminder click with tracking
   const handleReminderClick = (reminder) => {
     setActiveReminder(reminder);
@@ -270,11 +311,6 @@ const ReminderPage = () => {
     }
   };
 
-  // Handle create task with reminders
-  const handleCreateTaskWithReminders = () => {
-    navigate('/tasks');
-  };
-
   // Toggle reminder status
   const handleToggleReminder = (reminderId, e) => {
     e?.stopPropagation();
@@ -372,7 +408,7 @@ const ReminderPage = () => {
               </div>
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                  Task Reminders
+                   Reminders
                 </h1>
                 <p className="text-gray-600 text-sm mt-1">
                   Automated reminders with tracking analytics
@@ -380,14 +416,15 @@ const ReminderPage = () => {
               </div>
             </div>
             
+            {/* Set a Reminder Button */}
             <Button
               variant="primary"
               size="md"
-              onClick={handleCreateTaskWithReminders}
-              className="flex items-center gap-2 px-4 py-3 mt-4 sm:mt-0 w-full sm:w-auto"
+              onClick={handleSetReminder}
+              className="flex items-center justify-center rounded-xl gap-2 px-4 py-3 mt-4 sm:mt-0 w-full sm:w-auto"
             >
               <FiPlus className="text-lg" />
-              <span>Create Task with Reminders</span>
+              <span>Set a Reminder</span>
             </Button>
           </div>
         </div>
@@ -714,16 +751,16 @@ const ReminderPage = () => {
                     {searchQuery 
                       ? `No reminders match "${searchQuery}"`
                       : filter === 'all' 
-                        ? "You don't have any reminders set up yet. Create tasks with automated reminders to get started." 
+                        ? "You don't have any reminders set up yet. Set reminders for your tasks to get started." 
                         : `No ${filter} reminders found.`}
                   </p>
                   <Button
                     variant="primary"
-                    onClick={handleCreateTaskWithReminders}
-                    className="flex items-center gap-2 mx-auto"
+                    onClick={handleSetReminder}
+                    className="flex items-center gap-2 mx-auto rounded-xl"
                   >
                     <FiPlus className="text-lg" />
-                    Create Task with Reminders
+                    Set a Reminder
                   </Button>
                 </div>
               )}
@@ -912,7 +949,7 @@ const ReminderPage = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <button
-                  onClick={() => navigate('/tasks')}
+                  onClick={handleSetReminder}
                   className="w-full flex items-center justify-between p-3 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors group"
                 >
                   <div className="flex items-center gap-3">
@@ -920,8 +957,8 @@ const ReminderPage = () => {
                       <FiPlus className="text-teal-600" />
                     </div>
                     <div className="text-left">
-                      <p className="font-medium text-gray-900">Create New Task</p>
-                      <p className="text-sm text-gray-600">Add a new task with reminders</p>
+                      <p className="font-medium text-gray-900">Set a Reminder</p>
+                      <p className="text-sm text-gray-600">Create a new reminder for your tasks</p>
                     </div>
                   </div>
                   <FiChevronRight className="text-gray-400" />
@@ -1077,6 +1114,15 @@ const ReminderPage = () => {
             />
           </div>
         </div>
+      )}
+
+      {/* Set Reminder Modal */}
+      {showSetReminderModal && (
+        <SetReminderModal
+          isOpen={showSetReminderModal}
+          onClose={() => setShowSetReminderModal(false)}
+          onSubmit={handleCreateReminder}
+        />
       )}
     </div>
   );

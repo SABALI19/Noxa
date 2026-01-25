@@ -1,93 +1,37 @@
 // src/components/NotificationBell.jsx
 import React, { useState, useRef, useEffect } from "react";
-import { FiBell, FiCheck, FiX, FiCheckCircle, FiInfo, FiAlertCircle } from "react-icons/fi";
-import { useTasks } from "../../context/TaskContext";
+import { FiBell, FiCheck, FiX, FiCheckCircle, FiInfo, FiAlertCircle, FiTarget, FiCalendar } from "react-icons/fi";
+import { useNotifications } from "../../hooks/useNotifications";
 
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
   const dropdownRef = useRef(null);
   
   const { 
-    getTodayReminders,
-    getOverdueTasks,
-    getTaskStats
-  } = useTasks();
+    notifications, 
+    markAsRead, 
+    markAllAsRead, 
+    clearAll, 
+    clearNotification,
+    getUnreadCount 
+  } = useNotifications();
   
-  // Initialize notifications when component mounts
-  useEffect(() => {
-    updateNotifications();
-  }, []);
-
-  // Update notifications when task data changes
-  const updateNotifications = () => {
-    const todayReminders = getTodayReminders();
-    const overdueTasks = getOverdueTasks();
-    const stats = getTaskStats();
-    
-    // Create notifications based on task context data
-    const newNotifications = [
-      // Overdue tasks notifications
-      ...overdueTasks.map(task => ({
-        id: `overdue-${task.id}`,
-        title: 'Task Overdue',
-        message: `"${task.title}" is overdue`,
-        time: 'Now',
-        type: 'warning',
-        read: false,
-        onClick: () => {
-          // Navigate to tasks page and highlight the task
-          window.location.href = `/tasks#task-${task.id}`;
-        }
-      })),
-      
-      // Today's reminders notifications
-      ...todayReminders.map(reminder => ({
-        id: `reminder-${reminder.id}`,
-        title: 'Reminder',
-        message: `"${reminder.title}" is due soon`,
-        time: 'Today',
-        type: reminder.priority === 'high' ? 'warning' : 'info',
-        read: false,
-        onClick: () => {
-          // Navigate to reminders page
-          window.location.href = `/reminders`;
-        }
-      })),
-      
-      // Stats-based notifications
-      ...(stats.overdue > 0 ? [{
-        id: 'overdue-stats',
-        title: 'Overdue Tasks Alert',
-        message: `You have ${stats.overdue} overdue task${stats.overdue > 1 ? 's' : ''}`,
-        time: 'Today',
-        type: 'warning',
-        read: false,
-        onClick: () => {
-          window.location.href = `/tasks?view=overdue`;
-        }
-      }] : []),
-      
-      ...(todayReminders.length > 0 ? [{
-        id: 'today-reminders-stats',
-        title: 'Daily Reminders',
-        message: `You have ${todayReminders.length} reminder${todayReminders.length > 1 ? 's' : ''} for today`,
-        time: 'Today',
-        type: 'info',
-        read: false,
-        onClick: () => {
-          window.location.href = `/reminders?filter=today`;
-        }
-      }] : [])
-    ];
-    
-    setNotifications(newNotifications);
-  };
-
   // Unread notifications count
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = getUnreadCount();
   
-  const getNotificationIcon = (type) => {
+  const getNotificationIcon = (type, notificationType) => {
+    // Check notification type first for more specific icons
+    if (notificationType?.includes('goal')) {
+      return <FiTarget className="text-purple-500 text-lg" />;
+    }
+    if (notificationType?.includes('reminder')) {
+      return <FiBell className="text-yellow-500 text-lg" />;
+    }
+    if (notificationType?.includes('deadline')) {
+      return <FiCalendar className="text-red-500 text-lg" />;
+    }
+    
+    // Fall back to general type
     switch (type) {
       case 'success':
         return <FiCheckCircle className="text-green-500 text-lg" />;
@@ -97,28 +41,6 @@ const NotificationBell = () => {
       default:
         return <FiInfo className="text-blue-500 text-lg" />;
     }
-  };
-
-  // Fully functional notification actions
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notification => ({
-      ...notification,
-      read: true
-    })));
-  };
-
-  const clearAll = () => {
-    setNotifications([]);
-  };
-
-  const markAsRead = (id) => {
-    setNotifications(prev => prev.map(notification => 
-      notification.id === id ? { ...notification, read: true } : notification
-    ));
-  };
-
-  const clearNotification = (id) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id));
   };
 
   // Close dropdown when clicking outside
@@ -135,12 +57,15 @@ const NotificationBell = () => {
     };
   }, []);
 
-  // Refresh notifications when dropdown opens
-  useEffect(() => {
-    if (isOpen) {
-      updateNotifications();
+  const handleNotificationClick = (notification) => {
+    if (!notification.read) {
+      markAsRead(notification.id);
     }
-  }, [isOpen]);
+    if (notification.onClick) {
+      notification.onClick();
+    }
+    setIsOpen(false);
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -151,7 +76,7 @@ const NotificationBell = () => {
       >
         <FiBell className="text-xl text-gray-700 hover:text-[#3D9B9B]" />
         
-        {/* Notification badge - shows coordinated alerts count */}
+        {/* Notification badge */}
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -210,19 +135,11 @@ const NotificationBell = () => {
                     className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer group ${
                       !notification.read ? 'bg-blue-50/50' : ''
                     }`}
-                    onClick={() => {
-                      if (!notification.read) {
-                        markAsRead(notification.id);
-                      }
-                      if (notification.onClick) {
-                        notification.onClick();
-                      }
-                      setIsOpen(false);
-                    }}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex gap-3 items-start">
                       <div className="mt-1">
-                        {getNotificationIcon(notification.type)}
+                        {getNotificationIcon(notification.type, notification.notificationType)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">
@@ -246,6 +163,19 @@ const NotificationBell = () => {
                             </span>
                           )}
                         </div>
+                        {/* Show item type badge */}
+                        {notification.itemType && (
+                          <div className="mt-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              notification.itemType === 'goal' ? 'bg-purple-100 text-purple-700' :
+                              notification.itemType === 'task' ? 'bg-blue-100 text-blue-700' :
+                              notification.itemType === 'reminder' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {notification.itemType.charAt(0).toUpperCase() + notification.itemType.slice(1)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
