@@ -452,7 +452,7 @@ const GoalsPage = () => {
         <div className="mb-6">
           <div className="flex items-center gap-4 mb-4">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/dashboard')}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <FiChevronLeft className="text-xl text-gray-600" />
@@ -599,7 +599,7 @@ const GoalsPage = () => {
                         </div>
                         {!goal.completed && goal.nextCheckin && (
                           <div className="flex items-center gap-1">
-                            <FiCalendar className="text-blue-500 text-sm flex-shrink-0" />
+                            <FiCalendar className="text-blue-500 text-sm shrink-0" />
                             <div className="min-w-0">
                               <span className="block text-xs text-gray-500">Next check-in</span>
                               <p className="text-sm font-medium text-blue-600 truncate">
@@ -645,7 +645,7 @@ const GoalsPage = () => {
     <Button
       variant="soft"
       size="md"
-      className="flex items-center justify-center rounded-xl sm:rounded-2xl flex-1 min-w-[140px] sm:flex-shrink-0 sm:w-auto sm:px-6"
+      className="flex items-center justify-center rounded-xl sm:rounded-2xl flex-1 min-w-[140px] sm:shrink-0 sm:w-auto sm:px-6"
       onClick={(e) => handleUpdateProgress(goal.id, e)}
     >
       <span className="whitespace-nowrap">Update</span>
@@ -656,7 +656,7 @@ const GoalsPage = () => {
                       {/* Completed State */}
                       {goal.completed && (
                         <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-100">
-                          <FiCheckCircle className="text-green-500 text-xl flex-shrink-0" />
+                          <FiCheckCircle className="text-green-500 text-xl shrink-0" />
                           <span className="text-base md:text-lg font-medium text-green-600">
                             Completed on {goal.targetDate}
                           </span>
@@ -711,7 +711,7 @@ const GoalsPage = () => {
 
                       <div className="mb-4">
                         <div className="flex items-center gap-2 text-gray-600">
-                          <FiCalendar className="text-gray-400 flex-shrink-0" />
+                          <FiCalendar className="text-gray-400 shrink-0" />
                           <span className="text-sm font-medium">
                             Due: {goal.targetDate}
                           </span>
@@ -764,7 +764,7 @@ const GoalsPage = () => {
                         )}
 
                         <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-100">
-                          <FiCheckCircle className="text-green-500 text-xl flex-shrink-0" />
+                          <FiCheckCircle className="text-green-500 text-xl shrink-0" />
                           <span className="text-base md:text-lg font-medium text-green-600">
                             Completed on {goal.targetDate}
                           </span>

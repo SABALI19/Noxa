@@ -1,5 +1,5 @@
 // src/components/TaskSidebar.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { 
   FiCheckSquare as FiClipboard, 
   FiCalendar, 
@@ -64,11 +64,10 @@ const TaskSidebar = () => {
   const fabRef = useRef(null);
   
   // Get tasks and filter functions from context
-  const { 
-    tasks, 
-    getTaskStats, 
-    getTodayTasks, 
-    getOverdueTasks,
+  const {
+    tasks,
+    getTaskStats,
+    getTodayTasks,
     filters,
     updateFilters,
     resetFilters,
@@ -99,7 +98,7 @@ const TaskSidebar = () => {
   }, []);
 
   // FAB drag handlers
-  const handleTouchStart = (e) => {
+  const handleTouchStart = useCallback((e) => {
     if (!isMobile) return;
     const touch = e.touches[0];
     setIsDragging(true);
@@ -108,38 +107,38 @@ const TaskSidebar = () => {
       x: touch.clientX - fabPosition.x,
       y: touch.clientY - fabPosition.y
     });
-  };
+  }, [isMobile, fabPosition.x, fabPosition.y]);
 
-  const handleTouchMove = (e) => {
+  const handleTouchMove = useCallback((e) => {
     if (!isDragging || !isMobile) return;
     e.preventDefault();
     const touch = e.touches[0];
-    
+
     const newX = touch.clientX - dragStart.x;
     const newY = touch.clientY - dragStart.y;
-    
+
     // Check if moved more than 5px to distinguish from tap
     if (Math.abs(newX - fabPosition.x) > 5 || Math.abs(newY - fabPosition.y) > 5) {
       setHasMoved(true);
     }
-    
+
     // Get viewport dimensions
     const maxX = window.innerWidth - 56; // 56px is the FAB width
     const maxY = window.innerHeight - 56;
-    
+
     // Constrain to viewport
     const constrainedX = Math.max(0, Math.min(newX, maxX));
     const constrainedY = Math.max(0, Math.min(newY, maxY));
-    
-    setFabPosition({ x: constrainedX, y: constrainedY });
-  };
 
-  const handleTouchEnd = () => {
+    setFabPosition({ x: constrainedX, y: constrainedY });
+  }, [isDragging, isMobile, dragStart.x, dragStart.y, fabPosition.x, fabPosition.y]);
+
+  const handleTouchEnd = useCallback(() => {
     if (!isMobile) return;
     setIsDragging(false);
-  };
+  }, [isMobile]);
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = useCallback((e) => {
     if (!isMobile) return;
     setIsDragging(true);
     setHasMoved(false);
@@ -147,46 +146,49 @@ const TaskSidebar = () => {
       x: e.clientX - fabPosition.x,
       y: e.clientY - fabPosition.y
     });
-  };
+  }, [isMobile, fabPosition.x, fabPosition.y]);
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = useCallback((e) => {
     if (!isDragging || !isMobile) return;
-    
+
     const newX = e.clientX - dragStart.x;
     const newY = e.clientY - dragStart.y;
-    
+
     // Check if moved more than 5px to distinguish from click
     if (Math.abs(newX - fabPosition.x) > 5 || Math.abs(newY - fabPosition.y) > 5) {
       setHasMoved(true);
     }
-    
+
     // Get viewport dimensions
     const maxX = window.innerWidth - 56;
     const maxY = window.innerHeight - 56;
-    
+
     // Constrain to viewport
     const constrainedX = Math.max(0, Math.min(newX, maxX));
     const constrainedY = Math.max(0, Math.min(newY, maxY));
-    
-    setFabPosition({ x: constrainedX, y: constrainedY });
-  };
 
-  const handleMouseUp = () => {
+    setFabPosition({ x: constrainedX, y: constrainedY });
+  }, [isDragging, isMobile, dragStart.x, dragStart.y, fabPosition.x, fabPosition.y]);
+
+  const handleMouseUp = useCallback(() => {
     if (!isMobile) return;
     setIsDragging(false);
-  };
+  }, [isMobile]);
 
   useEffect(() => {
     if (isMobile) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      
+      const handleMouseMoveWrapper = (e) => handleMouseMove(e);
+      const handleMouseUpWrapper = (e) => handleMouseUp(e);
+
+      document.addEventListener('mousemove', handleMouseMoveWrapper);
+      document.addEventListener('mouseup', handleMouseUpWrapper);
+
       return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
+        document.removeEventListener('mousemove', handleMouseMoveWrapper);
+        document.removeEventListener('mouseup', handleMouseUpWrapper);
       };
     }
-  }, [isDragging, isMobile, dragStart]);
+  }, [isDragging, isMobile, dragStart, handleMouseMove, handleMouseUp]);
 
   const handleFabClick = () => {
     if (!hasMoved) {
@@ -276,6 +278,8 @@ const TaskSidebar = () => {
     }
   };
 
+  // Color functions are used directly in the component
+
   // Collapsed sidebar for desktop
   if (isCollapsed && !isMobile) {
     return (
@@ -340,7 +344,7 @@ const TaskSidebar = () => {
           isOpen={isMobileMenuOpen} 
           onClose={() => setIsMobileMenuOpen(false)} 
         />
-        <div className={`fixed left-0 top-0 h-full w-[280px] sm:w-[320px] bg-[#f2f5f7] shadow-xl z-50 transition-transform duration-300 ${
+        <div className={`fixed left-0 top-0 h-full w-[280px]  sm:w-[320px] bg-[#f2f5f7] shadow-xl z-50 transition-transform duration-300 ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
           <div className="p-4 h-full overflow-y-auto">
@@ -390,14 +394,14 @@ const TaskSidebar = () => {
                         onClick={() => handleViewFilter(view.id)}
                       >
                         <div className="flex items-center gap-3">
-                          <IconComponent 
-                            style={{ 
-                              color: filters.activeView === view.id ? 'white' : view.iconColor,
-                              transition: 'color 0.3s ease'
-                            }}
-                            className="text-lg group-hover:text-white" 
-                            size={18}
-                          />
+                        <IconComponent
+                          style={{
+                            color: filters.activeView === view.id ? 'white' : view.iconColor,
+                            transition: 'color 0.3s ease'
+                          }}
+                          className="text-lg group-hover:text-white"
+                          size={18}
+                        />
                           <span className="font-medium font-roboto text-sm">{view.label}</span>
                         </div>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
@@ -809,7 +813,17 @@ const TaskSidebar = () => {
 
           {/* Results Summary */}
           <div className="mt-8 p-4 bg-white rounded-lg border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Filter Results</h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-sm font-semibold text-gray-800">Filter Results</h3>
+              <Button
+                variant="secondaryPro"
+                size="xs"
+                onClick={handleResetFilters}
+                className="text-xs"
+              >
+                Reset All
+              </Button>
+            </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Filtered Tasks</span>

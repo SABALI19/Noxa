@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FiCalendar,
@@ -33,7 +33,6 @@ const GoalDetailsPage = () => {
   const { addNotification } = useNotifications();
   const { trackView, trackCompletion, trackProgressUpdate, trackNotification } = useNotificationTracking();
   
-  const [goal, setGoal] = useState(null);
   const [newMilestone, setNewMilestone] = useState('');
   const [progressUpdate, setProgressUpdate] = useState('');
   const [progressNotes, setProgressNotes] = useState('');
@@ -41,9 +40,14 @@ const GoalDetailsPage = () => {
   const [showAddMilestone, setShowAddMilestone] = useState(false);
   const [showProgressForm, setShowProgressForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedGoal, setEditedGoal] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const isEditing = useMemo(() => {
+    return searchParams.get('edit') === 'true';
+  }, [searchParams]);
+
+  const activeTab = useMemo(() => {
+    const tabParam = searchParams.get('tab');
+    return tabParam && ['overview', 'milestones', 'notes', 'progress'].includes(tabParam) ? tabParam : 'overview';
+  }, [searchParams]);
 
   const mockGoals = [
     {
@@ -184,55 +188,64 @@ const GoalDetailsPage = () => {
     },
   ];
 
+  const goal = useMemo(() => {
+    return mockGoals.find(g => g.id === parseInt(goalId)) || null;
+  }, [goalId]);
+
+  const editedGoal = useMemo(() => {
+    return goal ? { ...goal } : null;
+  }, [goal]);
+
+  const [localGoal, setLocalGoal] = useState(null);
+
+  // Initialize local goal when goal changes
   useEffect(() => {
-    const foundGoal = mockGoals.find(g => g.id === parseInt(goalId));
-    if (foundGoal) {
-      setGoal(foundGoal);
-      setEditedGoal({ ...foundGoal });
-      
-      // Track view when goal is loaded
+    if (goal) {
+      setLocalGoal(goal);
+    }
+  }, [goal]);
+
+  // Track view when goal is loaded
+  useEffect(() => {
+    if (goal) {
       trackView(parseInt(goalId), 'goal');
       trackNotification(parseInt(goalId), 'goal', 'viewed', 'goal_view');
-      
-      const editMode = searchParams.get('edit') === 'true';
-      const tabParam = searchParams.get('tab');
-      
-      if (editMode) setIsEditing(true);
-      if (tabParam && ['overview', 'milestones', 'notes', 'progress'].includes(tabParam)) {
-        setActiveTab(tabParam);
-      }
     } else {
       navigate('/goals');
     }
-  }, [goalId, navigate, searchParams, trackView, trackNotification]);
+  }, [goal, goalId, navigate, trackView, trackNotification]);
+
+
 
   const handleSaveGoal = () => {
-    setGoal(editedGoal);
-    setIsEditing(false);
-    
+    setLocalGoal(editedGoal);
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.delete('edit');
+    navigate(`?${newSearchParams.toString()}`);
+
     // Send update notification
     addNotification('goal_updated', editedGoal, () => {
       navigate(`/goals/${goalId}`);
     });
-    
+
     // Track notification
     trackNotification(parseInt(goalId), 'goal', 'sent', 'goal_updated');
   };
 
   const handleMarkComplete = () => {
-    const updatedGoal = { 
-      ...goal, 
-      completed: true, 
+    const updatedGoal = {
+      ...localGoal,
+      completed: true,
       progress: 100,
       completedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
-    setGoal(updatedGoal);
-    
+    setLocalGoal(updatedGoal);
+
     // Send completion notification
     addNotification('goal_completed', updatedGoal, () => {
       navigate('/goals');
     });
-    
+
     // Track completion
     trackCompletion(parseInt(goalId), 'goal');
     trackNotification(parseInt(goalId), 'goal', 'sent', 'goal_completed');
@@ -241,89 +254,89 @@ const GoalDetailsPage = () => {
   const handleDeleteGoal = () => {
     if (window.confirm("Are you sure you want to delete this goal?")) {
       // Send deletion notification
-      addNotification('goal_deleted', goal);
-      
+      addNotification('goal_deleted', localGoal);
+
       // Track notification
       trackNotification(parseInt(goalId), 'goal', 'sent', 'goal_deleted');
-      
+
       navigate('/goals');
     }
   };
 
   const handleAddMilestone = () => {
     if (!newMilestone.trim()) return;
-    
+
     const newMilestoneObj = {
-      id: goal.milestones.length + 1,
+      id: localGoal.milestones.length + 1,
       title: newMilestone,
       completed: false,
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
-    
+
     const updatedGoal = {
-      ...goal,
-      milestones: [...goal.milestones, newMilestoneObj]
+      ...localGoal,
+      milestones: [...localGoal.milestones, newMilestoneObj]
     };
-    
-    setGoal(updatedGoal);
+
+    setLocalGoal(updatedGoal);
     setNewMilestone('');
     setShowAddMilestone(false);
-    
+
     // Send milestone notification
     addNotification('goal_milestone', {
       ...updatedGoal,
       title: `Added milestone: ${newMilestone}`
     });
-    
+
     trackNotification(parseInt(goalId), 'goal', 'sent', 'milestone_added');
   };
 
   const handleAddNote = () => {
     if (!newNote.trim()) return;
-    
+
     const newNoteObj = {
-      id: goal.notes.length + 1,
+      id: localGoal.notes.length + 1,
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       content: newNote
     };
-    
+
     const updatedGoal = {
-      ...goal,
-      notes: [...goal.notes, newNoteObj]
+      ...localGoal,
+      notes: [...localGoal.notes, newNoteObj]
     };
-    
-    setGoal(updatedGoal);
+
+    setLocalGoal(updatedGoal);
     setNewNote('');
     setShowNoteForm(false);
   };
 
   const handleLogProgress = () => {
     if (!progressUpdate.trim()) return;
-    
+
     const newValue = parseInt(progressUpdate) || 0;
-    const oldProgress = goal.progress;
-    const newProgress = Math.min(Math.round((goal.currentValue + newValue) / goal.targetValue * 100), 100);
-    
+    const oldProgress = localGoal.progress;
+    const newProgress = Math.min(Math.round((localGoal.currentValue + newValue) / localGoal.targetValue * 100), 100);
+
     const newProgressEntry = {
-      id: goal.trackingHistory.length + 1,
+      id: localGoal.trackingHistory.length + 1,
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       progress: newProgress,
       value: newValue,
       notes: progressNotes
     };
-    
+
     const updatedGoal = {
-      ...goal,
-      trackingHistory: [newProgressEntry, ...goal.trackingHistory],
+      ...localGoal,
+      trackingHistory: [newProgressEntry, ...localGoal.trackingHistory],
       progress: newProgress,
-      currentValue: goal.currentValue + newValue
+      currentValue: localGoal.currentValue + newValue
     };
-    
-    setGoal(updatedGoal);
+
+    setLocalGoal(updatedGoal);
     setProgressUpdate('');
     setProgressNotes('');
     setShowProgressForm(false);
-    
+
     // Send progress notification
     addNotification('goal_progress', {
       ...updatedGoal,
@@ -331,30 +344,30 @@ const GoalDetailsPage = () => {
     }, () => {
       navigate(`/goals/${goalId}`);
     });
-    
+
     // Track progress update
     trackProgressUpdate(parseInt(goalId), oldProgress, newProgress, 'goal');
     trackNotification(parseInt(goalId), 'goal', 'sent', 'progress_update');
   };
 
   const toggleMilestone = (milestoneId) => {
-    const updatedMilestones = goal.milestones.map(milestone => 
-      milestone.id === milestoneId 
+    const updatedMilestones = localGoal.milestones.map(milestone =>
+      milestone.id === milestoneId
         ? { ...milestone, completed: !milestone.completed }
         : milestone
     );
-    
-    const milestone = goal.milestones.find(m => m.id === milestoneId);
-    const updatedGoal = { ...goal, milestones: updatedMilestones };
-    setGoal(updatedGoal);
-    
+
+    const milestone = localGoal.milestones.find(m => m.id === milestoneId);
+    const updatedGoal = { ...localGoal, milestones: updatedMilestones };
+    setLocalGoal(updatedGoal);
+
     // Send milestone completion notification
     if (milestone && !milestone.completed) {
       addNotification('goal_milestone', {
         ...updatedGoal,
         title: `Completed milestone: ${milestone.title}`
       });
-      
+
       trackNotification(parseInt(goalId), 'goal', 'sent', 'milestone_completed');
     }
   };
@@ -411,7 +424,15 @@ const GoalDetailsPage = () => {
               variant="soft"
               size="md"
               className="rounded-xl flex-1 sm:flex-none"
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={() => {
+                const newSearchParams = new URLSearchParams(searchParams);
+                if (isEditing) {
+                  newSearchParams.delete('edit');
+                } else {
+                  newSearchParams.set('edit', 'true');
+                }
+                navigate(`?${newSearchParams.toString()}`);
+              }}
             >
               <FiEdit className="mr-2" />
               {isEditing ? 'Cancel' : 'Edit'}
@@ -431,40 +452,56 @@ const GoalDetailsPage = () => {
         {/* Tabs */}
         <div className="flex overflow-x-auto mb-6 border-b border-gray-200">
           <button
-            onClick={() => setActiveTab('overview')}
+            onClick={() => {
+              const newSearchParams = new URLSearchParams(searchParams);
+              newSearchParams.set('tab', 'overview');
+              navigate(`?${newSearchParams.toString()}`);
+            }}
             className={`px-4 py-3 font-medium whitespace-nowrap border-b-2 ${
-              activeTab === 'overview' 
-                ? 'border-blue-500 text-blue-600' 
+              activeTab === 'overview'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             Overview
           </button>
           <button
-            onClick={() => setActiveTab('milestones')}
+            onClick={() => {
+              const newSearchParams = new URLSearchParams(searchParams);
+              newSearchParams.set('tab', 'milestones');
+              navigate(`?${newSearchParams.toString()}`);
+            }}
             className={`px-4 py-3 font-medium whitespace-nowrap border-b-2 ${
-              activeTab === 'milestones' 
-                ? 'border-blue-500 text-blue-600' 
+              activeTab === 'milestones'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             Milestones
           </button>
           <button
-            onClick={() => setActiveTab('notes')}
+            onClick={() => {
+              const newSearchParams = new URLSearchParams(searchParams);
+              newSearchParams.set('tab', 'notes');
+              navigate(`?${newSearchParams.toString()}`);
+            }}
             className={`px-4 py-3 font-medium whitespace-nowrap border-b-2 ${
-              activeTab === 'notes' 
-                ? 'border-blue-500 text-blue-600' 
+              activeTab === 'notes'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
             Notes
           </button>
           <button
-            onClick={() => setActiveTab('progress')}
+            onClick={() => {
+              const newSearchParams = new URLSearchParams(searchParams);
+              newSearchParams.set('tab', 'progress');
+              navigate(`?${newSearchParams.toString()}`);
+            }}
             className={`px-4 py-3 font-medium whitespace-nowrap border-b-2 ${
-              activeTab === 'progress' 
-                ? 'border-blue-500 text-blue-600' 
+              activeTab === 'progress'
+                ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -520,7 +557,11 @@ const GoalDetailsPage = () => {
                   <div className="flex gap-2 justify-end pt-4">
                     <Button
                       variant="soft"
-                      onClick={() => setIsEditing(false)}
+                      onClick={() => {
+                        const newSearchParams = new URLSearchParams(searchParams);
+                        newSearchParams.delete('edit');
+                        navigate(`?${newSearchParams.toString()}`);
+                      }}
                     >
                       Cancel
                     </Button>

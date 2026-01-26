@@ -30,8 +30,6 @@ const Header = ({
   logoWidth = "w-[120px]",
   altText = "Noxa",
   onSearch,
-  onToggleSidebar,
-  showSidebarToggle = true,
   onLogout,
 }) => {
   const navigate = useNavigate();
@@ -49,7 +47,6 @@ const Header = ({
     status: contextFilters.statusFilter,
   });
   
-  const searchRef = useRef(null);
   const filtersRef = useRef(null);
   
   // Check screen size for responsive behavior
@@ -465,7 +462,7 @@ const Header = ({
                 </div>
               )}
               {Object.entries(searchFilters)
-                .filter(([_, value]) => value)
+                .filter(([, value]) => value)
                 .map(([key, value]) => (
                   <div key={key} className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
                     key === 'category' ? 'bg-purple-100 text-purple-800' :

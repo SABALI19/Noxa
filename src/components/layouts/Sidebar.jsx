@@ -8,24 +8,15 @@ import { Link, useLocation } from "react-router-dom";
 import { PanelLeftOpen, PanelRightOpen, Menu } from "lucide-react";
 
 const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [fabPosition, setFabPosition] = useState({ x: window.innerWidth - 72, y: 80 }); // Top right position
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hasMoved, setHasMoved] = useState(false);
   const fabRef = useRef(null);
   const location = useLocation();
-  
-  // Sync with isOpen prop and handle mobile behavior
-  useEffect(() => {
-    if (isMobile) {
-      // On mobile, always use collapsed state (icons only)
-      setIsCollapsed(true);
-    } else {
-      // On desktop, use isOpen prop to determine collapsed state
-      setIsCollapsed(!isOpen);
-    }
-  }, [isMobile, isOpen]);
+
+  // Derive collapsed state from props instead of using state
+  const isCollapsed = isMobile ? true : !isOpen;
 
   // Initialize FAB position to top right and update on resize
   useEffect(() => {
@@ -151,7 +142,6 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
       if (onToggle) onToggle(!isOpen);
     } else {
       // On desktop, toggle collapsed state
-      setIsCollapsed(!isCollapsed);
       if (onToggle) onToggle(isCollapsed);
     }
   };
