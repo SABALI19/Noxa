@@ -15,7 +15,7 @@ import {
   FiFilter,
   FiXCircle
 } from "react-icons/fi";
-import Input from "../common/input";
+import Input from "../common/Input";
 import NotificationBell from "../notifications/NotificationBell";
 import CustomDropdown from "../common/CustomDropDown";
 import Profile from "../common/Profile";
