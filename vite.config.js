@@ -18,7 +18,7 @@ export default defineConfig({
     minify: 'terser',
     
     // Enable sourcemaps for debugging (optional)
-    sourcemap: false, // Set to true for debugging
+    sourcemap: false,
     
     // Optimize rollup bundling
     rollupOptions: {
@@ -27,19 +27,27 @@ export default defineConfig({
         manualChunks(id) {
           // Group by package
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+            // React core
+            if (id.includes('react') && !id.includes('react-router') && !id.includes('react-redux') && !id.includes('react-icons')) {
               return 'react-vendor'
             }
-            if (id.includes('@reduxjs') || id.includes('react-redux')) {
+            // React Router
+            if (id.includes('react-router')) {
+              return 'router-vendor'
+            }
+            // Redux
+            if (id.includes('@reduxjs') || id.includes('react-redux') || id.includes('redux')) {
               return 'state-vendor'
             }
-            if (id.includes('recharts')) {
+            // Charts
+            if (id.includes('recharts') || id.includes('d3-')) {
               return 'charts-vendor'
             }
-            if (id.includes('react-icons') || id.includes('lucide-react')) {
+            // Icons - Keep lucide-react and react-icons together
+            if (id.includes('lucide-react') || id.includes('react-icons')) {
               return 'icons-vendor'
             }
-            // Group all other node_modules
+            // All other node_modules
             return 'vendor'
           }
         },
@@ -73,10 +81,10 @@ export default defineConfig({
   
   // CSS optimization
   css: {
-    devSourcemap: false, // Disable sourcemaps in dev for faster builds
+    devSourcemap: false,
   },
   
-  // Optimize dependencies
+  // Optimize dependencies - IMPORTANT: Include lucide-react
   optimizeDeps: {
     include: [
       'react',
@@ -84,6 +92,7 @@ export default defineConfig({
       'react-router-dom',
       '@reduxjs/toolkit',
       'react-redux',
+      'lucide-react',  // Add this
     ],
     exclude: [],
   },

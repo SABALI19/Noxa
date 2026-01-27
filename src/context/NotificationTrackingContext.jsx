@@ -6,21 +6,27 @@ const NotificationTrackingContext = createContext(null);
 
 // Provider component
 export const NotificationTrackingProvider = ({ children }) => {
-  const [trackingData, setTrackingData] = useState({});
-
-  // Load tracking data from localStorage on initial render
-  useEffect(() => {
+  const [trackingData, setTrackingData] = useState(() => {
     const savedData = localStorage.getItem('notificationTrackingData');
     if (savedData) {
       try {
-        setTimeout(() => {
-          setTrackingData(JSON.parse(savedData));
-        }, 0);
+        const parsedData = JSON.parse(savedData);
+        // Ensure parsedData is a plain object, not undefined, null, or array
+        if (parsedData && typeof parsedData === 'object' && !Array.isArray(parsedData)) {
+          return parsedData;
+        } else {
+          console.warn('Invalid tracking data format, using empty object');
+          return {};
+        }
       } catch (error) {
         console.error('Failed to parse saved tracking data:', error);
+        // Clear corrupted data
+        localStorage.removeItem('notificationTrackingData');
+        return {};
       }
     }
-  }, []);
+    return {};
+  });
 
   // Save tracking data to localStorage whenever it changes
   useEffect(() => {
