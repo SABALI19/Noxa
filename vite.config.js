@@ -25,28 +25,46 @@ export default defineConfig({
       output: {
         // Manual chunking for better caching
         manualChunks(id) {
-          // Group by package
+          // Only process node_modules
           if (id.includes('node_modules')) {
-            // React core
-            if (id.includes('react') && !id.includes('react-router') && !id.includes('react-redux') && !id.includes('react-icons')) {
+            
+            // React Core (be very specific to avoid conflicts)
+            if (id.includes('node_modules/react/') || 
+                id.includes('node_modules/react-dom/') || 
+                id.includes('node_modules/scheduler/')) {
               return 'react-vendor'
             }
+            
             // React Router
-            if (id.includes('react-router')) {
+            if (id.includes('node_modules/react-router-dom/') || 
+                id.includes('node_modules/react-router/') ||
+                id.includes('node_modules/@remix-run/')) {
               return 'router-vendor'
             }
-            // Redux
-            if (id.includes('@reduxjs') || id.includes('react-redux') || id.includes('redux')) {
+            
+            // Redux State Management
+            if (id.includes('node_modules/@reduxjs/') || 
+                id.includes('node_modules/react-redux/') || 
+                id.includes('node_modules/redux/') ||
+                id.includes('node_modules/reselect/') ||
+                id.includes('node_modules/immer/')) {
               return 'state-vendor'
             }
-            // Charts
-            if (id.includes('recharts') || id.includes('d3-')) {
+            
+            // Charts Library
+            if (id.includes('node_modules/recharts/') || 
+                id.includes('node_modules/d3-') ||
+                id.includes('node_modules/victory-') ||
+                id.includes('node_modules/decimal.js')) {
               return 'charts-vendor'
             }
-            // Icons - Keep lucide-react and react-icons together
-            if (id.includes('lucide-react') || id.includes('react-icons')) {
+            
+            // Icons (separate from everything else)
+            if (id.includes('node_modules/lucide-react/') || 
+                id.includes('node_modules/react-icons/')) {
               return 'icons-vendor'
             }
+            
             // All other node_modules
             return 'vendor'
           }
@@ -84,7 +102,7 @@ export default defineConfig({
     devSourcemap: false,
   },
   
-  // Optimize dependencies - IMPORTANT: Include lucide-react
+  // Optimize dependencies - CRITICAL for lucide-react
   optimizeDeps: {
     include: [
       'react',
@@ -92,7 +110,8 @@ export default defineConfig({
       'react-router-dom',
       '@reduxjs/toolkit',
       'react-redux',
-      'lucide-react',  // Add this
+      'lucide-react',
+      'react-icons',
     ],
     exclude: [],
   },
