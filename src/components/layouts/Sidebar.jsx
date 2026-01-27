@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Button from "../Button";
 import { FiBell, FiUser } from "react-icons/fi";
 import { IoColorPaletteOutline } from "react-icons/io5";
@@ -83,44 +83,44 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
     });
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = useCallback((e) => {
     if (!isDragging || !isMobile) return;
-    
+
     const newX = e.clientX - dragStart.x;
     const newY = e.clientY - dragStart.y;
-    
+
     // Check if moved more than 5px to distinguish from click
     if (Math.abs(newX - fabPosition.x) > 5 || Math.abs(newY - fabPosition.y) > 5) {
       setHasMoved(true);
     }
-    
+
     // Get viewport dimensions
     const maxX = window.innerWidth - 56;
     const maxY = window.innerHeight - 56;
-    
+
     // Constrain to viewport
     const constrainedX = Math.max(0, Math.min(newX, maxX));
     const constrainedY = Math.max(0, Math.min(newY, maxY));
-    
-    setFabPosition({ x: constrainedX, y: constrainedY });
-  };
 
-  const handleMouseUp = () => {
+    setFabPosition({ x: constrainedX, y: constrainedY });
+  }, [isDragging, isMobile, dragStart, fabPosition]);
+
+  const handleMouseUp = useCallback(() => {
     if (!isMobile) return;
     setIsDragging(false);
-  };
+  }, [isMobile]);
 
   useEffect(() => {
     if (isMobile) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
-      
+
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, isMobile, dragStart]);
+  }, [isMobile, handleMouseMove, handleMouseUp]);
 
   const handleFabClick = () => {
     if (!hasMoved) {
