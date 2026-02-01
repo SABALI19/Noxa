@@ -153,7 +153,7 @@ const GoalProgressPage = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(`/goals/${goalId}`)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors   "
             >
               <FiChevronLeft className="text-xl text-gray-600" />
             </button>

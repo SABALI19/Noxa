@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { GiRobotGolem } from "react-icons/gi";
 import { useNavigate, Link } from "react-router-dom";
 import Noxalogo from "../assets/logo-items/logo-dark-transparent.png";
+import LogoIcon from "../assets/logo-items/logo-icon.png";
 import Auth from "../forms/Auth";
 import {
   FiCheck,
@@ -23,6 +24,7 @@ import Approval from "../assets/img/Approval-interface.svg"
 import Testimonials from "../components/Testimonials";
 import { useAuth } from "../hooks/UseAuth";
 
+
 const LandingPage = ({ onLogin, onSignup }) => {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -30,6 +32,8 @@ const LandingPage = ({ onLogin, onSignup }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+
+
 
 const simulateLoading = () => {
   return new Promise((resolve) => {
@@ -61,6 +65,8 @@ const simulateLoading = () => {
     updateProgress();
   });
 };
+
+
 
   const handleUserLogin = async (userData) => {
     try {
@@ -530,7 +536,7 @@ const simulateLoading = () => {
             {/* Motivation cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               {/* Card 1 */}
-              <div className="border flex flex-col items-center p-6 text-center rounded-lg bg-white hover:shadow-lg transition-shadow">
+              <div className="shadow-md flex flex-col items-center p-6 text-center rounded-lg bg-white hover:shadow-lg transition-shadow">
                 <div className="mb-6">
                   <div className="w-16 h-16 flex items-center justify-center bg-[#0c7d7d] text-white rounded-full text-2xl font-bold">
                     1
@@ -550,7 +556,7 @@ const simulateLoading = () => {
               </div>
 
               {/* Card 2 */}
-              <div className="border flex flex-col items-center p-6 text-center rounded-lg bg-white hover:shadow-lg transition-shadow">
+              <div className="shadow-md flex flex-col items-center p-6 text-center rounded-lg bg-white hover:shadow-lg transition-shadow">
                 <div className="mb-6">
                   <div className="w-16 h-16 flex items-center justify-center bg-[#6b9ad1] text-white rounded-full text-2xl font-bold">
                     2
@@ -570,7 +576,7 @@ const simulateLoading = () => {
               </div>
 
               {/* Card 3 */}
-              <div className="border flex flex-col items-center p-6 text-center rounded-lg bg-white hover:shadow-lg transition-shadow md:col-span-2 lg:col-span-1">
+              <div className="shadow-md flex flex-col items-center p-6 text-center rounded-lg bg-white hover:shadow-lg transition-shadow md:col-span-2 lg:col-span-1">
                 <div className="mb-6">
                   <div className="w-16 h-16 flex items-center justify-center bg-[#0c7d7d] rounded-full text-white text-2xl font-bold">
                     3
@@ -659,9 +665,13 @@ const simulateLoading = () => {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-[#3D9B9B] to-[#2D8B8B] rounded-2xl p-6 sm:p-8 text-white order-1 lg:order-2">
+              <div className="bg-linear-to-br from-[#3D9B9B] to-[#2D8B8B] rounded-2xl p-6 sm:p-8 text-white order-1 lg:order-2">
                 <div className="text-center">
-                  <div className="text-5xl sm:text-6xl mb-6">🚀</div>
+                  <div className="text-5xl sm:text-6xl flex items-center space-x-2 justify-center mb-4 ">
+                <Link to="/landing">
+                  <img src={LogoIcon} alt="noxa logo" className="h-12 w-auto rounded-2xl" />
+                </Link>
+                  </div>
                   <h3 className="text-xl sm:text-2xl font-bold mb-4">
                     Join Our Community
                   </h3>

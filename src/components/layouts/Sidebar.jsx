@@ -189,13 +189,13 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
       <>
         {/* Overlay */}
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+          className="fixed inset-0  bg-opacity-50 z-40 shadow-r shadow transition-opacity duration-300 "
           onClick={() => onToggle(false)}
         />
         
         {/* Sidebar */}
         <div 
-          className={`fixed left-0 top-0 h-full w-64 bg-[#f2f5f7] shadow-xl z-50 p-4 transition-transform duration-300 ${
+          className={`fixed left-0 top-14 h-full w-50 bg-[#f2f5f7] shadow-xl rounded-2xl z-50 p-4 transition-transform duration-300 ${
             isOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >

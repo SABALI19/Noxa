@@ -1,5 +1,5 @@
 // src/context/NotificationContext.jsx
-import React, { createContext, useState, useCallback } from 'react';
+import React, { createContext, useState, useCallback, useRef, useEffect } from 'react';
 
 // Create the context
 const NotificationContext = createContext(null);
@@ -8,9 +8,91 @@ const NotificationContext = createContext(null);
 export const NotificationProvider = ({ children }) => {
   // In-app notifications state
   const [notifications, setNotifications] = useState([]);
+  
+  // Notification sound settings
+  const [notificationSettings, setNotificationSettings] = useState({
+    enableNotifications: true,
+    pushNotifications: false,
+    emailNotifications: false,
+    customRingtones: false,
+    defaultSound: 'Default',
+    soundEnabled: true,
+  });
+  
+  // Audio ref for playing notification sounds
+  const audioRef = useRef(null);
+  
+  // Initialize audio element
+  useEffect(() => {
+    audioRef.current = new Audio();
+    audioRef.current.volume = 0.5; // Set volume to 50%
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+  
+  // Sound library mapping - Using data URLs for built-in beep sound
+  const soundLibrary = {
+    'Default': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    'Chime': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    'Bell': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    'Ding': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    'Alert': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    'Notification': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+  };
+  
+  // Play notification sound
+  const playNotificationSound = useCallback(() => {
+    if (!notificationSettings.enableNotifications || !notificationSettings.soundEnabled) {
+      console.log('Notification sound disabled');
+      return;
+    }
+    
+    try {
+      if (!audioRef.current) {
+        console.error('Audio element not initialized');
+        return;
+      }
+      
+      // Set the sound source
+      const soundPath = soundLibrary[notificationSettings.defaultSound] || soundLibrary['Default'];
+      
+      // Reset and play
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = soundPath;
+      
+      // Play with promise handling
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Notification sound played successfully');
+          })
+          .catch(error => {
+            console.warn('Failed to play notification sound:', error);
+          });
+      }
+    } catch (error) {
+      console.error('Error playing notification sound:', error);
+    }
+  }, [notificationSettings.enableNotifications, notificationSettings.soundEnabled, notificationSettings.defaultSound]);
+  
+  // Update notification settings
+  const updateNotificationSettings = useCallback((newSettings) => {
+    setNotificationSettings(prev => ({
+      ...prev,
+      ...newSettings
+    }));
+  }, []);
 
   // Function to add an in-app notification
-  const addNotification = useCallback((type, item, onClick = null) => {
+  const addNotification = useCallback((type, item, onClick = null, playSound = true) => {
     const notificationTemplates = {
       // Task notifications
       task_created: {
@@ -101,23 +183,35 @@ export const NotificationProvider = ({ children }) => {
         title: 'Reminder Completed',
         message: `Completed: "${item.title}"`,
         type: 'success'
+      },
+      
+      // Profile notifications
+      profile_updated: {
+        title: 'Profile Updated',
+        message: `${item.title}`,
+        type: 'success'
+      },
+      profile_image_uploaded: {
+        title: 'Image Uploaded',
+        message: `${item.title}`,
+        type: 'success'
       }
     };
 
     const template = notificationTemplates[type] || {
       title: 'Notification',
-      message: 'Activity update',
+      message: item.title || 'Activity update',
       type: 'info'
     };
 
     const newNotification = {
-      id: Date.now() + Math.random(), // More unique ID
+      id: Date.now() + Math.random(), // Unique ID with timestamp and random
       title: template.title,
       message: template.message,
       type: template.type,
-      itemId: item.id,
-      itemTitle: item.title,
-      itemType: type.split('_')[0], // Extract 'goal', 'task', or 'reminder'
+      itemId: item.id || Date.now(),
+      itemTitle: item.title || '',
+      itemType: type.split('_')[0], // Extract 'goal', 'task', 'reminder', or 'profile'
       notificationType: type,
       read: false,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -126,13 +220,21 @@ export const NotificationProvider = ({ children }) => {
       timestamp: new Date().toISOString()
     };
 
+    console.log('Adding notification:', newNotification);
+
     setNotifications(prev => {
       const next = [newNotification, ...prev].slice(0, 100); // Keep only latest 100
       return next;
     });
+    
+    // Play notification sound if enabled
+    if (playSound) {
+      console.log('Playing notification sound...');
+      playNotificationSound();
+    }
 
     return newNotification;
-  }, []);
+  }, [playNotificationSound]);
 
   // Alias for backward compatibility
   const addTaskNotification = addNotification;
@@ -173,10 +275,17 @@ export const NotificationProvider = ({ children }) => {
   const getUnreadCount = useCallback(() => {
     return notifications.filter(n => !n.read).length;
   }, [notifications]);
+  
+  // Test notification sound
+  const testNotificationSound = useCallback(() => {
+    console.log('Testing notification sound...');
+    playNotificationSound();
+  }, [playNotificationSound]);
 
   // Context value
   const contextValue = {
     notifications,
+    notificationSettings,
     addNotification,
     addTaskNotification,
     markAsRead,
@@ -185,7 +294,10 @@ export const NotificationProvider = ({ children }) => {
     clearNotification,
     getNotificationsByType,
     getNotificationsByItem,
-    getUnreadCount
+    getUnreadCount,
+    updateNotificationSettings,
+    playNotificationSound,
+    testNotificationSound
   };
 
   return (
