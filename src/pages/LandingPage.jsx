@@ -776,11 +776,17 @@ const simulateLoading = () => {
                   Cookie Policy
                 </Link>
                 
-                  href="mailto:support@noxa.com"
-                  className="hover:text-[#3D9B9B]"
-                
-                  support@noxa.com
+                 <div  className="hover:text-[#3D9B9B]">
+                  <a href="https://docs.noxa.ai" target="_blank" rel="noopener noreferrer">
+                  mail to:support@noxa.com
+        
+                  </a>
+                 </div>
+                 
                 </div>
+                 <div  className="text-[#3D9B9B] text-xsms sm:text-sm mt-4">
+                    built by D-Forgge Innovations Africa 
+                  </div>
               </div>
             
           </footer>
