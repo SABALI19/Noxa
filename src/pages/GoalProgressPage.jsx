@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   FiCalendar, 
@@ -23,12 +23,8 @@ const GoalProgressPage = () => {
   const { addNotification } = useNotifications();
   const { trackView, trackProgressUpdate, trackNotification } = useNotificationTracking();
   
-  const [goal, setGoal] = useState(null);
-  const [trackingData, setTrackingData] = useState([]);
-  const [progressValue, setProgressValue] = useState('');
-  const [progressNotes, setProgressNotes] = useState('');
-  
-  const mockGoals = [
+  // Mock goals data in useMemo to prevent recreation
+  const mockGoals = useMemo(() => [
     {
       id: 1,
       title: "Read 24 books this year",
@@ -57,24 +53,49 @@ const GoalProgressPage = () => {
         { id: 5, date: "Dec 1, 2024", progress: 75, value: 18, notes: "On track to finish by year end" }
       ],
     },
-  ];
+  ], []); // Empty dependency array means this only creates once
 
+  // SOLUTION 1: Initialize state with computed value (recommended)
+  // Find the goal from mock data immediately
+  const initialGoal = useMemo(() => {
+    const found = mockGoals.find(g => g.id === parseInt(goalId));
+    if (found) {
+      // Store in localStorage for testing
+      localStorage.setItem(`goal_${goalId}`, JSON.stringify(found));
+      return found;
+    }
+    
+    // Check localStorage for saved goal
+    const savedGoal = localStorage.getItem(`goal_${goalId}`);
+    return savedGoal ? JSON.parse(savedGoal) : null;
+  }, [goalId, mockGoals]); // Dependencies: goalId and mockGoals
+
+  const initialTrackingData = useMemo(() => {
+    return initialGoal?.trackingHistory || [];
+  }, [initialGoal]);
+
+  // Initialize state with computed values
+  const [goal, setGoal] = useState(initialGoal);
+  const [trackingData, setTrackingData] = useState(initialTrackingData);
+  const [progressValue, setProgressValue] = useState('');
+  const [progressNotes, setProgressNotes] = useState('');
+
+  // SOLUTION 2: Use useEffect only for side effects (tracking, navigation)
   useEffect(() => {
-    const foundGoal = mockGoals.find(g => g.id === parseInt(goalId));
-    if (foundGoal) {
-      setGoal(foundGoal);
-      setTrackingData(foundGoal.trackingHistory);
-      
-      // Track view
+    if (goal) {
+      // Only do side effects here (tracking, notifications)
       trackView(parseInt(goalId), 'goal');
       trackNotification(parseInt(goalId), 'goal', 'viewed', 'progress_tracking_view');
-    } else {
+    } else if (!initialGoal) {
+      // Only navigate if no goal was found
       navigate('/goals');
     }
-  }, [goalId, navigate, trackView, trackNotification]);
+  }, [goal, goalId, navigate, trackView, trackNotification, initialGoal]);
+
+
 
   const handleLogProgress = () => {
-    if (!progressValue.trim()) return;
+    if (!progressValue.trim() || !goal) return;
     
     const newValue = parseInt(progressValue);
     const oldProgress = goal.progress;
@@ -94,10 +115,14 @@ const GoalProgressPage = () => {
       currentValue: goal.currentValue + newValue
     };
     
+    // Update local state
     setGoal(updatedGoal);
     setTrackingData([newEntry, ...trackingData]);
     setProgressValue('');
     setProgressNotes('');
+    
+    // Save to localStorage for testing
+    localStorage.setItem(`goal_${goalId}`, JSON.stringify(updatedGoal));
     
     // Send progress notification
     addNotification('goal_progress', {
@@ -119,11 +144,22 @@ const GoalProgressPage = () => {
     return "bg-red-500";
   };
 
-  const chartData = trackingData.map(entry => ({
-    date: entry.date,
-    value: entry.value,
-    progress: entry.progress
-  }));
+  const chartData = useMemo(() => {
+    return trackingData.map(entry => ({
+      date: entry.date,
+      value: entry.value,
+      progress: entry.progress
+    }));
+  }, [trackingData]);
+
+  const calculateDaysRemaining = () => {
+    if (!goal || goal.targetDate === "Ongoing") return "Ongoing";
+    const target = new Date(goal.targetDate);
+    const today = new Date();
+    const diffTime = target - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
 
   if (!goal) {
     return (
@@ -136,15 +172,6 @@ const GoalProgressPage = () => {
     );
   }
 
-  const calculateDaysRemaining = () => {
-    if (goal.targetDate === "Ongoing") return "Ongoing";
-    const target = new Date(goal.targetDate);
-    const today = new Date();
-    const diffTime = target - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
@@ -153,7 +180,7 @@ const GoalProgressPage = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate(`/goals/${goalId}`)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors   "
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <FiChevronLeft className="text-xl text-gray-600" />
             </button>
@@ -201,7 +228,7 @@ const GoalProgressPage = () => {
               <div className="min-w-0">
                 <h3 className="font-semibold text-gray-700 text-sm md:text-base">Milestones</h3>
                 <p className="text-2xl md:text-3xl font-bold text-gray-800">
-                  {goal.milestones.filter(m => m.completed).length}/{goal.milestones.length}
+                  {goal.milestones?.filter(m => m.completed).length || 0}/{goal.milestones?.length || 0}
                 </p>
               </div>
             </div>

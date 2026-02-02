@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
 
 // Reusable Toggle Switch Component
@@ -73,7 +73,7 @@ const SelectDropdown = ({ value, onChange, options, label, description }) => {
 const NotificationPageSettings = () => {
   const { notificationSettings, updateNotificationSettings, testNotificationSound } = useNotifications();
   
-  // Local state synced with context
+  // Initialize state directly from context (no useEffect needed)
   const [enableNotifications, setEnableNotifications] = useState(notificationSettings.enableNotifications);
   const [pushNotifications, setPushNotifications] = useState(notificationSettings.pushNotifications);
   const [emailNotifications, setEmailNotifications] = useState(notificationSettings.emailNotifications);

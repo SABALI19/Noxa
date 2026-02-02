@@ -148,13 +148,28 @@ const GoalsPage = () => {
 
   // Handle goal creation/update from navigation state
   const pendingGoalUpdateRef = useRef(null);
+  const processedActionsRef = useRef(new Set()); // Track processed actions to prevent duplicates
 
   // Handle goal creation/update from navigation state
   useEffect(() => {
-    if (location.state?.action === 'created') {
+    const actionKey = location.state?.action;
+    const goalDataKey = location.state?.goalData?.title; // Use title as unique identifier
+
+    console.log('GoalPage useEffect triggered:', { actionKey, goalDataKey, processedActions: Array.from(processedActionsRef.current) });
+
+    if (actionKey === 'created' && goalDataKey) {
+      // Check if we've already processed this creation
+      const processKey = `created_${goalDataKey}`;
+      if (processedActionsRef.current.has(processKey)) {
+        console.log('Already processed goal creation, skipping:', processKey);
+        return; // Already processed, skip
+      }
+
+      console.log('Processing new goal creation:', processKey);
+
       const newGoalData = location.state.goalData;
       const newId = goals.length > 0 ? Math.max(...goals.map(g => g.id)) + 1 : 1;
-      
+
       const newGoal = {
         id: newId,
         title: newGoalData.title,
@@ -177,22 +192,27 @@ const GoalsPage = () => {
         priority: newGoalData.priority || 'medium',
         milestones: newGoalData.milestones || []
       };
-      
+
       // Set pending update
       pendingGoalUpdateRef.current = { action: 'add', goal: newGoal };
-      
+
       // Send notification for goal creation
+      console.log('Sending goal_created notification for:', newGoal.title);
       addNotification('goal_created', newGoal, () => {
         navigate(`/goals/${newGoal.id}`);
       });
-      
+
       // Track notification
       trackNotification(newGoal.id, 'goal', 'sent', 'goal_created');
-      
+
+      // Mark as processed
+      processedActionsRef.current.add(processKey);
+      console.log('Marked as processed:', processKey);
+
       // Clear the navigation state
       window.history.replaceState({}, document.title);
-      
-    } else if (location.state?.action === 'updated') {
+
+    } else if (actionKey === 'updated' && goalDataKey) {
       const updatedGoalData = location.state.goalData;
       
       pendingGoalUpdateRef.current = { action: 'update', goal: updatedGoalData };
@@ -450,58 +470,61 @@ const GoalsPage = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header with Back Button */}
         <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <FiChevronLeft className="text-xl text-gray-600" />
-            </button>
-            <div className="flex-1">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Goals</h1>
-              <p className="text-sm md:text-base text-gray-600">Track and manage your objectives</p>
-            </div>
-          </div>
-          
-          {/* Create Goal Button - Now under header */}
-          <div className="mt-4">
-            <Button
-              variant="primary"
-              size="md"
-              className="w-full sm:w-auto rounded-xl"
-              onClick={() => navigate('/goals/new')}
-            >
-              + Create goal
-            </Button>
-          </div>
-        </div>
+  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    {/* Left side: Back button and title */}
+    <div className="flex items-center gap-4 w-full sm:w-auto">
+      <button
+        onClick={() => navigate('/dashboard')}
+        className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
+      >
+        <FiChevronLeft className="text-xl text-gray-600" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Goals</h1>
+        <p className="text-sm md:text-base text-gray-600">Track and manage your objectives</p>
+      </div>
+    </div>
+    
+    {/* Create Goal Button - Flex on desktop, full width on mobile */}
+    <div className="w-full sm:w-auto sm:mt-0">
+      <Button
+        variant="primary"
+        size="md"
+        className="w-full sm:w-auto rounded-xl"
+        onClick={() => navigate('/goals/new')}
+      >
+        + Create goal
+      </Button>
+    </div>
+  </div>
+</div>
 
-        {/* Goal filter buttons */}
-        <div className="flex flex-wrap mb-4 gap-2">
-          <Button 
-            variant="primary"
-            size="md"
-            className="rounded-full flex-1 sm:flex-none"
-          >
-            Active
-          </Button>
+{/* Goal filter buttons - Responsive sizes */}
+<div className="flex flex-wrap mb-4 gap-2 sm:gap-4">
+  <Button 
+    variant="primary"
+    size="sm"
+    className="rounded-full flex-1 sm:flex-none text-sm sm:text-base "
+  >
+    Active
+  </Button>
 
-          <Button
-            variant="soft"
-            size="md"
-            className="rounded-full flex-1 sm:flex-none"
-          >
-            Completed
-          </Button>
+  <Button
+    variant="soft"
+    size="sm"
+    className="rounded-full flex-1 sm:flex-none text-sm sm:text-base"
+  >
+    Completed
+  </Button>
 
-          <Button
-            variant="soft"
-            size="md"
-            className="rounded-full flex-1 sm:flex-none"
-          >
-            All
-          </Button>
-        </div>
+  <Button
+    variant="soft"
+    size="sm"
+    className="rounded-full flex-1 sm:flex-none text-sm sm:text-base "
+  >
+    All
+  </Button>
+</div>
 
         {/* Active goals header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
