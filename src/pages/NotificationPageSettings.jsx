@@ -127,12 +127,12 @@ const NotificationPageSettings = () => {
   ];
 
   const soundOptions = [
-    { value: 'Default', label: 'Default' },
-    { value: 'Chime', label: 'Chime' },
-    { value: 'Bell', label: 'Bell' },
-    { value: 'Ding', label: 'Ding' },
-    { value: 'Alert', label: 'Alert' },
-    { value: 'Notification', label: 'Notification' },
+    { value: 'Default', label: 'Default - C Major Arpeggio' },
+    { value: 'Chime', label: 'Chime - Subtle Beep' },
+    { value: 'Bell', label: 'Bell - Classic Bell' },
+    { value: 'Ding', label: 'Ding - Modern Pop' },
+    { value: 'Alert', label: 'Alert - Two-Tone Warning' },
+    { value: 'Notification', label: 'Notification - Elegant Chord' },
   ];
 
   const timeOptions = [
@@ -162,6 +162,153 @@ const NotificationPageSettings = () => {
     { value: '11:00 PM', label: '11:00 PM' },
   ];
 
+  // UPDATED SOUND FUNCTIONS - Match ProductPage exactly
+  const playDefaultSound = () => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContext();
+    
+    const notes = [
+      { freq: 523.25, time: 0 },      // C5
+      { freq: 659.25, time: 0.08 },   // E5
+      { freq: 783.99, time: 0.16 }    // G5
+    ];
+    
+    notes.forEach(note => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(note.freq, audioContext.currentTime + note.time);
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime + note.time);
+      gainNode.gain.linearRampToValueAtTime(0.25, audioContext.currentTime + note.time + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + note.time + 0.35);
+      
+      oscillator.start(audioContext.currentTime + note.time);
+      oscillator.stop(audioContext.currentTime + note.time + 0.35);
+    });
+  };
+
+  const playChimeSound = () => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContext();
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(700, audioContext.currentTime);
+    
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.2);
+  };
+
+  const playBellSound = () => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContext();
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
+    
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.02);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.4);
+  };
+
+  const playDingSound = () => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContext();
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(500, audioContext.currentTime + 0.05);
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.15);
+  };
+
+  const playAlertSound = () => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContext();
+    
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(500, audioContext.currentTime + 0.12);
+    oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.24);
+    
+    gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime + 0.08);
+    gainNode.gain.setValueAtTime(0.25, audioContext.currentTime + 0.12);
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime + 0.2);
+    gainNode.gain.setValueAtTime(0.25, audioContext.currentTime + 0.24);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.4);
+  };
+
+  const playNotificationSound = () => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioContext = new AudioContext();
+    
+    const frequencies = [523.25, 659.25, 783.99];
+    
+    frequencies.forEach((freq, index) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+      
+      const startTime = audioContext.currentTime + (index * 0.03);
+      
+      gainNode.gain.setValueAtTime(0, startTime);
+      gainNode.gain.linearRampToValueAtTime(0.15, startTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.5);
+      
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.5);
+    });
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -170,7 +317,33 @@ const NotificationPageSettings = () => {
   };
 
   const handleTestSound = () => {
-    testNotificationSound();
+    if (!soundEnabled) {
+      alert('Please enable "Notification Sounds" first!');
+      return;
+    }
+
+    switch(defaultSound) {
+      case 'Default':
+        playDefaultSound();
+        break;
+      case 'Chime':
+        playChimeSound();
+        break;
+      case 'Bell':
+        playBellSound();
+        break;
+      case 'Ding':
+        playDingSound();
+        break;
+      case 'Alert':
+        playAlertSound();
+        break;
+      case 'Notification':
+        playNotificationSound();
+        break;
+      default:
+        playDefaultSound();
+    }
   };
 
   const handleSaveChanges = () => {
@@ -183,6 +356,11 @@ const NotificationPageSettings = () => {
       defaultSound,
       soundEnabled
     });
+    
+    // Play success sound
+    if (soundEnabled) {
+      playDefaultSound();
+    }
     
     alert('Settings saved successfully!');
   };

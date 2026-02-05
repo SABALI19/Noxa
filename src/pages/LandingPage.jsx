@@ -5,7 +5,6 @@ import Noxalogo from "../assets/logo-items/logo-dark-transparent.png";
 import LogoIcon from "../assets/logo-items/logo-icon.png";
 import Auth from "../forms/Auth";
 import {
-  FiCheck,
   FiCalendar,
   FiBell,
   FiTarget,
@@ -23,50 +22,47 @@ import ModernChat from "../assets/img/Modern-chat.png"
 import Approval from "../assets/img/Approval-interface.svg"
 import Testimonials from "../components/Testimonials";
 import { useAuth } from "../hooks/UseAuth";
-
+import HowItWorksModal from "../components/HowItWorksModal"; // Import the modal component
 
 const LandingPage = ({ onLogin, onSignup }) => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
 
-
-
-const simulateLoading = () => {
-  return new Promise((resolve) => {
-    setIsLoading(true);
-    setLoadingProgress(0);
-    
-    const startTime = Date.now();
-    const totalDuration = 1500;
-    let animationFrameId;
-    
-    const updateProgress = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min((elapsed / totalDuration) * 100, 100);
+  const simulateLoading = () => {
+    return new Promise((resolve) => {
+      setIsLoading(true);
+      setLoadingProgress(0);
       
-      setLoadingProgress(progress);
+      const startTime = Date.now();
+      const totalDuration = 1500;
+      let animationFrameId;
       
-      if (progress < 100) {
-        animationFrameId = requestAnimationFrame(updateProgress);
-      } else {
-        cancelAnimationFrame(animationFrameId);
-        setTimeout(() => {
-          setIsLoading(false);
-          setLoadingProgress(0);
-          resolve(true);
-        }, 150);
-      }
-    };
-    
-    updateProgress();
-  });
-};
-
-
+      const updateProgress = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min((elapsed / totalDuration) * 100, 100);
+        
+        setLoadingProgress(progress);
+        
+        if (progress < 100) {
+          animationFrameId = requestAnimationFrame(updateProgress);
+        } else {
+          cancelAnimationFrame(animationFrameId);
+          setTimeout(() => {
+            setIsLoading(false);
+            setLoadingProgress(0);
+            resolve(true);
+          }, 150);
+        }
+      };
+      
+      updateProgress();
+    });
+  };
 
   const handleUserLogin = async (userData) => {
     try {
@@ -247,12 +243,12 @@ const simulateLoading = () => {
                 Features
               </Link>
 
-              <Link
-                to="/how-it-works"
-                className="text-gray-700 hover:text-[#3D9B9B] transition-colors"
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="text-gray-700 hover:text-[#3D9B9B] transition-colors duration-200"
               >
                 How it works
-              </Link>
+              </button>
 
               <Link
                 to="/pricing"
@@ -322,13 +318,15 @@ const simulateLoading = () => {
                   Features
                 </Link>
 
-                <Link
-                  to="/how-it-works"
-                  className="text-gray-700 hover:text-[#3D9B9B] transition-colors py-2"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                <button
+                  onClick={() => {
+                    setIsModalOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="text-gray-700 hover:text-[#3D9B9B] transition-colors py-2 text-left"
                 >
                   How it works
-                </Link>
+                </button>
 
                 <Link
                   to="/pricing"
@@ -351,11 +349,17 @@ const simulateLoading = () => {
         </div>
       </nav>
 
-      {/* Hero Section - FIXED RESPONSIVE */}
+      {/* How it works modal */}
+      <HowItWorksModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
+
+      {/* Hero Section */}
       <div className="bg-[#3d9c9c] min-h-[calc(100vh-4rem)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center min-h-[calc(100vh-4rem)] py-12 lg:py-20">
-            {/* Left content - Takes full width on mobile, 3 cols on desktop */}
+            {/* Left content */}
             <div className="lg:col-span-3 order-2 lg:order-1">
               <div className="max-w-2xl mx-auto lg:mx-0">
                 <div className="text-center lg:text-left">
@@ -420,7 +424,7 @@ const simulateLoading = () => {
               </div>
             </div>
 
-            {/* Right HeroLayout - Shows above content on mobile, beside on desktop */}
+            {/* Right HeroLayout */}
             <div className="lg:col-span-2 flex items-center justify-center order-1 lg:order-2">
               <div className="w-full max-w-xs sm:max-w-sm lg:max-w-md">
                 <HeroLayout />
@@ -668,9 +672,9 @@ const simulateLoading = () => {
               <div className="bg-linear-to-br from-[#3D9B9B] to-[#2D8B8B] rounded-2xl p-6 sm:p-8 text-white order-1 lg:order-2">
                 <div className="text-center">
                   <div className="text-5xl sm:text-6xl flex items-center space-x-2 justify-center mb-4 ">
-                <Link to="/landing">
-                  <img src={LogoIcon} alt="noxa logo" className="h-12 w-auto rounded-2xl" />
-                </Link>
+                    <Link to="/landing">
+                      <img src={LogoIcon} alt="noxa logo" className="h-12 w-auto rounded-2xl rotate-45" />
+                    </Link>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold mb-4">
                     Join Our Community
@@ -705,12 +709,12 @@ const simulateLoading = () => {
             </div>
           </div>
 
-          {/* Testimonials Section - FIXED RESPONSIVE */}
+          {/* Testimonials Section */}
           <div className="py-12 md:py-16">
             <Testimonials />
           </div>
 
-          {/* Auth Section - FIXED RESPONSIVE */}
+          {/* Auth Section */}
           <div id="auth-section" className="py-12 md:py-16">
             <Auth 
               onLogin={handleAuthLogin}
@@ -776,19 +780,16 @@ const simulateLoading = () => {
                   Cookie Policy
                 </Link>
                 
-                 <div  className="hover:text-[#3D9B9B]">
+                <div className="hover:text-[#3D9B9B]">
                   <a href="https://docs.noxa.ai" target="_blank" rel="noopener noreferrer">
-                  mail to:support@noxa.com
-        
+                    mail to:support@noxa.com
                   </a>
-                 </div>
-                 
                 </div>
-                 <div  className="text-[#3D9B9B] text-xsms sm:text-sm mt-4">
-                    built by D-Forgge Innovations Africa 
-                  </div>
               </div>
-            
+              <div className="text-[#3D9B9B] text-xs sm:text-sm mt-4">
+                built by D-Forgge Innovations Africa 
+              </div>
+            </div>
           </footer>
         </div>
       </div>

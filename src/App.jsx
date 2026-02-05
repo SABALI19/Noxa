@@ -21,6 +21,7 @@ import { NotificationTrackingProvider } from "./context/NotificationTrackingCont
 import { AuthProvider } from "./context/AuthContext";
 import { useAuth } from "./hooks/UseAuth";
 import { TaskProvider } from "./context/TaskContext";
+import HowItWorksModal from "./components/HowItWorksModal";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -73,6 +74,7 @@ function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/landing" element={<LandingPage />} />
+              <Route path="/howitworks" element={<HowItWorksModal />} />
               <Route path="/login" element={<Navigate to="/landing" replace />} />
 
               {/* Redirect root to landing or dashboard based on auth */}
