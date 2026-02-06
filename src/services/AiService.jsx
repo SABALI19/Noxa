@@ -13,7 +13,7 @@ const AI_CONFIG = {
   maxTokens: 1000
 };
 
-class AIService {
+class AiService {
   constructor() {
     // No longer needed - backend handles the API key!
     this.apiKey = null;
@@ -570,4 +570,4 @@ Generate smart reminders for the next 7 days.`;
 }
 
 // Export singleton instance
-export default new AIService();
+export default new AiService();

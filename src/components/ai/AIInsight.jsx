@@ -11,7 +11,7 @@ import {
   FiRefreshCw
 } from 'react-icons/fi';
 import Button from '../Button';
-import aiService from '../../services/aiService';
+import AiService from '../../services/AiService';
 
 /**
  * AI Insights Component
@@ -36,7 +36,7 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
     setError(null);
 
     try {
-      const predictions = await aiService.analyzePredictiveIssues(goals, tasks);
+      const predictions = await AiService.analyzePredictiveIssues(goals, tasks);
       setInsights(predictions);
     } catch (err) {
       console.error('Failed to load AI insights:', err);

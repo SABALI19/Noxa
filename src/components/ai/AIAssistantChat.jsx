@@ -10,7 +10,7 @@ import {
   FiCheck
 } from 'react-icons/fi';
 import Button from '../Button';
-import aiService from '../../services/AiService';
+import AiService from '../../services/AiService';
 
 /**
  * AI Assistant Chat Component
@@ -69,7 +69,7 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
         }))
       };
 
-      const response = await aiService.chat(inputValue, context);
+      const response = await AiService.chat(inputValue, context);
 
       const assistantMessage = {
         role: 'assistant',

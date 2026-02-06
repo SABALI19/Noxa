@@ -11,7 +11,7 @@ import {
   FiSettings
 } from 'react-icons/fi';
 import Button from '../Button';
-import aiService from '../../services/aiService';
+import AiService from '../../services/AiService';
 
 /**
  * Smart Automation Component
@@ -35,7 +35,7 @@ const SmartAutomation = ({ userActivity, onEnableAutomation }) => {
     setError(null);
 
     try {
-      const result = await aiService.discoverPatterns(userActivity);
+      const result = await AiService.discoverPatterns(userActivity);
       setPatterns(result);
     } catch (err) {
       console.error('Failed to discover patterns:', err);
