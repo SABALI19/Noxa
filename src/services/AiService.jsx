@@ -8,33 +8,29 @@
  */
 
 const AI_CONFIG = {
-  apiEndpoint: 'https://api.anthropic.com/v1/messages',
+  apiEndpoint: 'http://localhost:3001/api/ai', // ✅ Changed to your backend proxy
   model: 'claude-sonnet-4-20250514',
   maxTokens: 1000
 };
 
 class AIService {
   constructor() {
-    // Note: API key should be stored in environment variables
-    // For production, use: process.env.REACT_APP_ANTHROPIC_API_KEY
-    this.apiKey = null; // Will be set via setApiKey method
+    // No longer needed - backend handles the API key!
+    this.apiKey = null;
   }
 
   /**
-   * Set the API key (call this on app initialization)
+   * Set the API key (deprecated - kept for backward compatibility)
    */
   setApiKey(key) {
-    this.apiKey = key;
+    // No-op - backend handles authentication now
+    console.log('✅ AI Service configured to use backend proxy');
   }
 
   /**
-   * Make a request to Claude API
+   * Make a request to Claude API via backend proxy
    */
   async makeRequest(messages, systemPrompt = '') {
-    if (!this.apiKey) {
-      throw new Error('API key not configured. Please set your Anthropic API key.');
-    }
-
     try {
       const requestBody = {
         model: AI_CONFIG.model,
@@ -46,12 +42,11 @@ class AIService {
         requestBody.system = systemPrompt;
       }
 
+      // ✅ Simplified headers - no API key needed!
       const response = await fetch(AI_CONFIG.apiEndpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestBody)
       });
@@ -69,6 +64,8 @@ class AIService {
     }
   }
 
+  // ... rest of your code stays exactly the same ...
+
   /**
    * Parse Claude API response
    */
@@ -85,6 +82,60 @@ class AIService {
       text: fullText,
       rawContent: data.content,
       usage: data.usage
+    };
+  }
+
+  // ==================== UTILITY: DATA CLEANING ====================
+
+  /**
+   * Clean goal data to remove circular references and unnecessary fields
+   */
+  cleanGoalData(goal) {
+    if (!goal) return null;
+    
+    return {
+      id: goal.id,
+      title: goal.title,
+      category: goal.category,
+      targetDate: goal.targetDate,
+      progress: goal.progress,
+      currentValue: goal.currentValue,
+      targetValue: goal.targetValue,
+      unit: goal.unit,
+      completed: goal.completed,
+      priority: goal.priority,
+      description: goal.description,
+      // Only include simple milestone data if it exists
+      milestones: goal.milestones?.map(m => ({
+        id: m.id,
+        title: m.title,
+        targetValue: m.targetValue,
+        completed: m.completed
+      })) || []
+    };
+  }
+
+  /**
+   * Clean task data to remove circular references and unnecessary fields
+   */
+  cleanTaskData(task) {
+    if (!task) return null;
+    
+    return {
+      id: task.id,
+      title: task.title,
+      category: task.category,
+      completed: task.completed,
+      priority: task.priority,
+      estimatedTime: task.estimatedTime,
+      timeSpent: task.timeSpent,
+      dueDate: task.dueDate,
+      goalId: task.goalId,
+      // Only include simple data for related goal if it exists
+      goal: task.goal ? {
+        id: task.goal.id,
+        title: task.goal.title
+      } : null
     };
   }
 
@@ -115,11 +166,15 @@ class AIService {
       ]
     }`;
 
+    // ========== CLEAN DATA BEFORE SENDING ==========
+    const cleanGoals = goals.map(g => this.cleanGoalData(g));
+    const cleanTasks = tasks.map(t => this.cleanTaskData(t));
+
     const userMessage = `Current Goals:
-${JSON.stringify(goals, null, 2)}
+${JSON.stringify(cleanGoals, null, 2)}
 
 Current Tasks:
-${JSON.stringify(tasks, null, 2)}
+${JSON.stringify(cleanTasks, null, 2)}
 
 Analyze these and predict any potential problems.`;
 
@@ -162,8 +217,12 @@ Analyze these and predict any potential problems.`;
       "recommendations": ["action1", "action2"]
     }`;
 
-    const userMessage = `Goal: ${JSON.stringify(goal, null, 2)}
-Related Tasks: ${JSON.stringify(relatedTasks, null, 2)}
+    // ========== CLEAN DATA BEFORE SENDING ==========
+    const cleanGoal = this.cleanGoalData(goal);
+    const cleanRelatedTasks = relatedTasks.map(t => this.cleanTaskData(t));
+
+    const userMessage = `Goal: ${JSON.stringify(cleanGoal, null, 2)}
+Related Tasks: ${JSON.stringify(cleanRelatedTasks, null, 2)}
 
 Analyze this goal's risk level and provide recommendations.`;
 
@@ -255,8 +314,11 @@ Discover patterns and suggest automations.`;
       ]
     }`;
 
+    // ========== CLEAN DATA BEFORE SENDING ==========
+    const cleanTaskHistory = taskHistory.map(t => this.cleanTaskData(t));
+
     const userMessage = `Task History:
-${JSON.stringify(taskHistory, null, 2)}
+${JSON.stringify(cleanTaskHistory, null, 2)}
 
 What automations would benefit this user?`;
 
@@ -310,10 +372,14 @@ Draft an email based on this context.`;
     const systemPrompt = `You are Noxa's meeting agenda assistant. Create clear, actionable agendas.
     Include: objectives, discussion points, action items, time allocations.`;
 
-    const userMessage = `Goal/Project: ${goal.title}
-Description: ${goal.description || 'No description'}
-Related Tasks: ${tasks.map(t => t.title).join(', ')}
-Target Date: ${goal.targetDate}
+    // ========== CLEAN DATA BEFORE SENDING ==========
+    const cleanGoal = this.cleanGoalData(goal);
+    const cleanTasks = tasks.map(t => this.cleanTaskData(t));
+
+    const userMessage = `Goal/Project: ${cleanGoal.title}
+Description: ${cleanGoal.description || 'No description'}
+Related Tasks: ${cleanTasks.map(t => t.title).join(', ')}
+Target Date: ${cleanGoal.targetDate}
 
 Prepare a meeting agenda to discuss this goal's progress and next steps.`;
 
@@ -333,6 +399,10 @@ Prepare a meeting agenda to discuss this goal's progress and next steps.`;
     Include: achievements, challenges, metrics, recommendations for next week.
     Keep it motivating and constructive.`;
 
+    // ========== CLEAN DATA BEFORE SENDING ==========
+    const cleanGoalsProgress = (weekData.goalsProgress || []).map(g => this.cleanGoalData(g));
+    const cleanCompletedTasks = (weekData.completedTasks || []).map(t => this.cleanTaskData(t));
+
     const userMessage = `Week's Data:
 Goals Worked On: ${weekData.goalsWorkedOn || 0}
 Tasks Completed: ${weekData.tasksCompleted || 0}
@@ -340,10 +410,10 @@ Tasks Created: ${weekData.tasksCreated || 0}
 Total Time Logged: ${weekData.timeLogged || 0} hours
 
 Goals Progress:
-${JSON.stringify(weekData.goalsProgress || [], null, 2)}
+${JSON.stringify(cleanGoalsProgress, null, 2)}
 
 Tasks Completed:
-${JSON.stringify(weekData.completedTasks || [], null, 2)}
+${JSON.stringify(cleanCompletedTasks, null, 2)}
 
 Summarize this week's productivity.`;
 
@@ -375,13 +445,17 @@ Summarize this week's productivity.`;
       ]
     }`;
 
-    const userMessage = `Goal: ${goal.title}
-Description: ${goal.description}
-Target: ${goal.targetDate}
-Current Progress: ${goal.progress}%
+    // ========== CLEAN DATA BEFORE SENDING ==========
+    const cleanGoal = this.cleanGoalData(goal);
+    const cleanExistingTasks = existingTasks.map(t => this.cleanTaskData(t));
+
+    const userMessage = `Goal: ${cleanGoal.title}
+Description: ${cleanGoal.description}
+Target: ${cleanGoal.targetDate}
+Current Progress: ${cleanGoal.progress}%
 
 Existing Tasks:
-${existingTasks.map(t => `- ${t.title}`).join('\n')}
+${cleanExistingTasks.map(t => `- ${t.title}`).join('\n')}
 
 Suggest 3-5 new tasks to help achieve this goal.`;
 
@@ -425,11 +499,15 @@ Suggest 3-5 new tasks to help achieve this goal.`;
       ]
     }`;
 
+    // ========== CLEAN DATA BEFORE SENDING ==========
+    const cleanGoals = goals.slice(0, 5).map(g => this.cleanGoalData(g));
+    const cleanTasks = tasks.slice(0, 10).map(t => this.cleanTaskData(t));
+
     const userMessage = `Goals:
-${JSON.stringify(goals.slice(0, 5), null, 2)}
+${JSON.stringify(cleanGoals, null, 2)}
 
 Tasks:
-${JSON.stringify(tasks.slice(0, 10), null, 2)}
+${JSON.stringify(cleanTasks, null, 2)}
 
 User Patterns:
 ${JSON.stringify(userPatterns, null, 2)}

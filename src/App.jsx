@@ -23,6 +23,8 @@ import { useAuth } from "./hooks/UseAuth";
 import { TaskProvider } from "./context/TaskContext";
 import HowItWorksModal from "./components/HowItWorksModal";
 
+// REMOVED: All AI service initialization code - it's handled by the backend now!
+
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 

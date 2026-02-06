@@ -671,9 +671,9 @@ const LandingPage = ({ onLogin, onSignup }) => {
 
               <div className="bg-linear-to-br from-[#3D9B9B] to-[#2D8B8B] rounded-2xl p-6 sm:p-8 text-white order-1 lg:order-2">
                 <div className="text-center">
-                  <div className="text-5xl sm:text-6xl flex items-center space-x-2 justify-center mb-4 ">
+                  <div className="text-5xl sm:text-6xl flex items-center space-x-2 justify-center mb-4 animate-rotate">
                     <Link to="/landing">
-                      <img src={LogoIcon} alt="noxa logo" className="h-12 w-auto rounded-2xl rotate-45" />
+                      <img src={LogoIcon} alt="noxa logo" className="h-12 w-auto rounded-2xl " />
                     </Link>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold mb-4">

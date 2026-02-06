@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import TaskSidebar from './TaskSidebar';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/UseAuth';
+import AIAssistantChat from '../ai/AIAssistantChat';
 
 const Layout = () => {
   const location = useLocation();
@@ -101,7 +102,15 @@ const Layout = () => {
         <main className={`flex-1 overflow-y-auto bg-gray-50 transition-all duration-300 ${getMainContentClass()}`}>
           <Outlet />
         </main>
+
+         {/* ✅ AI Assistant Chat - appears on all pages */}
+        <AIAssistantChat 
+          goals={[]} // You can pass actual goals/tasks data if available
+          tasks={[]} 
+          userContext={{ user }}
+        />
       </div>
+      
     </div>
   );
 };
