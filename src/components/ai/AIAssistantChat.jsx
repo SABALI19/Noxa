@@ -143,13 +143,13 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
   `}
 >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-2xl">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between p-4 border-b  border-gray-200 bg-[#3d9c9c] rounded-t-2xl">
+        <div className="flex items-center  gap-3">
           <div className="p-2 bg-white rounded-lg shadow-sm">
-            <FiMessageSquare className="text-blue-500" />
+            <FiMessageSquare className="text-[#3d9c9c]" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-800">Noxa Assistant</h3>
+            <h3 className="font-bold text-gray-100">Noxa Assistant</h3>
             {isTyping && <p className="text-xs text-gray-500">Typing...</p>}
           </div>
         </div>
@@ -255,7 +255,7 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask me anything..."
-                className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200  resize-none"
                 rows="2"
               />
               <Button

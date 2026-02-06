@@ -22,7 +22,7 @@ class AiService {
   /**
    * Set the API key (deprecated - kept for backward compatibility)
    */
-  setApiKey(key) {
+  setApiKey() {
     // No-op - backend handles authentication now
     console.log('✅ AI Service configured to use backend proxy');
   }
@@ -63,8 +63,6 @@ class AiService {
       throw error;
     }
   }
-
-  // ... rest of your code stays exactly the same ...
 
   /**
    * Parse Claude API response
