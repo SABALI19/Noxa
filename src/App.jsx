@@ -23,17 +23,15 @@ import { useAuth } from "./hooks/UseAuth";
 import { TaskProvider } from "./context/TaskContext";
 import HowItWorksModal from "./components/HowItWorksModal";
 
-// REMOVED: All AI service initialization code - it's handled by the backend now!
-
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#3D9B9B] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     );
@@ -51,9 +49,9 @@ const AuthRedirect = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
         <div className="text-center">
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
       </div>
     );

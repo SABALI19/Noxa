@@ -292,7 +292,7 @@ const Header = ({
   return (
     <div className="relative">
       <div
-        className={`w-full ${height} ${className} py-4 flex items-center justify-between gap-2 md:gap-4 bg-[#edf0f2] shadow-lg z-10 relative`}
+        className={`w-full ${height} ${className} py-4 flex items-center justify-between gap-2 md:gap-4 bg-[#edf0f2] dark:bg-gray-900 shadow-lg z-10 relative`}
       >
         {/* Logo */}
         {Logo && !isSearchVisible && (

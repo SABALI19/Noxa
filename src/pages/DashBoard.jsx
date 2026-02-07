@@ -72,19 +72,24 @@ const Dashboard = ({ isSidebarOpen = true }) => {
   };
 
   return (
-    <div className={`min-h-screen bg-linear-to-br from-gray-50 to-blue-50 ${getContentPadding()} transition-all duration-300`}>
+    <div className={`min-h-screen 
+  bg-linear-to-br 
+  from-gray-50 to-blue-50          // Light mode gradient
+  dark:from-gray-800 dark:to-gray-900  // Dark mode gradient
+  ${getContentPadding()} 
+  transition-all duration-300`}>
       {/* Welcome Section */}
       <div className="mb-6 md:mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-300 mb-2 flex items-center gap-2">
               <span>{getGreeting()}, {getUserName()}!</span>
               <MdOutlineWavingHand className="text-yellow-500" />
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-gray-400">
               Here's your productivity overview for today
             </p>
-            <div className="mt-4 text-sm text-gray-500 bg-white p-3 rounded-lg inline-block shadow-sm">
+            <div className="mt-4 text-sm text-gray-500 dark:bg-gray-600 dark:text-gray-300 bg-white p-3 rounded-lg inline-block shadow-sm">
               📅 {new Date().toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 year: 'numeric', 
@@ -131,11 +136,11 @@ const Dashboard = ({ isSidebarOpen = true }) => {
       </div>
 
       {/* Recent Activity */}
-      <div className="mt-8 bg-white p-6 rounded-lg shadow-sm">
+      <div className="mt-8 bg-white dark:bg-gray-800  p-6 rounded-lg shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Recent Activity</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-300">Recent Activity</h2>
           {user && (
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-gray-300">
               Last login: {user.lastLogin ? new Date(user.lastLogin).toLocaleTimeString() : "Today"}
             </span>
           )}

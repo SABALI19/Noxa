@@ -354,6 +354,8 @@ const GoalsPage = () => {
     }
   };
 
+
+
   const handleMenuToggle = (goalId, event) => {
     if (openMenuId === goalId) {
       setOpenMenuId(null);
@@ -476,7 +478,7 @@ const GoalsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-800 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header with Back Button - UNCHANGED */}
         <div className="mb-6">
@@ -486,11 +488,11 @@ const GoalsPage = () => {
                 onClick={() => navigate('/dashboard')}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
               >
-                <FiChevronLeft className="text-xl text-gray-600" />
+                <FiChevronLeft className="text-xl text-gray-600 dark:text-gray-300" />
               </button>
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Goals</h1>
-                <p className="text-sm md:text-base text-gray-600">Track and manage your objectives</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-300">Goals</h1>
+                <p className="text-sm md:text-base text-gray-600 dark:text-gray-300">Track and manage your objectives</p>
               </div>
             </div>
             
@@ -553,14 +555,14 @@ const GoalsPage = () => {
           </Button>
         </div>
 
-        {/* REST OF THE COMPONENT REMAINS EXACTLY THE SAME */}
+        
         {/* Active goals header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-800">Active Goals</h2>
-            <p className="text-sm md:text-base text-gray-600">{getSortSubtitle()}</p>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-300">Active Goals</h2>
+            {/* <p className="text-sm md:text-base text-gray-600 dark:text-gray-300">{getSortSubtitle()}</p> */}
           </div>
-          
+
           <SortDropdown
             selectedOption={sortBy}
             onSelect={setSortBy}
@@ -577,12 +579,12 @@ const GoalsPage = () => {
               return (
                 <div
                   key={goal.id}
-                  className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300"
+                  className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300"
                 >
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg md:text-xl font-semibold text-gray-800 truncate">
+                        <h3 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-gray-300 truncate">
                           {goal.title}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
@@ -609,8 +611,8 @@ const GoalsPage = () => {
 
                     <div className="mb-4">
                       <div className="flex items-center gap-2 text-gray-600">
-                        <FiCalendar className="text-gray-400 shrink-0" />
-                        <span className="text-sm font-medium">
+                        <FiCalendar className="text-gray-400 dark:text-gray-400 shrink-0" />
+                        <span className="text-sm font-medium dark:text-gray-400">
                           Due: {goal.targetDate}
                         </span>
                       </div>
@@ -618,15 +620,15 @@ const GoalsPage = () => {
 
                     <div className="space-y-4">
                       <div>
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-sm font-medium text-gray-600">
+                        <div className="flex justify-between items-center mb-3 w-[90%]">
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
                             Progress
                           </span>
-                          <span className="text-lg font-bold text-gray-800">
+                          <span className="text-lg font-bold text-gray-800 dark:text-gray-300">
                             {goal.progress}%
                           </span>
                         </div>
-                        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-2 w-[90%] bg-gray-200 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full ${getProgressColor(
                               goal.progress
@@ -636,16 +638,16 @@ const GoalsPage = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 ">
                         <div>
                           <span className="inline-block text-xs text-gray-500 px-3 py-1 bg-[#d5f8f8] rounded-2xl text-center">
                             {goal.category}
                           </span>
                         </div>
                         {!goal.completed && goal.nextCheckin && (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center whitespace-nowrap gap-1">
                             <FiCalendar className="text-blue-500 text-sm shrink-0" />
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex justify-between gap-4 items-center ">
                               <span className="block text-xs text-gray-500">Next check-in</span>
                               <p className="text-sm font-medium text-blue-600 truncate">
                                 {goal.nextCheckin}
@@ -675,20 +677,20 @@ const GoalsPage = () => {
                       )}
 
                       {!goal.completed && (
-                        <div className="flex flex-wrap sm:flex-nowrap gap-3">
+                        <div className="flex flex-wrap sm:flex-nowrap gap-2">
                           <Button 
                             variant="primary"
                             size="md"
-                            className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl flex-1 min-w-[140px] sm:min-w-0"
+                            className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl flex-1 "
                             onClick={() => navigate(`/goals/${goal.id}`)}
                           >
-                            <FiEye className="text-lg sm:text-base" />
-                            <span className="whitespace-nowrap">View Details</span>
+                            <FiEye className="text-sm sm:text-base" />
+                            <span className="whitespace-nowrap ">View Details</span>
                           </Button>
                           <Button
                             variant="soft"
                             size="md"
-                            className="flex items-center justify-center rounded-xl sm:rounded-2xl flex-1 min-w-[140px] sm:shrink-0 sm:w-auto sm:px-6"
+                            className="flex items-center justify-center rounded-xl sm:rounded-2xl flex-1  sm:shrink-0 sm:w-auto sm:px-4"
                             onClick={(e) => handleUpdateProgress(goal.id, e)}
                           >
                             <span className="whitespace-nowrap">Update</span>
@@ -723,7 +725,7 @@ const GoalsPage = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
               <div>
                 <h2 className="text-xl md:text-2xl font-bold text-gray-800">Completed Goals</h2>
-                <p className="text-sm md:text-base text-gray-600">Recently completed</p>
+                <p className="text-md md:text-base text-gray-600 dark:text-gray-300">Recently completed</p>
               </div>
             </div>
             

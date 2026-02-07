@@ -123,7 +123,7 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 z-50"
+        className="fixed bottom-6 right-6 p-4 bg-gradient-to-r from-[#3D9B9B] to-[#4AB3B3] text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 z-50"
         aria-label="Open AI Assistant"
       >
         <FiMessageSquare className="text-2xl" />
@@ -143,7 +143,7 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
   `}
 >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b  border-gray-200 bg-[#3d9c9c] rounded-t-2xl">
+      <div className="flex items-center justify-between p-4 border-b bg-[#3d9c9c] dark:bg-gray-900 rounded-t-2xl">
         <div className="flex items-center  gap-3">
           <div className="p-2 bg-white rounded-lg shadow-sm">
             <FiMessageSquare className="text-[#3d9c9c]" />

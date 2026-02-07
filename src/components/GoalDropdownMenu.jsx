@@ -84,11 +84,11 @@ const GoalDropdownMenu = ({ goalId, isOpen, onClose, onMenuAction, triggerRect }
   const menuContent = (
     <div
       ref={menuRef}
-      className="w-64 bg-white rounded-xl shadow-2xl border border-gray-200 py-2 max-h-[70vh] overflow-hidden"
+      className="w-64 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 py-2 max-h-[70vh] overflow-hidden"
       style={getPositionStyle()}
     >
       <div className="px-2 pb-2 border-b border-gray-100 mb-2">
-        <h4 className="text-sm font-semibold text-gray-700 px-3 py-2">Goal Actions</h4>
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 px-3 py-2">Goal Actions</h4>
       </div>
       
       <div className="overflow-y-auto max-h-[60vh]">
@@ -102,10 +102,10 @@ const GoalDropdownMenu = ({ goalId, isOpen, onClose, onMenuAction, triggerRect }
                 : "text-gray-700 hover:text-gray-900"
             }`}
           >
-            <span className={`${item.danger ? 'text-red-500' : 'text-gray-500'}`}>
+            <span className={`${item.danger ? 'text-red-500' : 'text-gray-500  dark:text-gray-300'}`}>
               {item.icon}
             </span>
-            <span className="flex-1 text-left">{item.label}</span>
+            <span className="flex-1 text-left dark:text-gray-300">{item.label}</span>
           </button>
         ))}
       </div>

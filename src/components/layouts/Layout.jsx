@@ -36,17 +36,7 @@ const Layout = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, [isTaskPage]);
 
-  // Update sidebar state when route changes
-  useEffect(() => {
-    if (isMobile) {
-      // Close sidebar on mobile when navigating
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsSidebarOpen(false);
-    } else {
-      // On desktop, sidebar is open for non-task pages, closed for task pages
-      setIsSidebarOpen(!isTaskPage);
-    }
-  }, [location.pathname, isMobile, isTaskPage]);
+
 
   const handleToggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -77,7 +67,7 @@ const Layout = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
       <Header 
         onSearch={handleSearch}
         user={user}
@@ -86,7 +76,7 @@ const Layout = () => {
         showSidebarToggle={true}
       />
       
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-1 overflow-hidden relative bg-white dark:bg-gray-900">
         {/* Conditionally render sidebar based on route */}
         {isTaskPage ? (
           <TaskSidebar />
@@ -98,8 +88,8 @@ const Layout = () => {
           />
         )}
         
-        {/* Main content area where pages will render */}
-        <main className={`flex-1 overflow-y-auto bg-gray-50 transition-all duration-300 ${getMainContentClass()}`}>
+        {/* Main content area where pages will render - UPDATED with dark mode */}
+        <main className={`flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-all duration-300 ${getMainContentClass()}`}>
           <Outlet />
         </main>
 
