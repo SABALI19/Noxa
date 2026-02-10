@@ -283,7 +283,7 @@ const TaskSidebar = () => {
   // Collapsed sidebar for desktop
   if (isCollapsed && !isMobile) {
     return (
-      <div className="w-16 h-full bg-[#f2f5f7] shadow-md shadow-black overflow-y-auto transition-all duration-300 hidden md:block">
+      <div className="w-16 h-full bg-[#f2f5f7] dark:bg-gray-800 shadow-md shadow-black overflow-y-auto transition-all duration-300 hidden md:block">
         <div className="p-4 flex flex-col items-center">
           <Button
             variant="icon"
@@ -297,7 +297,7 @@ const TaskSidebar = () => {
           <div className="space-y-4">
             <div className="flex flex-col items-center space-y-2">
               <NotebookText size={20} className="text-[#3D9B9B] mb-7" />
-              <Calendar size={20} className="text-[#313333] mb-7" />
+              <Calendar size={20} className="text-[#313333] dark:text-gray-300 mb-7" />
               <CalendarDays size={20} className="text-[#3D9B9B] mb-7" />
               <AlertCircle size={20} className="text-[#e67373] mb-7" />
               <CheckCircle size={20} className="text-[#4cb04f]" />
@@ -344,17 +344,17 @@ const TaskSidebar = () => {
           isOpen={isMobileMenuOpen} 
           onClose={() => setIsMobileMenuOpen(false)} 
         />
-        <div className={`fixed left-0 top-0 h-full w-[280px]  sm:w-[320px] bg-[#f2f5f7] shadow-xl z-50 transition-transform duration-300 ${
+        <div className={`fixed left-0 top-0 h-full w-[280px]  sm:w-[320px] bg-[#f2f5f7] dark:bg-gray-800 shadow-xl z-50 transition-transform duration-300 ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
           <div className="p-4 h-full overflow-y-auto">
             {/* Mobile Header */}
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold font-roboto text-gray-800">Task Filters</h2>
+              <h2 className="text-lg font-semibold font-roboto text-gray-800 dark:text-gray-300">Task Filters</h2>
               <Button
                 variant="icon"
                 size="xs"
-                className="hover:bg-gray-200"
+                className="hover:bg-gray-200 dark:hover:bg-gray-700"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <X size={20} />
@@ -364,10 +364,10 @@ const TaskSidebar = () => {
             {/* Views Filter */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[15px] font-roboto font-semibold text-gray-500 uppercase">Views</h3>
+                <h3 className="text-[15px] font-roboto font-semibold text-gray-500 dark:text-gray-400 uppercase">Views</h3>
                 <button
                   onClick={() => toggleSection('views')}
-                  className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 transition-colors"
                 >
                   {expandedSections.views ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
@@ -389,7 +389,7 @@ const TaskSidebar = () => {
                         variant={filters.activeView === view.id ? "primary" : "secondaryPro"}
                         size="sm"
                         className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                          filters.activeView === view.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                          filters.activeView === view.id ? "bg-[#3D9B9B] text-white" : "text-gray-700 dark:text-gray-300"
                         }`}
                         onClick={() => handleViewFilter(view.id)}
                       >
@@ -407,7 +407,7 @@ const TaskSidebar = () => {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
                           filters.activeView === view.id 
                             ? "bg-white/20 text-white" 
-                            : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-white/20 group-hover:text-white"
                         }`}>
                           {view.count}
                         </span>
@@ -421,10 +421,10 @@ const TaskSidebar = () => {
             {/* Categories Filter */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold font-roboto text-gray-500 uppercase tracking-wider">Categories</h3>
+                <h3 className="text-xs font-semibold font-roboto text-gray-500 dark:text-gray-400 uppercase tracking-wider">Categories</h3>
                 <button
                   onClick={() => toggleSection('categories')}
-                  className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 transition-colors"
                 >
                   {expandedSections.categories ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
@@ -444,7 +444,7 @@ const TaskSidebar = () => {
                         variant={filters.activeCategory === category.id ? "primary" : "secondaryPro"}
                         size="sm"
                         className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                          filters.activeCategory === category.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                          filters.activeCategory === category.id ? "bg-[#3D9B9B] text-white" : "text-gray-700 dark:text-gray-300"
                         }`}
                         onClick={() => handleCategoryFilter(category.id)}
                       >
@@ -462,7 +462,7 @@ const TaskSidebar = () => {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
                           filters.activeCategory === category.id 
                             ? "bg-white/20 text-white" 
-                            : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-white/20 group-hover:text-white"
                         }`}>
                           {category.count}
                         </span>
@@ -476,10 +476,10 @@ const TaskSidebar = () => {
             {/* Priority Filter */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</h3>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Priority</h3>
                 <button
                   onClick={() => toggleSection('priority')}
-                  className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 transition-colors"
                 >
                   {expandedSections.priority ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
@@ -499,7 +499,7 @@ const TaskSidebar = () => {
                         variant={filters.activePriority === priority.id ? "primary" : "secondaryPro"}
                         size="sm"
                         className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                          filters.activePriority === priority.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                          filters.activePriority === priority.id ? "bg-[#3D9B9B] text-white" : "text-gray-700 dark:text-gray-300"
                         }`}
                         onClick={() => handlePriorityFilter(priority.id)}
                       >
@@ -517,7 +517,7 @@ const TaskSidebar = () => {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
                           filters.activePriority === priority.id 
                             ? "bg-white/20 text-white" 
-                            : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-white/20 group-hover:text-white"
                         }`}>
                           {priority.count}
                         </span>
@@ -531,10 +531,10 @@ const TaskSidebar = () => {
             {/* Sort By */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sort by</h3>
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort by</h3>
                 <button
                   onClick={() => toggleSection('sort')}
-                  className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 transition-colors"
                 >
                   {expandedSections.sort ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
@@ -555,7 +555,7 @@ const TaskSidebar = () => {
                         variant={filters.sortBy === sort.id ? "primary" : "secondaryPro"}
                         size="md"
                         className={`group flex items-center w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                          filters.sortBy === sort.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                          filters.sortBy === sort.id ? "bg-[#3D9B9B] text-white" : "text-gray-700 dark:text-gray-300"
                         }`}
                         onClick={() => handleSortChange(sort.id)}
                       >
@@ -583,7 +583,7 @@ const TaskSidebar = () => {
   // Desktop Full Sidebar
   return (
     <>
-      <div className="hidden md:block w-[280px] h-full bg-[#f2f5f7] shadow-md shadow-black overflow-y-auto transition-all duration-300">
+      <div className="hidden md:block w-[280px] h-full bg-[#f2f5f7] dark:bg-gray-800 shadow-md shadow-black overflow-y-auto transition-all duration-300">
         <div className="p-4">
           {/* Collapse Button */}
           <div className="flex justify-end mb-4">
@@ -600,10 +600,10 @@ const TaskSidebar = () => {
           {/* Views Filter */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[15px] font-roboto font-semibold text-gray-500 uppercase">Views</h3>
+              <h3 className="text-[15px] font-roboto font-semibold text-gray-500 dark:text-gray-400 uppercase">Views</h3>
               <button
                 onClick={() => toggleSection('views')}
-                className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 transition-colors"
               >
                 {expandedSections.views ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
@@ -625,7 +625,7 @@ const TaskSidebar = () => {
                       variant={filters.activeView === view.id ? "primary" : "secondaryPro"}
                       size="sm"
                       className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                        filters.activeView === view.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                        filters.activeView === view.id ? "bg-[#3D9B9B] text-white" : "text-gray-700 dark:text-gray-300"
                       }`}
                       onClick={() => handleViewFilter(view.id)}
                     >
@@ -643,7 +643,7 @@ const TaskSidebar = () => {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
                         filters.activeView === view.id 
                           ? "bg-white/20 text-white" 
-                          : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
+                          : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-white/20 group-hover:text-white"
                       }`}>
                         {view.count}
                       </span>
@@ -657,10 +657,10 @@ const TaskSidebar = () => {
           {/* Categories Filter */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold font-roboto text-gray-500 uppercase tracking-wider">Categories</h3>
+              <h3 className="text-xs font-semibold font-roboto text-gray-500 dark:text-gray-400 uppercase tracking-wider">Categories</h3>
               <button
                 onClick={() => toggleSection('categories')}
-                className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 transition-colors"
               >
                 {expandedSections.categories ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
@@ -680,7 +680,7 @@ const TaskSidebar = () => {
                       variant={filters.activeCategory === category.id ? "primary" : "secondaryPro"}
                       size="sm"
                       className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                        filters.activeCategory === category.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                        filters.activeCategory === category.id ? "bg-[#3D9B9B] text-white" : "text-gray-700 dark:text-gray-300"
                       }`}
                       onClick={() => handleCategoryFilter(category.id)}
                     >
@@ -698,7 +698,7 @@ const TaskSidebar = () => {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
                         filters.activeCategory === category.id 
                           ? "bg-white/20 text-white" 
-                          : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
+                          : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-white/20 group-hover:text-white"
                       }`}>
                         {category.count}
                       </span>
@@ -712,10 +712,10 @@ const TaskSidebar = () => {
           {/* Priority Filter */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</h3>
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Priority</h3>
               <button
                 onClick={() => toggleSection('priority')}
-                className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 transition-colors"
               >
                 {expandedSections.priority ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
@@ -735,7 +735,7 @@ const TaskSidebar = () => {
                       variant={filters.activePriority === priority.id ? "primary" : "secondaryPro"}
                       size="sm"
                       className={`group flex items-center justify-between w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                        filters.activePriority === priority.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                        filters.activePriority === priority.id ? "bg-[#3D9B9B] text-white" : "text-gray-700 dark:text-gray-300"
                       }`}
                       onClick={() => handlePriorityFilter(priority.id)}
                     >
@@ -753,7 +753,7 @@ const TaskSidebar = () => {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium min-w-8 text-center transition-colors ${
                         filters.activePriority === priority.id 
                           ? "bg-white/20 text-white" 
-                          : "bg-gray-200 text-gray-600 group-hover:bg-white/20 group-hover:text-white"
+                          : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-white/20 group-hover:text-white"
                       }`}>
                         {priority.count}
                       </span>
@@ -767,10 +767,10 @@ const TaskSidebar = () => {
           {/* Sort By */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sort by</h3>
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sort by</h3>
               <button
                 onClick={() => toggleSection('sort')}
-                className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 transition-colors"
               >
                 {expandedSections.sort ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
@@ -791,7 +791,7 @@ const TaskSidebar = () => {
                       variant={filters.sortBy === sort.id ? "primary" : "secondaryPro"}
                       size="md"
                       className={`group flex items-center w-full p-3 rounded-2xl text-left hover:text-white hover:bg-[#3D9B9B] transition-all duration-300 ${
-                        filters.sortBy === sort.id ? "bg-[#3D9B9B] text-white" : "text-gray-700"
+                        filters.sortBy === sort.id ? "bg-[#3D9B9B] text-white" : "text-gray-700 dark:text-gray-300"
                       }`}
                       onClick={() => handleSortChange(sort.id)}
                     >
@@ -812,9 +812,9 @@ const TaskSidebar = () => {
           </div>
 
           {/* Results Summary */}
-          <div className="mt-8 p-4 bg-white rounded-lg border border-gray-200">
+          <div className="mt-8 p-4 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-semibold text-gray-800">Filter Results</h3>
+              <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-300">Filter Results</h3>
               <Button
                 variant="secondaryPro"
                 size="xs"
@@ -826,17 +826,17 @@ const TaskSidebar = () => {
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Filtered Tasks</span>
-                <span className="text-sm font-medium text-gray-800">{filteredTasks.length}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Filtered Tasks</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-300">{filteredTasks.length}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Total Tasks</span>
-                <span className="text-sm font-medium text-gray-800">{tasks.length}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total Tasks</span>
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-300">{tasks.length}</span>
               </div>
-              <div className="pt-2 border-t border-gray-200">
+              <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Match Rate</span>
-                  <span className="text-sm font-medium text-blue-600">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Match Rate</span>
+                  <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
                     {tasks.length > 0 ? Math.round((filteredTasks.length / tasks.length) * 100) : 0}%
                   </span>
                 </div>

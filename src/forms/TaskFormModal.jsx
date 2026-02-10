@@ -494,13 +494,13 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-300 bg-opacity-50 backdrop-blur-sm p-4"
-      onClick={handleBackdropClick}
-    >
-      <div className="bg-white/90 backdrop-blur-lg rounded-xl shadow-2xl shadow-gray-700/50 w-full max-w-md max-h-[90vh] overflow-y-auto border border-white/20">
+  className="fixed inset-0 z-50 flex items-center justify-center bg-gray-300 dark:bg-gray-900 bg-opacity-5  backdrop-blur-md p-4"
+  onClick={handleBackdropClick}
+>
+  <div className="bg-white dark:bg-gray-800/90 backdrop-blur-lg rounded-xl shadow-2xl shadow-gray-700/50 w-full max-w-md max-h-[90vh] overflow-y-auto border border-white/20 dark:border-gray-700/20">
         {/* Header with Save Button (Top) */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200/50">
-          <h2 className="text-lg font-roboto font-normal text-gray-900">Create New Task</h2>
+          <h2 className="text-lg font-roboto font-normal text-gray-900 dark:text-gray-300">Create New Task</h2>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -525,13 +525,13 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
           onSubmit={handleFormSubmit} 
           className="p-6"
         >
-          <h3 className="text-md font-roboto font-normal text-gray-800 mb-4">
+          <h3 className="text-md font-roboto font-normal text-gray-800 dark:text-gray-300 mb-4">
             Essential Details
           </h3>
           
           <div className="space-y-4">
             <div>
-              <label htmlFor="task-title" className="block text-sm font-medium font-roboto text-gray-700 mb-1">
+              <label htmlFor="task-title" className="block text-sm font-medium font-roboto text-gray-700 dark:text-gray-300 mb-1">
                 Task Title
               </label>
               <div className="relative">
@@ -547,7 +547,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                   placeholder="What needs to be done?"
                   aria-describedby={errors.title ? "title-error" : undefined}
                 />
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-300">
                   <FiEdit2 className="w-4 h-4" />
                 </div>
               </div>
@@ -564,7 +564,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
 
             {/* Priority Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300  mb-1">
                 Priority
               </label>
               <div className="flex flex-row gap-3">

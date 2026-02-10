@@ -26,26 +26,27 @@ const ProgressChart = ({ data = [] }) => {
     <div className="h-64">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
           <XAxis 
             dataKey="date" 
-            stroke="#666" 
+            stroke="#9CA3AF" 
             fontSize={12}
             tickLine={false}
             axisLine={false}
           />
           <YAxis 
-            stroke="#666" 
+            stroke="#9CA3AF" 
             fontSize={12}
             tickLine={false}
             axisLine={false}
           />
           <Tooltip 
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #e5e7eb',
+              backgroundColor: '#1F2937',
+              border: '1px solid #374151',
               borderRadius: '0.5rem',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+              color: '#F9FAFB'
             }}
             formatter={(value, name) => {
               if (name === 'value') return [`${value}`, 'Value'];
@@ -63,13 +64,13 @@ const ProgressChart = ({ data = [] }) => {
               r: 4, 
               strokeWidth: 2, 
               stroke: '#3D9B9B', 
-              fill: 'white' 
+              fill: '#1F2937' 
             }}
             activeDot={{ 
               r: 6, 
               stroke: '#3D9B9B', 
               strokeWidth: 2, 
-              fill: 'white' 
+              fill: '#1F2937' 
             }}
           />
           <Line 
@@ -82,7 +83,7 @@ const ProgressChart = ({ data = [] }) => {
               r: 3, 
               strokeWidth: 2, 
               stroke: '#4caf93', 
-              fill: 'white' 
+              fill: '#1F2937' 
             }}
           />
         </LineChart>

@@ -692,7 +692,7 @@ const GoalDetailsPage = () => {
                       />
                       <button
                         onClick={() => setShowAddMilestone(false)}
-                        className="p-3 hover:bg-gray-200 rounded-lg flex-shrink-0"
+                        className="p-3 hover:bg-gray-200  rounded-lg flex-shrink-0"
                       >
                         <FiX />
                       </button>
@@ -727,7 +727,7 @@ const GoalDetailsPage = () => {
                           {milestone.completed && <FiCheckSquare className="text-sm" />}
                         </button>
                         <div className="min-w-0 flex-1">
-                          <h4 className={`font-medium break-words ${
+                          <h4 className={`font-medium dark:text-gray-300 break-words ${
                             milestone.completed ? 'text-green-800 line-through' : 'text-gray-800'
                           }`}>
                             {milestone.title}
@@ -741,14 +741,14 @@ const GoalDetailsPage = () => {
                     </div>
                   ))}
                   {goal.milestones.length === 0 && (
-                    <p className="text-gray-500 text-center py-4">No milestones added yet</p>
+                    <p className="text-gray-500 text-center py-4 dark:text-gray-300">No milestones added yet</p>
                   )}
                 </div>
               </div>
             )}
 
             {activeTab === 'notes' && (
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4 md:p-6">
+              <div className="bg-white  dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 p-4 md:p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg md:text-xl font-bold text-gray-800 dark:text-gray-300">Notes</h3>
                   <Button
@@ -764,13 +764,13 @@ const GoalDetailsPage = () => {
                 </div>
 
                 {showNoteForm && (
-                  <div className="mb-6 p-4 bg-gray-50  rounded-xl">
+                  <div className="mb-6 p-4 bg-gray-50  dark:bg-gray-800   rounded-xl">
                     <div className="mb-3">
                       <textarea
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
                         placeholder="Add your note here..."
-                        className="w-full p-3 border rounded-lg "
+                        className="w-full p-3 border rounded-lg  dark:bg-gray-700"
                         rows="3"
                       />
                     </div>
@@ -784,7 +784,7 @@ const GoalDetailsPage = () => {
                       </Button>
                       <Button
                         variant="primary"
-                        className="flex"
+                        className="flex rounded-xl"
                         onClick={handleAddNote}
                       >
                         Save Note
@@ -797,13 +797,13 @@ const GoalDetailsPage = () => {
                   {goal.notes.map((note) => (
                     <div key={note.id} className="border-l-4 border-blue-500 pl-4 py-3">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="font-medium text-gray-800">{note.date}</span>
+                        <span className="font-medium text-gray-800 dark:text-gray-300">{note.date}</span>
                       </div>
                       <p className="text-gray-600 break-words">{note.content}</p>
                     </div>
                   ))}
                   {goal.notes.length === 0 && (
-                    <p className="text-gray-500 text-center py-4">No notes added yet</p>
+                    <p className="text-gray-500 dark:text-gray-300 text-center py-4">No notes added yet</p>
                   )}
                 </div>
               </div>

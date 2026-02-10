@@ -17,24 +17,36 @@ export const ThemeProvider = ({ children }) => {
     return savedTheme || 'system';
   });
 
+  // Initialize isDark state
+  const [isDark, setIsDark] = useState(() => {
+    const savedTheme = localStorage.getItem('theme') || 'system';
+    if (savedTheme === 'system') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return savedTheme === 'dark';
+  });
+
   // Apply theme to document
   useEffect(() => {
     const root = document.documentElement;
-    
+
     // Remove existing theme classes
     root.classList.remove('light', 'dark');
-    
+
     let effectiveTheme = theme;
-    
+
     // If system preference, detect it
     if (theme === 'system') {
       const systemPreference = window.matchMedia('(prefers-color-scheme: dark)').matches;
       effectiveTheme = systemPreference ? 'dark' : 'light';
     }
-    
+
     // Apply theme
     root.classList.add(effectiveTheme);
-    
+
+    // Update isDark state
+    setIsDark(effectiveTheme === 'dark');
+
     // Save to localStorage
     localStorage.setItem('theme', theme);
   }, [theme]);
@@ -44,22 +56,24 @@ export const ThemeProvider = ({ children }) => {
     if (theme !== 'system') return;
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+
     const handleChange = (e) => {
       const root = document.documentElement;
       root.classList.remove('light', 'dark');
-      root.classList.add(e.matches ? 'dark' : 'light');
+      const newEffectiveTheme = e.matches ? 'dark' : 'light';
+      root.classList.add(newEffectiveTheme);
+      setIsDark(newEffectiveTheme === 'dark');
     };
 
     mediaQuery.addEventListener('change', handleChange);
-    
+
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 
   const value = {
     theme,
     setTheme,
-    isDark: document.documentElement.classList.contains('dark')
+    isDark
   };
 
   return (

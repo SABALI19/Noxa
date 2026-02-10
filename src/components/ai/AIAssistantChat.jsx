@@ -138,37 +138,37 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
       ? 'bottom-6 right-6 w-80 h-16' 
       : 'bottom-0 right-0 md:bottom-6 md:right-6 w-full h-full md:w-96 md:h-[600px] md:rounded-2xl'
     } 
-    bg-white shadow-2xl border border-gray-200
+    bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700
     ${!isMinimized && 'rounded-t-2xl md:rounded-2xl'}
   `}
 >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-[#3d9c9c] dark:bg-gray-900 rounded-t-2xl">
         <div className="flex items-center  gap-3">
-          <div className="p-2 bg-white rounded-lg shadow-sm">
-            <FiMessageSquare className="text-[#3d9c9c]" />
+          <div className="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
+            <FiMessageSquare className="text-[#3d9c9c] dark:text-[#3d9c9c]" />
           </div>
           <div>
             <h3 className="font-bold text-gray-100">Noxa Assistant</h3>
-            {isTyping && <p className="text-xs text-gray-500">Typing...</p>}
+            {isTyping && <p className="text-xs text-gray-300">Typing...</p>}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsMinimized(!isMinimized)}
-            className="p-2 hover:bg-white hover:bg-opacity-60 rounded-lg transition-colors"
+            className="p-2 hover:bg-white hover:bg-opacity-60 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             {isMinimized ? (
-              <FiMaximize2 className="text-gray-600" />
+              <FiMaximize2 className="text-gray-600 dark:text-gray-300" />
             ) : (
-              <FiMinimize2 className="text-gray-600" />
+              <FiMinimize2 className="text-gray-600 dark:text-gray-300" />
             )}
           </button>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-2 hover:bg-white hover:bg-opacity-60 rounded-lg transition-colors"
+            className="p-2 hover:bg-white hover:bg-opacity-60 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            <FiX className="text-gray-600" />
+            <FiX className="text-gray-600 dark:text-gray-300" />
           </button>
         </div>
       </div>
@@ -187,8 +187,8 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
                     message.role === 'user'
                       ? 'bg-blue-500 text-white'
                       : message.isError
-                      ? 'bg-red-50 text-red-800 border border-red-200'
-                      : 'bg-gray-100 text-gray-800'
+                      ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
@@ -199,7 +199,7 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
                     {message.role === 'assistant' && !message.isError && (
                       <button
                         onClick={() => handleCopy(message.content, index)}
-                        className="ml-2 p-1 hover:bg-white hover:bg-opacity-20 rounded transition-colors"
+                        className="ml-2 p-1 hover:bg-white hover:bg-opacity-20 dark:hover:bg-gray-600 rounded transition-colors"
                       >
                         {copiedIndex === index ? (
                           <FiCheck className="text-xs" />
@@ -215,11 +215,11 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
             
             {isTyping && (
               <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-2xl p-3">
+                <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl p-3">
                   <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                   </div>
                 </div>
               </div>
@@ -231,13 +231,13 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
           {/* Quick Actions */}
           {messages.length === 1 && (
             <div className="px-4 pb-2">
-              <p className="text-xs text-gray-500 mb-2">Quick actions:</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Quick actions:</p>
               <div className="grid grid-cols-2 gap-2">
                 {quickActions.map((action, index) => (
                   <button
                     key={index}
                     onClick={() => handleQuickAction(action.prompt)}
-                    className="text-xs p-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                    className="text-xs p-2 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-colors text-left"
                   >
                     {action.label}
                   </button>
@@ -247,7 +247,7 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
           )}
 
           {/* Input */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex gap-2">
               <textarea
                 ref={inputRef}
@@ -255,7 +255,7 @@ const AIAssistantChat = ({ goals = [], tasks = [], userContext = {} }) => {
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Ask me anything..."
-                className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200  resize-none"
+                className="flex-1 p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-xl focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-400 resize-none"
                 rows="2"
               />
               <Button

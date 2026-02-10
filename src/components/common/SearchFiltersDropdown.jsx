@@ -5,21 +5,21 @@ import Button from '../Button';
 
 const SearchFiltersDropdown = ({ currentFilters, onFilterChange, onClose, isMobile = false }) => {
   const categoryOptions = [
-    { id: 'work', label: 'Work', icon: FiBriefcase, color: 'bg-blue-100 text-blue-800' },
-    { id: 'personal', label: 'Personal', icon: FiHome, color: 'bg-purple-100 text-purple-800' },
-    { id: 'health', label: 'Health', icon: FiHeart, color: 'bg-green-100 text-green-800' },
+    { id: 'work', label: 'Work', icon: FiBriefcase, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
+    { id: 'personal', label: 'Personal', icon: FiHome, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' },
+    { id: 'health', label: 'Health', icon: FiHeart, color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
   ];
 
   const priorityOptions = [
-    { id: 'high', label: 'High Priority', color: 'bg-red-100 text-red-800' },
-    { id: 'medium', label: 'Medium Priority', color: 'bg-yellow-100 text-yellow-800' },
-    { id: 'low', label: 'Low Priority', color: 'bg-green-100 text-green-800' },
+    { id: 'high', label: 'High Priority', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' },
+    { id: 'medium', label: 'Medium Priority', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
+    { id: 'low', label: 'Low Priority', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
   ];
 
   const statusOptions = [
-    { id: 'completed', label: 'Completed', color: 'bg-green-100 text-green-800' },
-    { id: 'pending', label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
-    { id: 'overdue', label: 'Overdue', color: 'bg-red-100 text-red-800' },
+    { id: 'completed', label: 'Completed', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
+    { id: 'pending', label: 'Pending', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
+    { id: 'overdue', label: 'Overdue', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' },
   ];
 
   const handleFilterClick = (filterType, value) => {
@@ -32,18 +32,18 @@ const SearchFiltersDropdown = ({ currentFilters, onFilterChange, onClose, isMobi
     <div className="p-4">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h3 className="font-semibold text-gray-800 text-lg">Search Filters</h3>
+        <h3 className="font-semibold text-gray-800 dark:text-gray-300 text-lg">Search Filters</h3>
         <button
           onClick={onClose}
-          className="p-1 rounded-md hover:bg-gray-100"
+          className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
         >
-          <FiX className="text-lg text-gray-600" />
+          <FiX className="text-lg text-gray-600 dark:text-gray-300" />
         </button>
       </div>
 
       {/* Category Filters */}
       <div className="mb-6">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">Category</h4>
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-400 mb-3">Category</h4>
         <div className="grid grid-cols-3 gap-2">
           {categoryOptions.map(category => {
             const Icon = category.icon;
@@ -55,12 +55,12 @@ const SearchFiltersDropdown = ({ currentFilters, onFilterChange, onClose, isMobi
                 className={`flex flex-col items-center p-3 rounded-lg border transition-all ${
                   isActive 
                     ? `${category.color} border-transparent` 
-                    : 'border-gray-200 hover:bg-gray-50'
+                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
-                <Icon className={`text-lg mb-2 ${isActive ? category.color.split(' ')[1] : 'text-gray-500'}`} />
+                <Icon className={`text-lg mb-2 ${isActive ? category.color.split(' ')[1] : 'text-gray-500 dark:text-gray-400'}`} />
                 <span className="text-xs font-medium mb-1">{category.label}</span>
-                {isActive && <FiCheck className="text-green-600 mt-1" size={14} />}
+                {isActive && <FiCheck className="text-green-600 dark:text-green-400 mt-1" size={14} />}
               </button>
             );
           })}
@@ -69,7 +69,7 @@ const SearchFiltersDropdown = ({ currentFilters, onFilterChange, onClose, isMobi
 
       {/* Priority Filters */}
       <div className="mb-6">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">Priority</h4>
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-400 mb-3">Priority</h4>
         <div className="grid grid-cols-3 gap-2">
           {priorityOptions.map(priority => {
             const isActive = currentFilters.priority === priority.id;
@@ -80,7 +80,7 @@ const SearchFiltersDropdown = ({ currentFilters, onFilterChange, onClose, isMobi
                 className={`flex flex-col items-center p-3 rounded-lg border transition-all ${
                   isActive 
                     ? `${priority.color} border-transparent` 
-                    : 'border-gray-200 hover:bg-gray-50'
+                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <div 
@@ -91,7 +91,7 @@ const SearchFiltersDropdown = ({ currentFilters, onFilterChange, onClose, isMobi
                   }`}
                 />
                 <span className="text-xs font-medium mb-1">{priority.label}</span>
-                {isActive && <FiCheck className="text-green-600 mt-1" size={14} />}
+                {isActive && <FiCheck className="text-green-600 dark:text-green-400 mt-1" size={14} />}
               </button>
             );
           })}
@@ -100,7 +100,7 @@ const SearchFiltersDropdown = ({ currentFilters, onFilterChange, onClose, isMobi
 
       {/* Status Filters */}
       <div className="mb-6">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">Status</h4>
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-400 mb-3">Status</h4>
         <div className="grid grid-cols-3 gap-2">
           {statusOptions.map(status => {
             const isActive = currentFilters.status === status.id;
@@ -111,13 +111,13 @@ const SearchFiltersDropdown = ({ currentFilters, onFilterChange, onClose, isMobi
                 className={`flex flex-col items-center p-3 rounded-lg border transition-all ${
                   isActive 
                     ? `${status.color} border-transparent` 
-                    : 'border-gray-200 hover:bg-gray-50'
+                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <div className={`text-xs font-medium mb-1 ${isActive ? 'font-bold' : ''}`}>
                   {status.label}
                 </div>
-                {isActive && <FiCheck className="text-green-600 mt-1" size={14} />}
+                {isActive && <FiCheck className="text-green-600 dark:text-green-400 mt-1" size={14} />}
               </button>
             );
           })}
@@ -125,7 +125,7 @@ const SearchFiltersDropdown = ({ currentFilters, onFilterChange, onClose, isMobi
       </div>
 
       {/* Action Buttons */}
-      <div className="pt-4 border-t border-gray-200">
+      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
         <div className="flex gap-2">
           {hasActiveFilters && (
             <Button

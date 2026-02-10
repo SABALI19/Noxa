@@ -411,14 +411,14 @@ addNotification('profile_image_uploaded', {
     <>
       {/* Success Notification */}
       {showSuccess && (
-        <div className="fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg shadow-lg z-[9999] flex items-center gap-3 animate-fade-in">
-          <FiCheckCircle className="text-green-500 text-xl" />
+        <div className="fixed top-4 right-4 bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg shadow-lg z-[9999] flex items-center gap-3 animate-fade-in">
+          <FiCheckCircle className="text-green-500 dark:text-green-400 text-xl" />
           <div>
             <p className="font-medium">{successMessage}</p>
           </div>
           <button 
             onClick={() => setShowSuccess(false)}
-            className="text-green-700 hover:text-green-900 ml-4"
+            className="text-green-700 dark:text-green-300 hover:text-green-900 dark:hover:text-green-100 ml-4"
           >
             <FiX size={18} />
           </button>
@@ -435,7 +435,7 @@ addNotification('profile_image_uploaded', {
             <img
               src={displayImage}
               alt="Profile"
-              className={`${sizeClass} rounded-full object-cover ${borderClass} border-gray-300 shadow-sm`}
+              className={`${sizeClass} rounded-full object-cover ${borderClass} border-gray-300 dark:border-gray-600 shadow-sm`}
               onError={(e) => {
                 e.target.style.display = 'none';
                 const fallback = e.target.parentElement.querySelector('.profile-fallback');
@@ -455,28 +455,28 @@ addNotification('profile_image_uploaded', {
         </div>
         
         {/* Tooltip with user info - Simplified as requested */}
-        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
           <div className="text-center">
             {/* Show username first if available */}
             {isValidUser && currentUser.username && currentUser.username.trim() !== "" ? (
-              <div className="font-semibold text-gray-900 truncate text-sm">
+              <div className="font-semibold text-gray-900 dark:text-gray-300 truncate text-sm">
                 @{currentUser.username}
               </div>
             ) : isValidUser && currentUser.name ? (
-              <div className="font-semibold text-gray-900 truncate text-sm">
+              <div className="font-semibold text-gray-900 dark:text-gray-300 truncate text-sm">
                 {currentUser.name}
               </div>
             ) : (
-              <div className="font-semibold text-gray-900 truncate text-sm">
+              <div className="font-semibold text-gray-900 dark:text-gray-300 truncate text-sm">
                 User
               </div>
             )}
             
             {/* Only show view profile button */}
-            <div className="mt-3 pt-2 border-t border-gray-100">
+            <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700">
               <button
                 onClick={() => setShowProfileModal(true)}
-                className="text-sm text-[#3D9B9B] hover:text-[#2D8B8B] font-medium w-full py-1 hover:bg-gray-50 rounded transition-colors"
+                className="text-sm text-[#3D9B9B] hover:text-[#2d7b7b] dark:text-[#3D9B9B] dark:hover:text-[#2d7b7b] font-medium w-full py-1 hover:bg-gray-50 dark:hover:bg-gray-700 rounded transition-colors"
               >
                 View Profile
               </button>
@@ -488,13 +488,13 @@ addNotification('profile_image_uploaded', {
       {/* Profile Modal */}
       {showProfileModal && currentUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 rounded-t-2xl z-10">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 rounded-t-2xl z-10">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 font-roboto">Profile</h2>
-                  <p className="text-gray-600 mt-1 font-roboto text-base">View and edit your profile information</p>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-300 font-roboto">Profile</h2>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1 font-roboto text-base">View and edit your profile information</p>
                 </div>
                 <button
                   onClick={() => {
@@ -503,9 +503,9 @@ addNotification('profile_image_uploaded', {
                     setCropMode(false);
                     setUploadError("");
                   }}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
-                  <FiX className="text-xl text-gray-600" />
+                  <FiX className="text-xl text-gray-600 dark:text-gray-300" />
                 </button>
               </div>
             </div>
@@ -516,13 +516,13 @@ addNotification('profile_image_uploaded', {
               {cropMode ? (
                 <div className="space-y-6">
                   <div className="text-center">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Crop Your Image</h3>
-                    <p className="text-gray-600 mb-6">Select the area you want to use as your profile picture</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-300 mb-2">Crop Your Image</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">Select the area you want to use as your profile picture</p>
                   </div>
 
                   {/* Crop Interface */}
                   <div className="space-y-4">
-                    <div className="bg-gray-50 rounded-lg p-4 max-h-[300px] overflow-auto flex justify-center">
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 max-h-[300px] overflow-auto flex justify-center">
                       {imageSrc && (
                         <ReactCrop
                           crop={crop}
@@ -570,7 +570,7 @@ addNotification('profile_image_uploaded', {
                     </div>
 
                     <div className="text-center">
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         Tip: Select a square area for best results. The image will be cropped to a circle.
                       </p>
                     </div>
@@ -592,7 +592,7 @@ addNotification('profile_image_uploaded', {
                       
                       {/* Avatar display with upload overlay in edit mode */}
                       <div 
-                        className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg relative ${
+                        className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg relative ${
                           editMode ? 'cursor-pointer group' : ''
                         }`}
                         onClick={handleAvatarClick}
@@ -646,11 +646,11 @@ addNotification('profile_image_uploaded', {
                     {/* Upload Progress Bar (only in edit mode) */}
                     {editMode && uploadProgress > 0 && (
                       <div className="w-64 mb-4">
-                        <div className="flex justify-between text-xs text-gray-600 mb-1">
+                        <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
                           <span>Upload Progress</span>
                           <span>{uploadProgress}%</span>
                         </div>
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-[#3D9B9B] transition-all duration-300 ease-out"
                             style={{ width: `${uploadProgress}%` }}
@@ -661,36 +661,36 @@ addNotification('profile_image_uploaded', {
                     
                     {/* Upload error message */}
                     {uploadError && !cropMode && (
-                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg max-w-xs">
-                        <p className="text-red-600 text-sm text-center">{uploadError}</p>
+                      <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-xs">
+                        <p className="text-red-600 dark:text-red-400 text-sm text-center">{uploadError}</p>
                       </div>
                     )}
                     
                     <div className="text-center">
                       {editMode ? (
                         <div className="space-y-4">
-                          <div className="bg-[#3D9B9B]/10 rounded-lg p-3">
+                          <div className="bg-[#3D9B9B]/10 dark:bg-[#3D9B9B]/20 rounded-lg p-3">
                             <p className="font-medium text-[#3D9B9B] text-xl">
                               @{profileForm.username || "username"}
                             </p>
-                            <p className="text-gray-600 font-roboto text-sm">Username</p>
+                            <p className="text-gray-600 dark:text-gray-400 font-roboto text-sm">Username</p>
                           </div>
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          <div className="bg-[#3D9B9B]/10 rounded-lg p-3">
+                          <div className="bg-[#3D9B9B]/10 dark:bg-[#3D9B9B]/20 rounded-lg p-3">
                             <h3 className="text-xl font-bold text-[#3D9B9B] mb-1">
                               @{currentUser.username || "username"}
                             </h3>
-                            <p className="text-gray-600 text-sm">Username</p>
+                            <p className="text-gray-600 dark:text-gray-400 text-sm">Username</p>
                           </div>
                           <div className="mt-2">
                             <span className={`inline-block px-3 py-1 text-xs rounded-full ${
                               userRole === 'Admin' 
-                                ? 'bg-red-100 text-red-800' 
+                                ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300' 
                                 : userRole === 'Users'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-gray-100 text-gray-800'
+                                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                             }`}>
                               {userRole}
                             </span>
@@ -704,12 +704,12 @@ addNotification('profile_image_uploaded', {
                   {editMode ? (
                     <form onSubmit={handleProfileUpdate} className="space-y-6">
                       {/* Upload instructions */}
-                      <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4">
                         <div className="flex items-start gap-3">
-                          <FiUpload className="text-blue-500 mt-0.5 flex-shrink-0" />
+                          <FiUpload className="text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                           <div>
-                            <h4 className="font-medium text-blue-800 text-sm mb-1">Upload Profile Picture</h4>
-                            <p className="text-blue-600 text-xs">
+                            <h4 className="font-medium text-blue-800 dark:text-blue-300 text-sm mb-1">Upload Profile Picture</h4>
+                            <p className="text-blue-600 dark:text-blue-400 text-xs">
                               Click on your avatar above to upload a new photo. 
                               Large images (over 500x500) will be automatically cropped.
                               Supported formats: JPG, PNG, GIF, WebP (max 5MB)
@@ -720,24 +720,24 @@ addNotification('profile_image_uploaded', {
 
                       {/* Username Field */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Username <span className="text-gray-500 text-xs">(required)</span>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Username <span className="text-gray-500 dark:text-gray-400 text-xs">(required)</span>
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">@</span>
+                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400">@</span>
                           <input
                             type="text"
                             name="username"
                             value={profileForm.username}
                             onChange={handleProfileFormChange}
-                            className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none"
+                            className="w-full pl-8 pr-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none"
                             placeholder="Choose a username"
                             required
                             minLength="3"
                             maxLength="30"
                           />
                         </div>
-                        <p className="mt-1 text-xs font-roboto text-gray-500">
+                        <p className="mt-1 text-xs font-roboto text-gray-500 dark:text-gray-400">
                           This will be your unique identifier. 3-30 characters.
                         </p>
                       </div>
@@ -745,17 +745,17 @@ addNotification('profile_image_uploaded', {
                       {/* Alternative: Avatar URL Field */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <label className="block text-sm font-medium text-gray-700">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             Or paste image URL
                           </label>
-                          <span className="text-gray-500 text-xs">(alternative)</span>
+                          <span className="text-gray-500 dark:text-gray-400 text-xs">(alternative)</span>
                         </div>
                         <input
                           type="url"
                           name="avatar"
                           value={profileForm.avatar}
                           onChange={handleProfileFormChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none"
+                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none"
                           placeholder="https://example.com/avatar.jpg"
                         />
                       </div>
@@ -793,36 +793,36 @@ addNotification('profile_image_uploaded', {
                   ) : (
                     <div className="space-y-6">
                       {/* Account Information */}
-                      <div className="bg-gray-50 rounded-xl p-5">
-                        <h4 className="font-semibold text-gray-900 mb-4">Account Information</h4>
+                      <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-5">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-300 mb-4">Account Information</h4>
                         <div className="space-y-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#3D9B9B]/10 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-[#3D9B9B]/10 dark:bg-[#3D9B9B]/20 flex items-center justify-center">
                               <FiUser className="text-[#3D9B9B]" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600">Username</p>
-                              <p className="font-medium text-gray-900">@{currentUser.username || "Not set"}</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Username</p>
+                              <p className="font-medium text-gray-900 dark:text-gray-300">@{currentUser.username || "Not set"}</p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#3D9B9B]/10 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-[#3D9B9B]/10 dark:bg-[#3D9B9B]/20 flex items-center justify-center">
                               <FiMail className="text-[#3D9B9B]" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600">Email Address</p>
-                              <p className="font-medium text-gray-900">{currentUser.email}</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Email Address</p>
+                              <p className="font-medium text-gray-900 dark:text-gray-300">{currentUser.email}</p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#3D9B9B]/10 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full bg-[#3D9B9B]/10 dark:bg-[#3D9B9B]/20 flex items-center justify-center">
                               <FiCalendar className="text-[#3D9B9B]" />
                             </div>
                             <div>
-                              <p className="text-sm text-gray-600">Member Since</p>
-                              <p className="font-medium text-gray-900">
+                              <p className="text-sm text-gray-600 dark:text-gray-400">Member Since</p>
+                              <p className="font-medium text-gray-900 dark:text-gray-300">
                                 {currentUser.createdAt ? new Date(currentUser.createdAt).toLocaleDateString() : "Recently"}
                               </p>
                             </div>
@@ -832,9 +832,9 @@ addNotification('profile_image_uploaded', {
 
                       {/* Admin-only features */}
                       {isAdmin && (
-                        <div className="bg-red-50 rounded-xl p-5 border border-red-100">
-                          <h4 className="font-semibold text-red-900 mb-4">Admin Features</h4>
-                          <p className="text-sm text-red-700 mb-3">
+                        <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-5 border border-red-100 dark:border-red-800">
+                          <h4 className="font-semibold text-red-900 dark:text-red-300 mb-4">Admin Features</h4>
+                          <p className="text-sm text-red-700 dark:text-red-400 mb-3">
                             You have administrative access to the platform.
                           </p>
                           <div className="space-y-2">
@@ -869,9 +869,9 @@ addNotification('profile_image_uploaded', {
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6 rounded-b-2xl">
+            <div className="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-6 rounded-b-2xl">
               <div className="text-center">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   {currentUser.updatedAt ? `Last updated: ${new Date(currentUser.updatedAt).toLocaleDateString()}` : "Profile not updated yet"}
                 </p>
               </div>

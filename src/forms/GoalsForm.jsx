@@ -29,9 +29,9 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
       icon: '💼',
       title: 'Professional Development',
       subtitle: 'Career growth goals',
-      bgColor: 'bg-blue-50',
-      iconBg: 'bg-blue-100',
-      textColor: 'text-blue-600',
+      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+      iconBg: 'bg-blue-100 dark:bg-blue-800',
+      textColor: 'text-blue-600 dark:text-blue-400',
       category: 'Work'
     },
     {
@@ -39,9 +39,9 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
       icon: '💪',
       title: 'Health & Fitness',
       subtitle: 'Wellness objectives',
-      bgColor: 'bg-green-50',
-      iconBg: 'bg-green-100',
-      textColor: 'text-green-600',
+      bgColor: 'bg-green-50 dark:bg-green-900/20',
+      iconBg: 'bg-green-100 dark:bg-green-800',
+      textColor: 'text-green-600 dark:text-green-400',
       category: 'Health'
     },
     {
@@ -49,9 +49,9 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
       icon: '💰',
       title: 'Financial Goals',
       subtitle: 'Savings and investments',
-      bgColor: 'bg-yellow-50',
-      iconBg: 'bg-yellow-100',
-      textColor: 'text-yellow-600',
+      bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+      iconBg: 'bg-yellow-100 dark:bg-yellow-800',
+      textColor: 'text-yellow-600 dark:text-yellow-400',
       category: 'Financial'
     },
     {
@@ -59,9 +59,9 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
       icon: '📚',
       title: 'Learning & Education',
       subtitle: 'Knowledge acquisition',
-      bgColor: 'bg-purple-50',
-      iconBg: 'bg-purple-100',
-      textColor: 'text-purple-600',
+      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+      iconBg: 'bg-purple-100 dark:bg-purple-800',
+      textColor: 'text-purple-600 dark:text-purple-400',
       category: 'Education'
     }
   ];
@@ -77,8 +77,8 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
       ),
       title: 'Get AI Suggestions',
       subtitle: 'Smart milestone recommendations',
-      iconBg: 'bg-indigo-100',
-      textColor: 'text-indigo-600'
+      iconBg: 'bg-indigo-100 dark:bg-indigo-800',
+      textColor: 'text-indigo-600 dark:text-indigo-400'
     },
     {
       id: 2,
@@ -89,8 +89,8 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
       ),
       title: 'Similar Goals',
       subtitle: 'View related setup goals',
-      iconBg: 'bg-teal-100',
-      textColor: 'text-teal-600'
+      iconBg: 'bg-teal-100 dark:bg-teal-800',
+      textColor: 'text-teal-600 dark:text-teal-400'
     }
   ];
 
@@ -156,12 +156,12 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Back Button */}
         <button
           onClick={handleGoBack}
-          className="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 transition-colors mb-4"
+          className="inline-flex items-center gap-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors mb-4"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -172,13 +172,13 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Form - Left Side */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
               {/* Header */}
               <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-300">
                   {mode === 'edit' ? 'Edit Goal' : 'Create New Goal'}
                 </h1>
-                <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
                   <span>Goals</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -190,11 +190,11 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
               <form onSubmit={handleSubmit}>
                 {/* Essential Details Section */}
                 <div className="mb-8">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Essential Details</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-300 mb-4">Essential Details</h2>
 
                   {/* Goal Title */}
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Goal Title <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -202,35 +202,35 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
                       value={goalTitle}
                       onChange={(e) => setGoalTitle(e.target.value)}
                       placeholder="e.g., Complete AWS certification, Run a marathon, Write a book"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-300"
                       required
                     />
                   </div>
 
                   {/* Target Deadline */}
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Target Deadline <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="date"
                       value={targetDeadline}
                       onChange={(e) => setTargetDeadline(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-300"
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">When do you want to achieve this goal?</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">When do you want to achieve this goal?</p>
                   </div>
 
                   {/* Category */}
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Category
                     </label>
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-300"
                     >
                       {categories.map((cat) => (
                         <option key={cat.value} value={cat.value}>
@@ -243,11 +243,11 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
 
                 {/* Optional Details Section */}
                 <div className="mb-8">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Optional Details</h2>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-300 mb-4">Optional Details</h2>
 
                   {/* Description */}
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Description
                     </label>
                     <textarea
@@ -255,20 +255,20 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Describe your goal and why it matters to you..."
                       rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-300 resize-none"
                     />
                   </div>
 
                   {/* Milestones */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-3">
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Milestones
                       </label>
                       <button
                         type="button"
                         onClick={handleAddMilestone}
-                        className="text-sm text-teal-600 hover:text-teal-700 font-medium flex items-center gap-1"
+                        className="text-sm text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-medium flex items-center gap-1"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -286,12 +286,12 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
                               value={milestone.title}
                               onChange={(e) => handleMilestoneChange(milestone.id, e.target.value)}
                               placeholder="Enter milestone"
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-300"
                             />
                             <button
                               type="button"
                               onClick={() => handleRemoveMilestone(milestone.id)}
-                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                              className="p-2 text-red-500 hover:text-red-700 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -303,13 +303,13 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
                     )}
 
                     {milestones.length === 0 && (
-                      <p className="text-sm text-gray-500 italic">No milestones added yet</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 italic">No milestones added yet</p>
                     )}
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-3 pt-4 border-t">
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <button
                     type="submit"
                     className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
@@ -319,7 +319,7 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
                   <button
                     type="button"
                     onClick={handleGoBack}
-                    className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-md transition-colors"
+                    className="px-6 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-md transition-colors"
                   >
                     Cancel
                   </button>
@@ -331,8 +331,8 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
           {/* Right Sidebar */}
           <div className="lg:col-span-1 space-y-6">
             {/* Quick Start Templates */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Start Templates</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-300 mb-4">Quick Start Templates</h3>
               <div className="space-y-3">
                 {templates.map((template) => (
                   <button
@@ -349,7 +349,7 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
                         <h4 className={`font-semibold ${template.textColor} text-sm mb-0.5`}>
                           {template.title}
                         </h4>
-                        <p className="text-xs text-gray-600">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           {template.subtitle}
                         </p>
                       </div>
@@ -360,24 +360,24 @@ const GoalsForm = ({ goal, onSubmit, onCancel, mode = 'create' }) => {
             </div>
 
             {/* Smart Features */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Smart Features</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-300 mb-4">Smart Features</h3>
               <div className="space-y-3">
                 {smartFeatures.map((feature) => (
                   <button
                     key={feature.id}
                     type="button"
-                    className="w-full hover:bg-gray-50 transition-colors rounded-lg p-3 text-left group border border-gray-200"
+                    className="w-full hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors rounded-lg p-3 text-left group border border-gray-200 dark:border-gray-700"
                   >
                     <div className="flex items-start gap-3">
                       <div className={`${feature.iconBg} rounded-lg p-2 ${feature.textColor} group-hover:scale-110 transition-transform`}>
                         {feature.icon}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 text-sm mb-0.5">
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-300 text-sm mb-0.5">
                           {feature.title}
                         </h4>
-                        <p className="text-xs text-gray-600">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           {feature.subtitle}
                         </p>
                       </div>

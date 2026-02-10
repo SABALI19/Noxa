@@ -21,7 +21,7 @@ const CustomDropdown = ({ items = [], onSelect }) => {
       {/* Trigger (ONLY ICON) */}
       <FiChevronDown
         onClick={() => setOpen(!open)}
-        className={`text-gray-700 text-xl cursor-pointer transition-transform duration-200 ${
+        className={`text-gray-700 dark:text-gray-300 text-xl cursor-pointer transition-transform duration-200 ${
           open ? "rotate-180" : ""
         }`}
       />
@@ -29,7 +29,7 @@ const CustomDropdown = ({ items = [], onSelect }) => {
       {/* Dropdown Menu */}
       {open && (
         <div
-          className="absolute right-0 mt-2 min-w-[140px] bg-white border border-gray-200 
+          className="absolute right-0 mt-2 min-w-[140px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
                      rounded-md shadow-md z-50 animate-fadeIn"
         >
           {items.map((item, index) => (
@@ -39,7 +39,7 @@ const CustomDropdown = ({ items = [], onSelect }) => {
                 if (onSelect) onSelect(item.value);
                 setOpen(false);
               }}
-              className="px-3 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer"
+              className="px-3 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
             >
               {item.label}
             </div>

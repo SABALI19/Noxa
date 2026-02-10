@@ -71,10 +71,10 @@ const NotificationBell = () => {
     <div className="relative" ref={dropdownRef}>
       {/* Bell icon */}
       <div 
-        className="cursor-pointer relative p-2 rounded-full hover:bg-gray-100 transition-colors"
+        className="cursor-pointer relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <FiBell className="text-xl text-gray-700 hover:text-[#3D9B9B]" />
+        <FiBell className="text-xl text-gray-700 dark:text-gray-300 hover:text-[#3D9B9B]" />
         
         {/* Notification badge */}
         {unreadCount > 0 && (
@@ -86,7 +86,7 @@ const NotificationBell = () => {
 
       {/* Dropdown - Centered version */}
       {isOpen && (
-        <div className="fixed md:absolute inset-0 md:inset-auto md:right-0 md:top-full md:mt-2 md:w-80 bg-transparent md:bg-white md:rounded-lg md:shadow-xl md:border md:border-gray-200 z-50 flex items-center justify-center md:block">
+        <div className="fixed md:absolute inset-0 md:inset-auto md:right-0 md:top-full md:mt-2 md:w-80 bg-transparent md:bg-white md:dark:bg-gray-800 md:rounded-lg md:shadow-xl md:border md:border-gray-200 md:dark:border-gray-700 z-50 flex items-center justify-center md:block">
           {/* Mobile overlay - only visible on mobile */}
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 md:hidden"
@@ -94,10 +94,10 @@ const NotificationBell = () => {
           />
           
           {/* Dropdown content - centered on mobile, positioned normally on desktop */}
-          <div className="absolute md:relative md:transform-none transform -translate-x-1/2 -translate-y-1/2 md:translate-x-0 md:translate-y-0 top-1/2 left-1/2 md:top-auto md:left-auto w-[95vw] max-w-sm md:w-80 bg-white rounded-lg shadow-xl border border-gray-200 max-h-[80vh] flex flex-col">
+          <div className="absolute md:relative md:transform-none transform -translate-x-1/2 -translate-y-1/2 md:translate-x-0 md:translate-y-0 top-1/2 left-1/2 md:top-auto md:left-auto w-[95vw] max-w-sm md:w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[80vh] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-800">Notifications</h3>
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="font-semibold text-gray-800 dark:text-gray-300">Notifications</h3>
               <div className="flex gap-2">
                 {unreadCount > 0 && (
                   <button 
@@ -105,7 +105,7 @@ const NotificationBell = () => {
                       e.stopPropagation();
                       markAllAsRead();
                     }}
-                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                   >
                     <FiCheck className="text-sm" />
                     Mark all read
@@ -117,7 +117,7 @@ const NotificationBell = () => {
                       e.stopPropagation();
                       clearAll();
                     }}
-                    className="text-xs text-gray-500 hover:text-red-600 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
                     <FiX className="text-sm" />
                     Clear all
@@ -132,8 +132,8 @@ const NotificationBell = () => {
                 notifications.map((notification) => (
                   <div 
                     key={notification.id}
-                    className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer group ${
-                      !notification.read ? 'bg-blue-50/50' : ''
+                    className={`p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer group ${
+                      !notification.read ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
@@ -143,7 +143,7 @@ const NotificationBell = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">
-                          <p className="font-medium text-gray-800 truncate">{notification.title}</p>
+                          <p className="font-medium text-gray-800 dark:text-gray-300 truncate">{notification.title}</p>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -154,11 +154,11 @@ const NotificationBell = () => {
                             <FiX className="text-sm" />
                           </button>
                         </div>
-                        <p className="text-sm text-gray-600 mb-1">{notification.message}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{notification.message}</p>
                         <div className="flex items-center justify-between">
-                          <p className="text-xs text-gray-400">{notification.time}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">{notification.time}</p>
                           {!notification.read && (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">
                               New
                             </span>
                           )}
@@ -167,10 +167,10 @@ const NotificationBell = () => {
                         {notification.itemType && (
                           <div className="mt-2">
                             <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              notification.itemType === 'goal' ? 'bg-purple-100 text-purple-700' :
-                              notification.itemType === 'task' ? 'bg-blue-100 text-blue-700' :
-                              notification.itemType === 'reminder' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-gray-100 text-gray-700'
+                              notification.itemType === 'goal' ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' :
+                              notification.itemType === 'task' ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' :
+                              notification.itemType === 'reminder' ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300' :
+                              'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                             }`}>
                               {notification.itemType.charAt(0).toUpperCase() + notification.itemType.slice(1)}
                             </span>
@@ -182,21 +182,21 @@ const NotificationBell = () => {
                 ))
               ) : (
                 <div className="p-8 text-center text-gray-500">
-                  <FiBell className="text-3xl mx-auto mb-3 text-gray-300" />
-                  <p className="text-gray-600 font-medium mb-1">No notifications</p>
-                  <p className="text-sm text-gray-500">When you have notifications, they'll appear here</p>
+                  <FiBell className="text-3xl mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+                  <p className="text-gray-600 dark:text-gray-400 font-medium mb-1">No notifications</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-500">When you have notifications, they'll appear here</p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="p-3 border-t border-gray-200">
-              <div className="flex justify-between items-center text-sm text-gray-600">
+            <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
                 <span>
                   {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
                 </span>
                 <button 
-                  className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors"
                   onClick={() => setIsOpen(false)}
                 >
                   Close

@@ -79,14 +79,14 @@ const Dashboard = ({ isSidebarOpen = true }) => {
   ${getContentPadding()} 
   transition-all duration-300`}>
       {/* Welcome Section */}
-      <div className="mb-6 md:mb-8">
+      <div className="mb-6 mt-8 md:mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-300 mb-2 flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
               <span>{getGreeting()}, {getUserName()}!</span>
               <MdOutlineWavingHand className="text-yellow-500" />
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-[#01d5be] dark:text-">
               Here's your productivity overview for today
             </p>
             <div className="mt-4 text-sm text-gray-500 dark:bg-gray-600 dark:text-gray-300 bg-white p-3 rounded-lg inline-block shadow-sm">

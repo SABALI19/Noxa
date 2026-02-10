@@ -274,7 +274,7 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
     <>
       <div className={`${
         isCollapsed ? 'w-20' : 'w-64'
-      } h-[calc(100vh-3.5rem)] bg-[#f2f5f7] dark:bg-gray-800 p-4 transition-all duration-300 fixed left-0 top-14 z-30`}>
+      } h-[calc(100vh-3.5rem)] bg-[#f2f5f7] dark:bg-gray-700 p-4 transition-all duration-300 fixed left-0 top-14 z-30`}>
         {/* Collapse Button */}
         <div className="flex justify-end mb-4">
           <button
