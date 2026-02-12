@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Button from "../Button";
-import { FiBell, FiUser } from "react-icons/fi";
+import { FiBell, FiHome, FiUser } from "react-icons/fi";
 import { IoColorPaletteOutline } from "react-icons/io5";
 import { MdOutlineShield } from "react-icons/md";
 import { IoIosHelpCircleOutline } from "react-icons/io";
@@ -187,18 +187,21 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
       <>
         {/* Overlay */}
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+          className="fixed inset-0 bg-gray bg-opacity-25 z-40 transition-opacity duration-300"
           onClick={() => onToggle(false)}
         />
         
         {/* Sidebar */}
         <div 
-          className={`fixed left-0 top-14 h-full w-64 bg-[#f2f5f7] dark:bg-gray-800 shadow-xl rounded-2xl z-50 p-4 transition-transform duration-300 ${
+          className={`fixed left-0 top-14 h-full w-64 bg-[#f2f5f7] bg-opacity-25 dark:bg-gray-800 shadow-xl rounded-2xl z-50 p-4 transition-transform duration-300 ${
             isOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           {/* Close button for mobile */}
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-between mb-4">
+            <button className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+              <FiHome className="text-2xl text-[#3D9B9B]"/>
+            </button>
             <button
               onClick={() => onToggle(false)}
               className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"

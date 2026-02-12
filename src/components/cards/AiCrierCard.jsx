@@ -19,7 +19,7 @@ const AiCrierCard = ({
   };
   
   const getStatusColor = () => {
-    return isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800";
+    return isActive ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300" : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300";
   };
   
   const getStatusText = () => {
@@ -31,17 +31,17 @@ const AiCrierCard = ({
   };
   
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer h-55">
+    <div className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow cursor-pointer h-55 border border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div 
-            className="p-3 rounded-lg"
-            style={{ backgroundColor: `${color}15` }}
+            className="p-3 rounded-lg dark:bg-opacity-20"
+            style={{ backgroundColor: `${color}20` }}
           >
             <GiRobotGolem className="text-xl" style={{ color }} />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-800">{title}</h3>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-300">{title}</h3>
             <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor()}`}>
               {getStatusText()}
             </span>
@@ -51,10 +51,10 @@ const AiCrierCard = ({
           <button
             onClick={handleToggle}
             className={`w-12 h-6 flex items-center rounded-full p-1 transition-all ${
-              isActive ? 'bg-green-500 justify-end' : 'bg-gray-300 justify-start'
+              isActive ? 'bg-green-500 dark:bg-green-600 justify-end' : 'bg-gray-300 dark:bg-gray-600 justify-start'
             }`}
           >
-            <div className="w-4 h-4 bg-white rounded-full"></div>
+            <div className="w-4 h-4 bg-white dark:bg-gray-200 rounded-full"></div>
           </button>
         </div>
       </div>
@@ -62,13 +62,13 @@ const AiCrierCard = ({
       <div className="space-y-3 mb-4">
         <div className="flex items-center justify-between text-sm">
           <div className="flex items-center gap-2">
-            <FiZap className="text-gray-500" />
-            <span className="text-gray-600">Recent Activities</span>
+            <FiZap className="text-gray-500 dark:text-gray-400" />
+            <span className="text-gray-600 dark:text-gray-300">Recent Activities</span>
           </div>
-          <span className="font-medium">{recentActivities}</span>
+          <span className="font-medium dark:text-gray-300">{recentActivities}</span>
         </div>
         
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
           <p>Your AI assistant is {isActive ? 'actively monitoring' : 'in sleep mode'}</p>
           <p className="text-xs mt-1">
             {isActive 
@@ -83,7 +83,7 @@ const AiCrierCard = ({
           onClick={handleChatClick}
           className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium text-sm hover:opacity-90 transition-opacity"
           style={{ 
-            backgroundColor: `${color}15`,
+            backgroundColor: `${color}20`,
             color
           }}
         >
@@ -93,7 +93,7 @@ const AiCrierCard = ({
         
         <button
           onClick={handleToggle}
-          className="flex-1 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+          className="flex-1 py-2 rounded-lg font-medium text-sm bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
         >
           {isActive ? 'Deactivate' : 'Activate'}
         </button>

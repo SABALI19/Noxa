@@ -684,7 +684,7 @@ const GoalsPage = () => {
                             className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl flex-1 "
                             onClick={() => navigate(`/goals/${goal.id}`)}
                           >
-                            <FiEye className="text-sm sm:text-base" />
+                            <FiEye className="text-sm sm:text-lg" />
                             <span className="whitespace-nowrap ">View Details</span>
                           </Button>
                           <Button
@@ -724,7 +724,7 @@ const GoalsPage = () => {
           <>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-800">Completed Goals</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-300">Completed Goals</h2>
                 <p className="text-md md:text-base text-gray-600 dark:text-gray-300">Recently completed</p>
               </div>
             </div>
@@ -736,16 +736,16 @@ const GoalsPage = () => {
                 return (
                   <div
                     key={goal.id}
-                    className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow duration-300"
+                    className="bg-white rounded-2xl shadow-lg border dark:bg-gray-900 border-gray-200 hover:shadow-xl transition-shadow duration-300"
                   >
                     <div className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg md:text-xl font-semibold text-gray-800 truncate">
+                          <h3 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-gray-300 truncate">
                             {goal.title}
                           </h3>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-300 dark:text-green-300 px-2 py-1 rounded-full">
                               <FiCheckCircle className="text-sm" />
                               Completed
                             </span>
@@ -754,8 +754,8 @@ const GoalsPage = () => {
                       </div>
 
                       <div className="mb-4">
-                        <div className="flex items-center gap-2 text-gray-600">
-                          <FiCalendar className="text-gray-400 shrink-0" />
+                        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+                          <FiCalendar className="text-gray-400 dark:text-gray-400 shrink-0" />
                           <span className="text-sm font-medium">
                             Due: {goal.targetDate}
                           </span>
@@ -765,14 +765,14 @@ const GoalsPage = () => {
                       <div className="space-y-4">
                         <div>
                           <div className="flex justify-between items-center mb-3">
-                            <span className="text-sm font-medium text-gray-600">
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
                               Progress
                             </span>
-                            <span className="text-lg font-bold text-gray-800">
+                            <span className="text-lg font-bold text-gray-800 dark:text-gray-300">
                               {goal.progress}%
                             </span>
                           </div>
-                          <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full ${getProgressColor(
                                 goal.progress
@@ -783,7 +783,7 @@ const GoalsPage = () => {
                         </div>
 
                         <div>
-                          <span className="inline-block text-xs text-gray-500 px-3 py-1 bg-[#d5f8f8] rounded-2xl text-center">
+                          <span className="inline-block text-xs text-gray-500 dark:text-gray-800 px-3 py-1 bg-[#d5f8f8] rounded-2xl text-center">
                             {goal.category}
                           </span>
                         </div>
@@ -793,7 +793,7 @@ const GoalsPage = () => {
                             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                               <div className="flex items-center gap-1">
                                 <FiBell className="text-blue-500" size={12} />
-                                <span className="text-gray-600">
+                                <span className="text-gray-600 dark:text-gray-50">
                                   {goalTracking.totalNotifications} notifications
                                 </span>
                               </div>
@@ -823,8 +823,8 @@ const GoalsPage = () => {
         )}
 
         {/* Category Distribution - UNCHANGED */}
-        <div className="mt-8 bg-white rounded-2xl shadow-lg p-4 md:p-6 border border-gray-200">
-          <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-6">
+        <div className="mt-8 bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-4 md:p-6 border border-gray-200">
+          <h3 className="text-lg md:text-xl font-bold text-gray-800 dark:text-gray-300 mb-6">
             Goal Categories Distribution
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -835,7 +835,7 @@ const GoalsPage = () => {
                 >
                   {category.count}
                 </div>
-                <p className="text-xs sm:text-sm font-medium text-gray-700">
+                <p className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                   {category.name}
                 </p>
               </div>

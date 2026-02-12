@@ -1,4 +1,4 @@
-// src/pages/TaskPage.jsx
+// src/pages/TaskPage.jsx - UPDATED BACK BUTTON
 import { Grid3x3, List } from 'lucide-react';
 import React, { useState } from 'react';
 import { 
@@ -538,26 +538,26 @@ const TaskPage = () => {
   );
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header with Back Button */}
-        <div className="mb-8 mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <button 
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
-            >
-              <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
-              <span className="font-medium hidden sm:inline">Back to Dashboard</span>
-              <span className="font-medium sm:hidden">Back</span>
-            </button>
-          </div>
+        {/* Header with Back Button - UPDATED TO MATCH GOALS FORM */}
+        <div className="mb-8">
+          {/* Back Button - MATCHING GOALS FORM STYLING */}
+          <button
+            onClick={() => navigate('/')}
+            className="inline-flex items-center gap-2 text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors mb-4"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="text-sm font-medium">Back to Dashboard</span>
+          </button>
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Task Manager</h1>
-                <p className="text-gray-600 mt-1">Stay organized and productive with your tasks</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-300">Task Manager</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">Stay organized and productive with your tasks</p>
               </div>
               <Button
                 variant="icon"
@@ -587,40 +587,40 @@ const TaskPage = () => {
           </div>
         </div>
 
-        {/* Task Stats */}
+        {/* Task Stats - UPDATED WITH DARK MODE */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">{pending}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">{pending}</p>
               </div>
               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">In Progress</p>
-                <p className="text-2xl font-bold text-blue-600">{inProgress}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">In Progress</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-500">{inProgress}</p>
               </div>
               <div className="w-3 h-3 rounded-full bg-blue-500"></div>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Completed</p>
-                <p className="text-2xl font-bold text-green-600">{completed}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-500">{completed}</p>
               </div>
               <div className="w-3 h-3 rounded-full bg-green-500"></div>
             </div>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Overdue</p>
-                <p className="text-2xl font-bold text-red-600">{overdue}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Overdue</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-500">{overdue}</p>
               </div>
               <div className="w-3 h-3 rounded-full bg-red-500"></div>
             </div>
@@ -630,24 +630,24 @@ const TaskPage = () => {
         {/* Show content based on whether there are filtered tasks or not */}
         {hasFilteredTasks ? (
           <div className="space-y-6">
-            {/* In Progress Tasks Section */}
+            {/* In Progress Tasks Section - UPDATED WITH DARK MODE */}
             {sortedInProgress.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
                 <div 
-                  className="p-4 border-b border-gray-200 bg-blue-50 cursor-pointer"
+                  className="p-4 border-b border-gray-200 dark:border-gray-700 bg-blue-50 dark:bg-blue-900/20 cursor-pointer"
                   onClick={() => toggleSection('in_progress')}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <h2 className="text-lg font-semibold text-gray-900">In Progress</h2>
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-300">In Progress</h2>
+                      <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-1 rounded-full text-xs font-medium">
                         {sortedInProgress.length} tasks
                       </span>
                     </div>
-                    <span className="text-gray-500">
+                    <span className="text-gray-500 dark:text-gray-400">
                       {expandedSections.in_progress ? '▲' : '▼'}
                     </span>
                   </div>
@@ -673,22 +673,22 @@ const TaskPage = () => {
               </div>
             )}
 
-            {/* Overdue Tasks Section */}
+            {/* Overdue Tasks Section - UPDATED WITH DARK MODE */}
             {sortedOverdue.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
                 <div 
-                  className="p-4 border-b border-gray-200 bg-red-50 cursor-pointer"
+                  className="p-4 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20 cursor-pointer"
                   onClick={() => toggleSection('overdue')}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <FiAlertCircle className="text-red-600" />
-                      <h2 className="text-lg font-semibold text-gray-900">Overdue Tasks</h2>
-                      <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
+                      <FiAlertCircle className="text-red-600 dark:text-red-400" />
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-300">Overdue Tasks</h2>
+                      <span className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 px-2 py-1 rounded-full text-xs font-medium">
                         {sortedOverdue.length} tasks
                       </span>
                     </div>
-                    <span className="text-gray-500">
+                    <span className="text-gray-500 dark:text-gray-400">
                       {expandedSections.overdue ? '▲' : '▼'}
                     </span>
                   </div>
@@ -714,22 +714,22 @@ const TaskPage = () => {
               </div>
             )}
 
-            {/* Pending Tasks Section */}
+            {/* Pending Tasks Section - UPDATED WITH DARK MODE */}
             {sortedPending.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
                 <div 
-                  className="p-4 border-b border-gray-200 bg-yellow-50 cursor-pointer"
+                  className="p-4 border-b border-gray-200 dark:border-gray-700 bg-yellow-50 dark:bg-yellow-900/20 cursor-pointer"
                   onClick={() => toggleSection('pending')}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <FiClock className="text-yellow-600" />
-                      <h2 className="text-lg font-semibold text-gray-900">Pending Tasks</h2>
-                      <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                      <FiClock className="text-yellow-600 dark:text-yellow-500" />
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-300">Pending Tasks</h2>
+                      <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 px-2 py-1 rounded-full text-xs font-medium">
                         {sortedPending.length} tasks
                       </span>
                     </div>
-                    <span className="text-gray-500">
+                    <span className="text-gray-500 dark:text-gray-400">
                       {expandedSections.pending ? '▲' : '▼'}
                     </span>
                   </div>
@@ -755,22 +755,22 @@ const TaskPage = () => {
               </div>
             )}
 
-            {/* Completed Tasks Section */}
+            {/* Completed Tasks Section - UPDATED WITH DARK MODE */}
             {sortedCompleted.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
                 <div 
-                  className="p-4 border-b border-gray-200 bg-green-50 cursor-pointer"
+                  className="p-4 border-b border-gray-200 dark:border-gray-700 bg-green-50 dark:bg-green-900/20 cursor-pointer"
                   onClick={() => toggleSection('completed')}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <FiCheckCircle className="text-green-600" />
-                      <h2 className="text-lg font-semibold text-gray-900">Completed Tasks</h2>
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                      <FiCheckCircle className="text-green-600 dark:text-green-500" />
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-300">Completed Tasks</h2>
+                      <span className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 px-2 py-1 rounded-full text-xs font-medium">
                         {sortedCompleted.length} tasks
                       </span>
                     </div>
-                    <span className="text-gray-500">
+                    <span className="text-gray-500 dark:text-gray-400">
                       {expandedSections.completed ? '▲' : '▼'}
                     </span>
                   </div>
@@ -797,17 +797,17 @@ const TaskPage = () => {
             )}
           </div>
         ) : (
-          /* Empty State for filtered results */
+          /* Empty State for filtered results - UPDATED WITH DARK MODE */
           <div className="flex flex-col items-center justify-center py-12">
             <div className="mb-6">
-              <FiAlertCircle className="w-24 h-24 text-gray-300" />
+              <FiAlertCircle className="w-24 h-24 text-gray-300 dark:text-gray-600" />
             </div>
             
-            <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-300 mb-3">
               {tasks.length === 0 ? 'No tasks found' : 'No matching tasks found'}
             </h2>
             
-            <p className="text-gray-600 mb-8 max-w-md text-center">
+            <p className="text-gray-600 dark:text-gray-400 mb-8 max-w-md text-center">
               {tasks.length === 0 
                 ? 'Get organized by creating your first task. Start by clicking the "Create New Task" button.'
                 : `No tasks match your current filters. Try changing your filters or resetting to see all ${tasks.length} tasks.`
