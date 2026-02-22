@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { MdOutlineWavingHand } from "react-icons/md";
 import { useAuth } from "../context/AuthContext";
 import GoalCard from "../components/cards/GoalCard";
@@ -9,6 +9,12 @@ import AiCrierCard from "../components/cards/AiCrierCard";
 
 const Dashboard = ({ isSidebarOpen = true }) => {
   const navigate = useNavigate();
+  const outletContext = useOutletContext() || {};
+  const {
+    aiAssistantEnabled = true,
+    onAiAssistantToggle = () => {},
+    onAiAssistantChatNow = () => {}
+  } = outletContext;
   const { user } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
   
@@ -103,7 +109,11 @@ const Dashboard = ({ isSidebarOpen = true }) => {
 
       {/* AI Crier Card Section */}
       <div className="mb-8">
-        <AiCrierCard />
+        <AiCrierCard
+          isActive={aiAssistantEnabled}
+          onActivate={onAiAssistantToggle}
+          onChatNow={onAiAssistantChatNow}
+        />
       </div>
 
       {/* Main Cards Grid */}

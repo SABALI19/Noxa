@@ -8,14 +8,21 @@ const AiCrierCard = ({
   status = "active",
   recentActivities = 12,
   color = "#10B981",
-  onActivate
+  onActivate,
+  onChatNow,
+  isActive: controlledIsActive
 }) => {
   const navigate = useNavigate();
-  const [isActive, setIsActive] = useState(status === "active");
+  const [internalActive, setInternalActive] = useState(status === "active");
+  const isControlled = typeof controlledIsActive === 'boolean';
+  const isActive = isControlled ? controlledIsActive : internalActive;
   
   const handleToggle = () => {
-    setIsActive(!isActive);
-    if (onActivate) onActivate(!isActive);
+    const nextState = !isActive;
+    if (!isControlled) {
+      setInternalActive(nextState);
+    }
+    if (onActivate) onActivate(nextState);
   };
   
   const getStatusColor = () => {
@@ -27,6 +34,10 @@ const AiCrierCard = ({
   };
   
   const handleChatClick = () => {
+    if (onChatNow) {
+      onChatNow();
+      return;
+    }
     navigate('/ai');
   };
   

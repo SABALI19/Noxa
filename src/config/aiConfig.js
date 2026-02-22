@@ -6,7 +6,7 @@
  * 
  * 1. Get your Anthropic API key from: https://console.anthropic.com/
  * 2. Create a .env file in your project root
- * 3. Add: REACT_APP_ANTHROPIC_API_KEY=your_api_key_here
+ * 3. Add: VITE_ANTHROPIC_API_KEY=your_api_key_here
  * 4. Restart your development server
  * 
  * For production, set the environment variable in your hosting platform:
@@ -66,7 +66,7 @@ export const validateAIConfig = () => {
   
   if (!AI_CONFIG.apiKey) {
     issues.push('ANTHROPIC_API_KEY is not set. AI features will be disabled.');
-    issues.push('To enable AI: Add REACT_APP_ANTHROPIC_API_KEY to your .env file');
+    issues.push('To enable AI: Add VITE_ANTHROPIC_API_KEY to your .env file');
   }
   
   if (AI_CONFIG.apiKey && !AI_CONFIG.apiKey.startsWith('sk-')) {

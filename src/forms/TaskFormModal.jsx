@@ -96,20 +96,20 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
         {/* Due Date - Left side */}
         <div className="flex-1 space-y-2">
           <div className="flex items-center space-x-2">
-            <Calendar className="w-3 h-3 text-gray-600" />
-            <label className="text-xs font-roboto font-normal text-gray-700">Due Date</label>
+            <Calendar className="w-3 h-3 text-gray-600 dark:text-gray-300" />
+            <label className="text-xs font-roboto font-normal text-gray-700 dark:text-gray-300">Due Date</label>
           </div>
           
           <div className="relative">
             {/* Custom date picker UI */}
             <div
-              className={`w-full px-3 py-2.5 border rounded-lg cursor-pointer justify-between bg-white flex items-center ${
-                errors.dueDate ? 'border-red-500' : 'border-gray-300 hover:border-gray-400'
+              className={`w-full px-3 py-2.5 border rounded-lg cursor-pointer justify-between bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center ${
+                errors.dueDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
               }`}
               onClick={() => setShowDatePicker(!showDatePicker)}
             >
               {formData.dueDate ? (
-                <span className="text-gray-900 text-sm">
+                <span className="text-gray-900 dark:text-gray-100 text-sm">
                   {new Date(formData.dueDate).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'short',
@@ -119,7 +119,7 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
               ) : (
                 <span className="text-xs text-gray-400">Select date</span>
               )}
-              <Calendar className="w-3 h-3 text-gray-400" />
+              <Calendar className="w-3 h-3 text-gray-400 dark:text-gray-300" />
             </div>
             
             {/* Hidden actual date input */}
@@ -136,24 +136,24 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
             
             {/* Custom Date Picker Dropdown */}
             {showDatePicker && (
-              <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-4">
+              <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-4">
                 <div className="flex justify-between items-center mb-4">
                   <button
                     type="button"
                     onClick={prevMonth}
-                    className="p-2 hover:bg-gray-100 rounded"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  <h3 className="text-sm font-medium">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {monthNames[currentMonth]} {currentYear}
                   </h3>
                   <button
                     type="button"
                     onClick={nextMonth}
-                    className="p-2 hover:bg-gray-100 rounded"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -163,7 +163,7 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
                 
                 <div className="grid grid-cols-7 gap-1 mb-2">
                   {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => (
-                    <div key={day} className="text-xs text-gray-500 text-center py-1">
+                    <div key={day} className="text-xs text-gray-500 dark:text-gray-400 text-center py-1">
                       {day}
                     </div>
                   ))}
@@ -184,7 +184,7 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
                             new Date(formData.dueDate).getMonth() === currentMonth &&
                             new Date(formData.dueDate).getFullYear() === currentYear
                             ? 'bg-[#3D9B9B] text-white'
-                            : 'hover:bg-gray-100'
+                            : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100'
                       }`}
                     >
                       {day}
@@ -196,7 +196,7 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
                   <button
                     type="button"
                     onClick={() => setShowDatePicker(false)}
-                    className="text-xs text-gray-500 hover:text-gray-700"
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   >
                     Close
                   </button>
@@ -210,7 +210,7 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
           )}
           
           {formData.dueDate && !errors.dueDate && (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               Selected: {new Date(formData.dueDate).toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 year: 'numeric', 
@@ -224,9 +224,9 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
         {/* Time (Optional) - Right side */}
         <div className="flex-1 space-y-2">
           <div className="flex items-center space-x-2">
-            <Clock className="w-3 h-3 text-gray-600" />
-            <label className="text-xs font-roboto font-normal text-gray-700">
-              Time <span className="text-xs font-roboto font-normal text-gray-700">(Optional)</span>
+            <Clock className="w-3 h-3 text-gray-600 dark:text-gray-300" />
+            <label className="text-xs font-roboto font-normal text-gray-700 dark:text-gray-300">
+              Time <span className="text-xs font-roboto font-normal text-gray-700 dark:text-gray-300">(Optional)</span>
             </label>
           </div>
           
@@ -236,8 +236,8 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
               name="time"
               value={formData.time}
               onChange={handleChange}
-              className={`w-full text-xs px-3 py-2.5 font-normal text-gray-400 font-roboto border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent bg-white cursor-pointer ${
-                errors.time ? 'border-red-400' : 'border-gray-300 hover:border-gray-400'
+              className={`w-full text-xs px-3 py-2.5 font-normal text-gray-700 dark:text-gray-200 font-roboto border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent bg-white dark:bg-gray-700 cursor-pointer ${
+                errors.time ? 'border-red-400' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
               }`}
             >
               <option value="" className=''>Select time</option>
@@ -248,12 +248,12 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
               ))}
             </select>
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-              <Clock className="w-3 h-3 text-gray-500" />
+              <Clock className="w-3 h-3 text-gray-500 dark:text-gray-300" />
             </div>
           </div>
           
           {formData.time && (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
               Selected time: {formData.time}
             </p>
           )}
@@ -262,9 +262,9 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
 
       {/* Selected summary - below the horizontal layout */}
       {(formData.dueDate || formData.time) && !errors.dueDate && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-          <h3 className="font-medium text-blue-800 mb-2">Selected:</h3>
-          <p className="text-blue-700">
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/40">
+          <h3 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Selected:</h3>
+          <p className="text-blue-700 dark:text-blue-300">
             {formData.dueDate && new Date(formData.dueDate).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -494,12 +494,12 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
 
   return (
     <div 
-  className="fixed inset-0 z-50 flex items-center justify-center bg-gray-300 dark:bg-gray-900 bg-opacity-5  backdrop-blur-md p-4"
+  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-md p-4"
   onClick={handleBackdropClick}
 >
-  <div className="bg-white dark:bg-gray-800/90 backdrop-blur-lg rounded-xl shadow-2xl shadow-gray-700/50 w-full max-w-md max-h-[90vh] overflow-y-auto border border-white/20 dark:border-gray-700/20">
+  <div className="bg-white dark:bg-gray-800/95 backdrop-blur-lg rounded-xl shadow-2xl shadow-gray-700/50 w-full max-w-md max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
         {/* Header with Save Button (Top) */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200/50">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200/50 dark:border-gray-700">
           <h2 className="text-lg font-roboto font-normal text-gray-900 dark:text-gray-300">Create New Task</h2>
           <div className="flex items-center gap-3">
             <button
@@ -511,7 +511,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100/50 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100/50 dark:hover:bg-gray-700 transition-colors"
               type="button"
             >
               <FiX className="text-lg" />
@@ -541,8 +541,8 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors ${
-                    errors.title ? 'border-red-500' : 'border-gray-300 hover:border-gray-400'
+                  className={`w-full px-4 py-3 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors ${
+                    errors.title ? 'border-red-500' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                   }`}
                   placeholder="What needs to be done?"
                   aria-describedby={errors.title ? "title-error" : undefined}
@@ -573,14 +573,14 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                     <div className={`w-3.5 h-3.5 rounded-xl border flex items-center justify-center transition-colors ${
                       formData.priority === 'high' 
                         ? 'border-red-500 bg-red-500' 
-                        : 'border-gray-300 bg-white group-hover:border-gray-400'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 group-hover:border-gray-400 dark:group-hover:border-gray-500'
                     }`}>
                       {formData.priority === 'high' && (
                         <FiCheck className="w-3 h-3 text-white" />
                       )}
                     </div>
                     <span className={`font-medium transition-colors text-xs font-roboto ${
-                      formData.priority === 'high' ? 'text-red-700' : 'text-gray-700 group-hover:text-gray-900'
+                      formData.priority === 'high' ? 'text-red-700 dark:text-red-300' : 'text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100'
                     }`}>
                       High Priority
                     </span>
@@ -601,14 +601,14 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                     <div className={`w-3.5 h-3.5 rounded-xl border flex items-center justify-center transition-colors ${
                       formData.priority === 'medium' 
                         ? 'border-yellow-500 bg-yellow-500' 
-                        : 'border-gray-300 bg-white group-hover:border-gray-400'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 group-hover:border-gray-400 dark:group-hover:border-gray-500'
                     }`}>
                       {formData.priority === 'medium' && (
                         <FiCheck className="w-3 h-3 text-white" />
                       )}
                     </div>
                     <span className={`font-medium transition-colors text-xs font-roboto ${
-                      formData.priority === 'medium' ? 'text-yellow-700' : 'text-gray-700 group-hover:text-gray-900'
+                      formData.priority === 'medium' ? 'text-yellow-700 dark:text-yellow-300' : 'text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100'
                     }`}>
                       Medium Priority
                     </span>
@@ -629,14 +629,14 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                     <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-colors ${
                       formData.priority === 'low' 
                         ? 'border-green-500 bg-green-500' 
-                        : 'border-gray-300 bg-white group-hover:border-gray-400'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 group-hover:border-gray-400 dark:group-hover:border-gray-500'
                     }`}>
                       {formData.priority === 'low' && (
                         <FiCheck className="w-3 h-3 text-white" />
                       )}
                     </div>
                     <span className={`font-medium transition-colors text-xs font-roboto ${
-                      formData.priority === 'low' ? 'text-green-700' : 'text-gray-700 group-hover:text-gray-900'
+                      formData.priority === 'low' ? 'text-green-700 dark:text-green-300' : 'text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100'
                     }`}>
                       Low Priority
                     </span>
@@ -658,20 +658,20 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
           <div className="w-full overflow-hidden mt-6 mb-4">
             <div className="mt-4 mb-4">
               <div className="flex items-center gap-2">
-                <span className="font-light text-base text-gray-500 font-roboto">Optional Details</span>
+                <span className="font-light text-base text-gray-500 dark:text-gray-400 font-roboto">Optional Details</span>
               </div>
             </div>
             
             <div className="space-y-4">
               {/* Category */}
               <div ref={categoryRef}>
-                <label className="block text-sm font-normal font-roboto text-gray-700 mb-1">
+                <label className="block text-sm font-normal font-roboto text-gray-700 dark:text-gray-300 mb-1">
                   Category
                 </label>
                 <div className="relative">
                   <button
                     type="button"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 text-left flex items-center justify-between bg-white"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 dark:hover:border-gray-500 text-left flex items-center justify-between bg-white dark:bg-gray-700"
                     onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
                     aria-expanded={showCategoryDropdown}
                     aria-haspopup="listbox"
@@ -684,17 +684,17 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                         return (
                           <>
                             <Icon className={`w-3.5 h-3.5 ${color}`} />
-                            <span className="text-gray-700 font-roboto text-sm">{selectedCategory?.label || 'Work'}</span>
+                            <span className="text-gray-700 dark:text-gray-200 font-roboto text-sm">{selectedCategory?.label || 'Work'}</span>
                           </>
                         );
                       })()}
                     </div>
-                    <FiChevronDown className={`text-gray-400 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+                    <FiChevronDown className={`text-gray-400 dark:text-gray-300 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   
                   {showCategoryDropdown && (
                     <div 
-                      className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                      className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
                       role="listbox"
                     >
                       {categoryOptions.map((option) => {
@@ -704,13 +704,13 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                             key={option.value}
                             role="option"
                             aria-selected={formData.category === option.value}
-                            className={`px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors ${
-                              formData.category === option.value ? 'bg-gray-100' : ''
+                            className={`px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                              formData.category === option.value ? 'bg-gray-100 dark:bg-gray-700' : ''
                             }`}
                             onClick={() => handleCategorySelect(option.value)}
                           >
                             <Icon className={`w-3.5 h-3.5 ${option.color}`} />
-                            <span className="text-gray-900 text-sm font-roboto">{option.label}</span>
+                            <span className="text-gray-900 dark:text-gray-100 text-sm font-roboto">{option.label}</span>
                             {formData.category === option.value && (
                               <div className="ml-auto" aria-hidden="true">
                                 <svg className="w-4 h-4 text-[#3D9B9B]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -728,7 +728,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
 
               {/* Description/Notes */}
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Description/Notes
                 </label>
                 <textarea
@@ -737,7 +737,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                   value={formData.description}
                   onChange={handleChange}
                   rows="3"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 resize-none overflow-y-auto"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 dark:hover:border-gray-500 resize-none overflow-y-auto"
                   placeholder="Add any additional details..."
                   style={{ minHeight: '80px', maxHeight: '80px' }}
                 />
@@ -745,7 +745,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
 
               {/* Recurrence */}
               <div>
-                <label htmlFor="recurrence" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="recurrence" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Recurrence
                 </label>
                 <select
@@ -753,7 +753,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                   name="recurrence"
                   value={formData.recurrence}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 dark:hover:border-gray-500"
                 >
                   <option value="none">None</option>
                   <option value="daily">Daily</option>
@@ -769,8 +769,8 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
           <div className="w-full mt-6 mb-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <FiBell className="text-gray-600" />
-                <span className="font-light text-base text-gray-500 font-roboto">Automate Reminders</span>
+                <FiBell className="text-gray-600 dark:text-gray-300" />
+                <span className="font-light text-base text-gray-500 dark:text-gray-400 font-roboto">Automate Reminders</span>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -780,15 +780,15 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                   onChange={handleChange}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#3D9B9B]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#3D9B9B]"></div>
+                <div className="w-11 h-6 bg-gray-200 dark:bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#3D9B9B]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 dark:after:border-gray-500 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#3D9B9B]"></div>
               </label>
             </div>
 
             {formData.enableReminders && (
-              <div className="space-y-4 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
+              <div className="space-y-4 p-4 bg-blue-50/50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-900/40">
                 {/* Reminder Frequency */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Reminder Frequency
                   </label>
                   <div className="grid grid-cols-1 gap-2">
@@ -802,7 +802,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                           onChange={handleChange}
                           className="mr-3 text-[#3D9B9B] focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B]"
                         />
-                        <span className="text-sm text-gray-700">{option.label}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{option.label}</span>
                       </label>
                     ))}
                   </div>
@@ -810,14 +810,14 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
 
                 {/* Reminder Timing */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     When to Remind
                   </label>
                   <select
                     name="reminderTiming"
                     value={formData.reminderTiming}
                     onChange={handleChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 text-sm bg-white"
+                    className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors hover:border-gray-400 dark:hover:border-gray-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   >
                     {reminderTimingOptions.map((option) => (
                       <option key={option.value} value={option.value}>
@@ -830,7 +830,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                 {/* Custom Reminder Time */}
                 {formData.reminderTiming === 'custom' && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Custom Reminder Time
                     </label>
                     <input
@@ -838,8 +838,8 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                       name="customReminderTime"
                       value={formData.customReminderTime}
                       onChange={handleChange}
-                      className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors ${
-                        errors.customReminderTime ? 'border-red-500' : 'border-gray-300 hover:border-gray-400'
+                      className={`w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B] focus:border-transparent transition-colors ${
+                        errors.customReminderTime ? 'border-red-500' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                       min={new Date().toISOString().slice(0, 16)}
                     />
@@ -851,7 +851,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
 
                 {/* Notification Method */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Notification Method
                   </label>
                   <div className="grid grid-cols-1 gap-2">
@@ -865,7 +865,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                           onChange={handleChange}
                           className="mr-3 text-[#3D9B9B] focus:ring-[#3D9B9B] focus:outline-2 focus:outline-[#3D9B9B]"
                         />
-                        <span className="text-sm text-gray-700 flex items-center gap-2">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2">
                           <span>{option.icon}</span>
                           {option.label}
                         </span>
@@ -875,9 +875,9 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                 </div>
 
                 {/* Reminder Preview */}
-                <div className="pt-3 border-t border-blue-100">
-                  <p className="text-sm font-medium text-blue-800 mb-1">Reminder Preview:</p>
-                  <p className="text-xs text-blue-600">
+                <div className="pt-3 border-t border-blue-100 dark:border-blue-900/40">
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Reminder Preview:</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-300">
                     {formData.reminderFrequency === 'once' && 'One reminder '}
                     {formData.reminderFrequency === 'multiple' && 'Multiple reminders '}
                     {formData.reminderFrequency === 'daily' && 'Daily reminders '}
@@ -894,11 +894,11 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
         </form>
 
         {/* Footer with Save Button (Bottom) */}
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200/50">
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200/50 dark:border-gray-700">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100/50 rounded-lg font-roboto text-sm font-medium transition-colors"
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100/50 dark:hover:bg-gray-700 rounded-lg font-roboto text-sm font-medium transition-colors"
           >
             Cancel
           </button>

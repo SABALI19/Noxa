@@ -300,10 +300,10 @@ const TaskPage = () => {
 
   const getCategoryColor = (category) => {
     switch (category) {
-      case 'work': return 'bg-blue-100 text-blue-800';
-      case 'personal': return 'bg-purple-100 text-purple-800';
-      case 'health': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'work': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+      case 'personal': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
+      case 'health': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
 
@@ -320,11 +320,11 @@ const TaskPage = () => {
   // Get status badge color
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+      case 'in_progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+      case 'overdue': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
 
@@ -332,7 +332,7 @@ const TaskPage = () => {
   const TaskItem = ({ task }) => (
     <div 
       id={`task-${task.id}`}
-      className={`p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 border-l-4 ${getCategoryBorderColor(task.category)}`}
+      className={`p-4 mb-3 last:mb-0 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors border-l-4 ${getCategoryBorderColor(task.category)}`}
     >
       <div className="flex items-start">
         {/* Checkbox */}
@@ -341,7 +341,7 @@ const TaskPage = () => {
           className={`mt-1 shrink-0 w-5 h-5 rounded border flex items-center justify-center mr-4 ${
             task.completed 
               ? 'bg-green-500 border-green-500' 
-              : 'border-gray-300 hover:border-green-500'
+              : 'border-gray-300 dark:border-gray-600 hover:border-green-500'
           }`}
         >
           {task.completed && (
@@ -354,7 +354,7 @@ const TaskPage = () => {
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h3 className={`font-medium ${task.completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                <h3 className={`font-medium ${task.completed ? 'text-gray-500 dark:text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
                   {task.title}
                 </h3>
                 {/* Status Badge */}
@@ -369,7 +369,7 @@ const TaskPage = () => {
                 {/* Date */}
                 <div className={`flex items-center gap-1.5 text-sm ${
                   isTaskOverdue(task) ? 'text-red-600' :
-                  task.completed ? 'text-green-600' : 'text-gray-600'
+                  task.completed ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
                 }`}>
                   {task.completed ? (
                     <FiCheckCircle className="text-green-600" />
@@ -384,7 +384,7 @@ const TaskPage = () => {
                 {/* Priority */}
                 <div className="flex items-center gap-1.5">
                   <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`}></div>
-                  <span className="text-sm text-gray-600 capitalize">{task.priority} Priority</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-300 capitalize">{task.priority} Priority</span>
                 </div>
 
                 {/* Category */}
@@ -399,7 +399,7 @@ const TaskPage = () => {
               {/* Tracking Button */}
               <button
                 onClick={(e) => handleViewTracking(task, e)}
-                className="p-2 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50"
+                className="p-2 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20"
                 title="View tracking"
               >
                 <FiBarChart2 className="text-lg" />
@@ -408,7 +408,7 @@ const TaskPage = () => {
               {task.status !== 'in_progress' && !task.completed && (
                 <button 
                   onClick={() => updateTaskStatus(task.id, 'in_progress')}
-                  className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"
+                  className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                   title="Mark as in progress"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -419,14 +419,14 @@ const TaskPage = () => {
               {/* Edit Button - Now Functional */}
               <button 
                 onClick={() => openEditTaskModal(task)}
-                className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"
+                className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                 title="Edit task"
               >
                 <FiEdit className="text-lg" />
               </button>
               <button 
                 onClick={() => deleteTaskFromContext(task.id)}
-                className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
               >
                 <FiTrash2 className="text-lg" />
               </button>
@@ -441,7 +441,7 @@ const TaskPage = () => {
   const TaskCard = ({ task }) => (
     <div 
       id={`task-${task.id}`}
-      className={`bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors border border-gray-200 border-l-4 ${getCategoryBorderColor(task.category)}`}
+      className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors border border-gray-200 dark:border-gray-700 border-l-4 ${getCategoryBorderColor(task.category)}`}
     >
       <div className="flex justify-between items-start mb-3">
         <button
@@ -449,7 +449,7 @@ const TaskPage = () => {
           className={`shrink-0 w-2 h-2 rounded border flex items-center justify-center ${
             task.completed 
               ? 'bg-green-500 border-green-500' 
-              : 'border-gray-300 hover:border-green-500'
+              : 'border-gray-300 dark:border-gray-600 hover:border-green-500'
           }`}
         >
           {task.completed && (
@@ -460,7 +460,7 @@ const TaskPage = () => {
           {/* Tracking Button */}
           <button
             onClick={(e) => handleViewTracking(task, e)}
-            className="p-1 text-gray-400 hover:text-purple-600 rounded hover:bg-purple-100"
+            className="p-1 text-gray-400 dark:text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 rounded hover:bg-purple-100 dark:hover:bg-purple-900/20"
             title="View tracking"
           >
             <FiBarChart2 className="text-sm" />
@@ -469,7 +469,7 @@ const TaskPage = () => {
           {task.status !== 'in_progress' && !task.completed && (
             <button 
               onClick={() => updateTaskStatus(task.id, 'in_progress')}
-              className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-100"
+              className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20"
               title="Mark as in progress"
             >
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -480,14 +480,14 @@ const TaskPage = () => {
           {/* Edit Button - Now Functional */}
           <button 
             onClick={() => openEditTaskModal(task)}
-            className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-100"
+            className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20"
             title="Edit task"
           >
             <FiEdit className="text-sm" />
           </button>
           <button 
             onClick={() => deleteTaskFromContext(task.id)}
-            className="p-1 text-gray-400 hover:text-red-600 rounded hover:bg-red-100"
+            className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded hover:bg-red-100 dark:hover:bg-red-900/20"
           >
             <FiTrash2 className="text-sm" />
           </button>
@@ -495,7 +495,7 @@ const TaskPage = () => {
       </div>
       
       <div className="flex items-center gap-2 mb-2">
-        <h3 className={`font-medium ${task.completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+        <h3 className={`font-medium ${task.completed ? 'text-gray-500 dark:text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
           {task.title}
         </h3>
         {task.status && (
@@ -509,7 +509,7 @@ const TaskPage = () => {
         {/* Date */}
         <div className={`flex items-center gap-1.5 text-sm ${
           isTaskOverdue(task) ? 'text-red-600' :
-          task.completed ? 'text-green-600' : 'text-gray-600'
+          task.completed ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300'
         }`}>
           {task.completed ? (
             <FiCheckCircle className="text-green-600" size={14} />
@@ -525,7 +525,7 @@ const TaskPage = () => {
           {/* Priority */}
           <div className="flex items-center gap-1.5">
             <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`}></div>
-            <span className="text-xs text-gray-600 capitalize">{task.priority}</span>
+            <span className="text-xs text-gray-600 dark:text-gray-300 capitalize">{task.priority}</span>
           </div>
 
           {/* Category */}
@@ -861,7 +861,7 @@ const TaskPage = () => {
 
       {/* Tracking Detail Modal */}
       {showTrackingDetail && selectedTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/60 dark:bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <TaskTrackingDetail
               task={selectedTask}

@@ -12,7 +12,7 @@ const GoalCard = ({
   
   return (
     <div 
-      className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer h-full transform hover:-translate-y-1 active:scale-95 border border-gray-200 dark:border-gray-700"
+      className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer h-full transform hover:-translate-y-1 active:scale-95 border border-gray-200 dark:border-gray-50"
       onClick={onClick}
       role="button"
       tabIndex={0}

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "proxy": "node server.js",
-    "start": "npm run proxy & npm run dev",
+    "start": "concurrently \"npm run proxy\" \"npm run dev\"",
     "build": "vite build",
     "build:analyze": "vite build --mode analyze",
     "preview": "vite preview",

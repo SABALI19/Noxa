@@ -10,6 +10,8 @@ import GoalDetailsPage from "./pages/GoalDetailsPage";
 import GoalProgressPage from "./pages/GoalProgressPage";
 import TaskPage from "./pages/TaskPage";
 import ReminderPage from "./pages/ReminderPage";
+import NotesPage from "./pages/NotesPage";
+import CalenderPage from "./pages/CalenderPage";
 import LandingPage from "./pages/LandingPage";
 import AccountPage from './pages/AccountPage';
 import NotificationsPage from './pages/NotificationPageSettings';
@@ -96,6 +98,8 @@ function App() {
                 <Route path="goals/new" element={<GoalsFormWrapper mode="create" />} />
                 <Route path="goals/:id/edit" element={<GoalsFormWrapper mode="edit" />} />
                 <Route path="tasks" element={<TaskPage />} />
+                <Route path="notes" element={<NotesPage />} />
+                <Route path="calendar" element={<CalenderPage />} />
                 <Route path="reminders" element={<ReminderPage />} />
                 <Route path="goals/:goalId" element={<GoalDetailsPage />} />
                 <Route path="goals/:goalId/track" element={<GoalProgressPage />} />

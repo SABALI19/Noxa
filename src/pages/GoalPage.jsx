@@ -32,6 +32,7 @@ import Button from "../components/Button";
 import SortDropdown from "../components/SortDropdown";
 import GoalTrackingDetail from '../components/tracking/GoalTrackingDetail';
 import GoalDropdownMenuPortal from '../components/GoalDropdownMenu';
+import { getGoals, saveGoals, goalEvents } from '../services/goalStorage';
 
 // ========== NEW AI IMPORTS ==========
 import AIInsights from '../components/ai/AIInsight';
@@ -42,102 +43,7 @@ const GoalsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sortBy, setSortBy] = useState("deadline");
-  const [goals, setGoals] = useState([
-    {
-      id: 1,
-      title: "Read 24 books this year",
-      category: "Personal",
-      targetDate: "Dec 31, 2024",
-      progress: 75,
-      milestone: "18/24 books",
-      nextCheckin: "Dec 20",
-      completed: false,
-      icon: <FiBook className="text-blue-500" />,
-      targetValue: 24,
-      currentValue: 18,
-      unit: "books",
-      description: "Reading 2 books per month to improve knowledge and relax",
-      priority: "medium",
-    },
-    {
-      id: 2,
-      title: "Exercise 3x per week",
-      category: "Health",
-      targetDate: "Ongoing",
-      progress: 67,
-      milestone: "27 workouts this week",
-      nextCheckin: "Dec 16",
-      completed: false,
-      icon: <FiActivity className="text-green-500" />,
-      targetValue: 36,
-      currentValue: 27,
-      unit: "workouts",
-      description: "Maintain consistent exercise routine for better health",
-      priority: "high",
-    },
-    {
-      id: 3,
-      title: "Learn Spanish Conversation",
-      category: "Education",
-      targetDate: "Mar 15, 2024",
-      progress: 75,
-      milestone: "Intermediate level",
-      nextCheckin: "Dec 20",
-      completed: false,
-      icon: <FiGlobe className="text-purple-500" />,
-      targetValue: 100,
-      currentValue: 75,
-      unit: "proficiency",
-      description: "Achieve conversational fluency in Spanish",
-      priority: "medium",
-    },
-    {
-      id: 4,
-      title: "Complete project documentation",
-      category: "Work",
-      targetDate: "Dec 12, 2024",
-      progress: 100,
-      completed: true,
-      icon: <FiFileText className="text-gray-500" />,
-      targetValue: 100,
-      currentValue: 100,
-      unit: "pages",
-      description: "Document all project processes and outcomes",
-      priority: "low",
-    },
-    {
-      id: 5,
-      title: "Save $5000",
-      category: "Financial",
-      targetDate: "Dec 31, 2024",
-      progress: 30,
-      milestone: "$1500 saved",
-      nextCheckin: "Jan 15, 2025",
-      completed: false,
-      icon: <FiDollarSign className="text-yellow-500" />,
-      targetValue: 5000,
-      currentValue: 1500,
-      unit: "dollars",
-      description: "Build emergency fund savings",
-      priority: "high",
-    },
-    {
-      id: 6,
-      title: "Write a new book",
-      category: "Personal",
-      targetDate: "Jun 30, 2025",
-      progress: 46,
-      milestone: "Chapter 1 completed",
-      nextCheckin: "Feb 1, 2025",
-      completed: false,
-      icon: <FiEdit className="text-red-500" />,
-      targetValue: 100,
-      currentValue: 46,
-      unit: "chapters",
-      description: "Complete first draft of new novel",
-      priority: "medium",
-    },
-  ]);
+  const [goals, setGoals] = useState(() => getGoals());
 
   const [openMenuId, setOpenMenuId] = useState(null);
   const [showTrackingDetail, setShowTrackingDetail] = useState(false);
@@ -184,12 +90,6 @@ const GoalsPage = () => {
         milestone: '',
         nextCheckin: '',
         completed: false,
-        icon: newGoalData.category === 'Personal' ? <FiBook className="text-blue-500" /> :
-               newGoalData.category === 'Health' ? <FiActivity className="text-green-500" /> :
-               newGoalData.category === 'Education' ? <FiGlobe className="text-purple-500" /> :
-               newGoalData.category === 'Financial' ? <FiDollarSign className="text-yellow-500" /> :
-               newGoalData.category === 'Work' ? <FiFileText className="text-gray-500" /> :
-               <FiEdit className="text-red-500" />,
         targetValue: 100,
         currentValue: 0,
         unit: '',
@@ -245,6 +145,34 @@ const GoalsPage = () => {
       });
     }
   }, [goals]);
+
+  useEffect(() => {
+    saveGoals(goals);
+  }, [goals]);
+
+  useEffect(() => {
+    const syncGoals = (event) => {
+      if (event?.detail && Array.isArray(event.detail)) {
+        setGoals(event.detail);
+      } else {
+        setGoals(getGoals());
+      }
+    };
+
+    const syncFromStorage = (event) => {
+      if (event.key === 'noxa_goals') {
+        setGoals(getGoals());
+      }
+    };
+
+    window.addEventListener(goalEvents.updated, syncGoals);
+    window.addEventListener('storage', syncFromStorage);
+
+    return () => {
+      window.removeEventListener(goalEvents.updated, syncGoals);
+      window.removeEventListener('storage', syncFromStorage);
+    };
+  }, []);
 
   const sortedActiveGoals = useMemo(() => {
     const activeGoals = goals.filter(goal => !goal.completed);

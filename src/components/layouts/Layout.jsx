@@ -9,11 +9,17 @@ import AIAssistantChat from '../ai/AIAssistantChat';
 const Layout = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
-  const isTaskPage = location.pathname === '/tasks';
+  const isTaskPage =
+    location.pathname === '/tasks' ||
+    location.pathname === '/notes' ||
+    location.pathname === '/calendar';
   
   // Sidebar state management
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [isAiAssistantEnabled, setIsAiAssistantEnabled] = useState(true);
+  const [aiAssistantOpenSignal, setAiAssistantOpenSignal] = useState(0);
+  const [aiAssistantCloseSignal, setAiAssistantCloseSignal] = useState(0);
 
   // Check screen size for responsive behavior
   useEffect(() => {
@@ -48,6 +54,20 @@ const Layout = () => {
 
   const handleSidebarToggle = (open) => {
     setIsSidebarOpen(open);
+  };
+
+  const handleAiAssistantToggle = (enabled) => {
+    setIsAiAssistantEnabled(enabled);
+    if (!enabled) {
+      setAiAssistantCloseSignal((prev) => prev + 1);
+    }
+  };
+
+  const handleAiAssistantChatNow = () => {
+    if (!isAiAssistantEnabled) {
+      setIsAiAssistantEnabled(true);
+    }
+    setAiAssistantOpenSignal((prev) => prev + 1);
   };
 
   // Determine main content margin based on sidebar state
@@ -90,7 +110,13 @@ const Layout = () => {
         
         {/* Main content area where pages will render - UPDATED with dark mode */}
         <main className={`flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-all duration-300 ${getMainContentClass()}`}>
-          <Outlet />
+          <Outlet
+            context={{
+              aiAssistantEnabled: isAiAssistantEnabled,
+              onAiAssistantToggle: handleAiAssistantToggle,
+              onAiAssistantChatNow: handleAiAssistantChatNow
+            }}
+          />
         </main>
 
          {/* ✅ AI Assistant Chat - appears on all pages */}
@@ -98,6 +124,9 @@ const Layout = () => {
           goals={[]} // You can pass actual goals/tasks data if available
           tasks={[]} 
           userContext={{ user }}
+          showFab={isAiAssistantEnabled}
+          openSignal={aiAssistantOpenSignal}
+          closeSignal={aiAssistantCloseSignal}
         />
       </div>
       
