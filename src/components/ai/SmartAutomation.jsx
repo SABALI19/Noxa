@@ -1,5 +1,5 @@
 // src/components/ai/SmartAutomation.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   FiZap,
   FiClock,
@@ -23,27 +23,40 @@ const SmartAutomation = ({ userActivity, onEnableAutomation }) => {
   const [error, setError] = useState(null);
   const [enabledAutomations, setEnabledAutomations] = useState(new Set());
   const [dismissed, setDismissed] = useState(new Set());
+  const inFlightRef = useRef(false);
+  const lastProcessedKeyRef = useRef('');
 
-  useEffect(() => {
-    if (userActivity && Object.keys(userActivity).length > 0) {
-      discoverPatterns();
+  const activityKey = useMemo(() => JSON.stringify(userActivity || {}), [userActivity]);
+
+  const discoverPatterns = useCallback(async (force = false) => {
+    if (!userActivity || Object.keys(userActivity).length === 0) {
+      return;
     }
-  }, [userActivity]);
 
-  const discoverPatterns = async () => {
+    if (!force && (inFlightRef.current || lastProcessedKeyRef.current === activityKey)) {
+      return;
+    }
+
+    inFlightRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
       const result = await AiService.discoverPatterns(userActivity);
       setPatterns(result);
+      lastProcessedKeyRef.current = activityKey;
     } catch (err) {
       console.error('Failed to discover patterns:', err);
       setError(err.message);
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
-  };
+  }, [userActivity, activityKey]);
+
+  useEffect(() => {
+    void discoverPatterns();
+  }, [discoverPatterns]);
 
   const handleEnableAutomation = (patternIndex, automation) => {
     setEnabledAutomations(prev => new Set([...prev, patternIndex]));
@@ -116,7 +129,10 @@ const SmartAutomation = ({ userActivity, onEnableAutomation }) => {
               <p className="text-sm text-gray-600">{error}</p>
             </div>
           </div>
-          <Button variant="soft" size="sm" onClick={discoverPatterns}>
+          <Button variant="soft" size="sm" onClick={() => {
+            lastProcessedKeyRef.current = '';
+            void discoverPatterns(true);
+          }}>
             Retry
           </Button>
         </div>
@@ -159,7 +175,10 @@ const SmartAutomation = ({ userActivity, onEnableAutomation }) => {
             <p className="text-sm text-gray-600">AI-discovered patterns and suggestions</p>
           </div>
         </div>
-        <Button variant="soft" size="sm" onClick={discoverPatterns}>
+        <Button variant="soft" size="sm" onClick={() => {
+          lastProcessedKeyRef.current = '';
+          void discoverPatterns(true);
+        }}>
           <FiRefreshCw className="mr-2" />
           Refresh
         </Button>

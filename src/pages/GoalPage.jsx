@@ -33,11 +33,14 @@ import SortDropdown from "../components/SortDropdown";
 import GoalTrackingDetail from '../components/tracking/GoalTrackingDetail';
 import GoalDropdownMenuPortal from '../components/GoalDropdownMenu';
 import { getGoals, saveGoals, goalEvents, hydrateGoalsFromBackend } from '../services/goalStorage';
+import { useTasks } from '../context/TaskContext';
 
 // ========== NEW AI IMPORTS ==========
 import AIInsights from '../components/ai/AIInsight';
 import AIAssistantChat from '../components/ai/AIAssistantChat';
 import SmartAutomation from '../components/ai/SmartAutomation';
+
+const serializeGoals = (items = []) => JSON.stringify(items);
 
 const GoalsPage = () => {
   const navigate = useNavigate();
@@ -67,6 +70,8 @@ const GoalsPage = () => {
   // Handle goal creation/update from navigation state
   const pendingGoalUpdateRef = useRef(null);
   const processedActionsRef = useRef(new Set());
+  const lastSavedGoalsRef = useRef(serializeGoals(getGoals()));
+  const { tasks } = useTasks();
 
   useEffect(() => {
     let isCancelled = false;
@@ -132,7 +137,7 @@ const GoalsPage = () => {
       trackNotification(updatedGoalData.id, 'goal', 'sent', 'goal_updated');
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, goals, addNotification, trackNotification, navigate]);
+  }, [location.state, addNotification, trackNotification, navigate]);
 
   useEffect(() => {
     if (pendingGoalUpdateRef.current) {
@@ -164,16 +169,29 @@ const GoalsPage = () => {
   }, [goals]);
 
   useEffect(() => {
+    const serializedGoals = serializeGoals(goals);
+    if (lastSavedGoalsRef.current === serializedGoals) {
+      return;
+    }
+
+    lastSavedGoalsRef.current = serializedGoals;
     saveGoals(goals);
   }, [goals]);
 
   useEffect(() => {
     const syncGoals = (event) => {
-      if (event?.detail && Array.isArray(event.detail)) {
-        setGoals(event.detail);
-      } else {
-        setGoals(getGoals());
-      }
+      const incomingGoals = event?.detail && Array.isArray(event.detail) ? event.detail : getGoals();
+      const serializedIncoming = serializeGoals(incomingGoals);
+
+      setGoals((previousGoals) => {
+        const serializedPrevious = serializeGoals(previousGoals);
+        if (serializedPrevious === serializedIncoming) {
+          return previousGoals;
+        }
+
+        lastSavedGoalsRef.current = serializedIncoming;
+        return incomingGoals;
+      });
     };
 
     const syncFromStorage = (event) => {
@@ -465,7 +483,7 @@ const GoalsPage = () => {
           <div className="mb-6">
             <AIInsights 
               goals={sortedActiveGoals} 
-              tasks={[]} // Pass tasks when you integrate task management
+              tasks={tasks}
               onRefresh={() => console.log('Refreshing insights')}
             />
           </div>
@@ -835,7 +853,7 @@ const GoalsPage = () => {
       {/* ========== NEW: AI ASSISTANT CHAT ========== */}
       <AIAssistantChat 
         goals={goals}
-        tasks={[]} // Pass tasks when you integrate task management
+        tasks={tasks}
         userContext={{
           userName: 'User',
           totalGoals: goals.length,

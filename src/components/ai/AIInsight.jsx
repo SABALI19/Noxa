@@ -1,5 +1,5 @@
 // src/components/ai/AIInsights.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   FiAlertTriangle,
   FiTrendingUp,
@@ -22,29 +22,59 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [dismissed, setDismissed] = useState(new Set());
+  const inFlightRef = useRef(false);
+  const lastProcessedKeyRef = useRef('');
 
-  useEffect(() => {
-    loadInsights();
-  }, [goals, tasks]);
+  const requestKey = useMemo(
+    () =>
+      JSON.stringify({
+        goals: goals.map((goal) => ({
+          id: goal?.id,
+          progress: goal?.progress,
+          completed: goal?.completed,
+          targetDate: goal?.targetDate,
+        })),
+        tasks: tasks.map((task) => ({
+          id: task?.id,
+          completed: task?.completed,
+          status: task?.status,
+          dueDate: task?.dueDate,
+        })),
+      }),
+    [goals, tasks]
+  );
 
-  const loadInsights = async () => {
+  const loadInsights = useCallback(async (force = false) => {
     if (goals.length === 0 && tasks.length === 0) {
+      setInsights(null);
+      setError(null);
       return;
     }
 
+    if (!force && (inFlightRef.current || lastProcessedKeyRef.current === requestKey)) {
+      return;
+    }
+
+    inFlightRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
       const predictions = await AiService.analyzePredictiveIssues(goals, tasks);
       setInsights(predictions);
+      lastProcessedKeyRef.current = requestKey;
     } catch (err) {
       console.error('Failed to load AI insights:', err);
       setError(err.message);
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
-  };
+  }, [goals, tasks, requestKey]);
+
+  useEffect(() => {
+    void loadInsights();
+  }, [loadInsights]);
 
   const handleDismiss = (index) => {
     setDismissed(prev => new Set([...prev, index]));
@@ -52,7 +82,8 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
 
   const handleRefresh = () => {
     setDismissed(new Set());
-    loadInsights();
+    lastProcessedKeyRef.current = '';
+    void loadInsights(true);
     onRefresh?.();
   };
 
