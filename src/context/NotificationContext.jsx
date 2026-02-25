@@ -1,291 +1,367 @@
 // src/context/NotificationContext.jsx
 import React, { createContext, useState, useCallback, useRef, useEffect } from 'react';
 
-// Create the context
 const NotificationContext = createContext(null);
 
-// Provider component
+const MAX_NOTIFICATIONS = 100;
+const DEFAULT_DEDUPE_MS = 1500;
+const SOCKET_DEDUPE_MS = 5000;
+const RECENT_CACHE_TTL_MS = 60000;
+
+const normalizeText = (value, fallback = '') => {
+  if (value === null || value === undefined) return fallback;
+  const text = String(value).trim();
+  return text.length > 0 ? text : fallback;
+};
+
+const getNotificationTemplate = (type, item, templateOverride = null) => {
+  const title = normalizeText(item?.title, 'Untitled');
+  const progress = Number.isFinite(Number(item?.progress)) ? Number(item.progress) : null;
+  const count = Number.isFinite(Number(item?.count)) ? Number(item.count) : null;
+
+  if (templateOverride) {
+    return {
+      title: normalizeText(templateOverride.title, 'Notification'),
+      message: normalizeText(templateOverride.message, title || 'Activity update'),
+      type: normalizeText(templateOverride.type, 'info')
+    };
+  }
+
+  const templates = {
+    task_created: { title: 'Task Created', message: `Created: "${title}"`, type: 'success' },
+    task_completed: { title: 'Task Completed', message: `Completed: "${title}"`, type: 'success' },
+    task_in_progress: { title: 'Task In Progress', message: `Started working on: "${title}"`, type: 'info' },
+    task_updated: { title: 'Task Updated', message: `Updated: "${title}"`, type: 'info' },
+    task_deleted: { title: 'Task Deleted', message: `Deleted: "${title}"`, type: 'warning' },
+    goal_created: { title: 'Goal Created', message: `New goal: "${title}"`, type: 'success' },
+    goal_completed: { title: 'Goal Completed', message: `Completed: "${title}"`, type: 'success' },
+    goal_updated: { title: 'Goal Updated', message: `Updated: "${title}"`, type: 'info' },
+    goal_progress: { title: 'Progress Updated', message: `"${title}" is now at ${progress ?? 0}%`, type: 'info' },
+    goal_deleted: { title: 'Goal Deleted', message: `Removed: "${title}"`, type: 'warning' },
+    goal_milestone: { title: 'Milestone Reached', message: `Milestone achieved for "${title}"`, type: 'success' },
+    goal_reminder: { title: 'Goal Reminder', message: `Do not forget: "${title}"`, type: 'info' },
+    goal_deadline_approaching: { title: 'Deadline Approaching', message: `"${title}" is due soon`, type: 'warning' },
+    automation_enabled: { title: 'Automation Enabled', message: `"${title}" now has automation enabled`, type: 'success' },
+    reminder_created: { title: 'Reminder Set', message: `Reminder created: "${title}"`, type: 'success' },
+    reminder_triggered: { title: 'Reminder', message: title, type: 'info' },
+    reminder_snoozed: { title: 'Reminder Snoozed', message: `"${title}" snoozed`, type: 'info' },
+    reminder_completed: { title: 'Reminder Completed', message: `Completed: "${title}"`, type: 'success' },
+    reminder_updated: { title: 'Reminder Updated', message: `Updated: "${title}"`, type: 'info' },
+    reminder_deleted: { title: 'Reminder Deleted', message: `Deleted: "${title}"`, type: 'warning' },
+    reminder_reopened: { title: 'Reminder Reopened', message: `Marked pending: "${title}"`, type: 'info' },
+    reminders_cleared: { title: 'Reminders Cleared', message: `Cleared ${count ?? 0} completed reminders`, type: 'info' },
+    profile_updated: { title: 'Profile Updated', message: title, type: 'success' },
+    profile_image_uploaded: { title: 'Image Uploaded', message: title, type: 'success' },
+    note_created: { title: 'Note Created', message: `Created: "${title}"`, type: 'success' },
+    note_updated: { title: 'Note Updated', message: `Updated: "${title}"`, type: 'info' },
+    note_deleted: { title: 'Note Deleted', message: `Deleted: "${title}"`, type: 'warning' },
+    socket_message: { title: 'Notification', message: title || 'Realtime update', type: 'info' }
+  };
+
+  return templates[type] || {
+    title: 'Notification',
+    message: title || 'Activity update',
+    type: 'info'
+  };
+};
+
+const buildDedupeKey = ({ type, item, eventId, dedupeKey }) => {
+  if (dedupeKey) return `custom:${dedupeKey}`;
+  if (eventId !== undefined && eventId !== null) return `event:${String(eventId)}`;
+
+  const idPart = normalizeText(item?.id, 'none');
+  const titlePart = normalizeText(item?.title, '');
+  const statusPart = normalizeText(item?.status, '');
+  const progressPart = normalizeText(item?.progress, '');
+  const itemTypePart = normalizeText(item?.itemType, '');
+  return `${type}:${idPart}:${titlePart}:${statusPart}:${progressPart}:${itemTypePart}`;
+};
+
+const loadSocketScript = (scriptUrl) => {
+  if (typeof window === 'undefined') return Promise.reject(new Error('Window not available'));
+  if (typeof window.io === 'function') return Promise.resolve(window.io);
+
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-socket-io="true"][src="${scriptUrl}"]`);
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.io));
+      existing.addEventListener('error', () => reject(new Error('Failed to load socket.io script')));
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = scriptUrl;
+    script.async = true;
+    script.dataset.socketIo = 'true';
+    script.onload = () => resolve(window.io);
+    script.onerror = () => reject(new Error('Failed to load socket.io script'));
+    document.head.appendChild(script);
+  });
+};
+
 export const NotificationProvider = ({ children }) => {
-  // In-app notifications state
   const [notifications, setNotifications] = useState([]);
-  
-  // Notification sound settings
+  const [socketConnected, setSocketConnected] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
     enableNotifications: true,
     pushNotifications: false,
     emailNotifications: false,
     customRingtones: false,
     defaultSound: 'Default',
-    soundEnabled: true,
+    soundEnabled: true
   });
-  
-  // Audio ref for playing notification sounds
+
   const audioRef = useRef(null);
-  
-  // Initialize audio element
+  const recentDispatchRef = useRef(new Map());
+
   useEffect(() => {
     audioRef.current = new Audio();
-    audioRef.current.volume = 0.5; // Set volume to 50%
-    
+    audioRef.current.volume = 0.5;
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      if (!audioRef.current) return;
+      audioRef.current.pause();
+      audioRef.current = null;
     };
   }, []);
-  
-  // Sound library mapping - Using data URLs for built-in beep sound
+
   const soundLibrary = {
-    'Default': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
-    'Chime': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
-    'Bell': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
-    'Ding': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
-    'Alert': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
-    'Notification': 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Default: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Chime: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Bell: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Ding: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Alert: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Notification: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty'
   };
-  
-  // Play notification sound
+
+  const shouldSuppressDuplicate = useCallback((key, dedupeMs = DEFAULT_DEDUPE_MS) => {
+    const now = Date.now();
+    const cache = recentDispatchRef.current;
+    for (const [existingKey, ts] of cache.entries()) {
+      if (now - ts > RECENT_CACHE_TTL_MS) {
+        cache.delete(existingKey);
+      }
+    }
+
+    const previous = cache.get(key);
+    if (previous && now - previous < dedupeMs) {
+      return true;
+    }
+
+    cache.set(key, now);
+    return false;
+  }, []);
+
   const playNotificationSound = useCallback(() => {
     if (!notificationSettings.enableNotifications || !notificationSettings.soundEnabled) {
-      console.log('Notification sound disabled');
       return;
     }
-    
+
     try {
-      if (!audioRef.current) {
-        console.error('Audio element not initialized');
-        return;
-      }
-      
-      // Set the sound source
-      const soundPath = soundLibrary[notificationSettings.defaultSound] || soundLibrary['Default'];
-      
-      // Reset and play
+      if (!audioRef.current) return;
+      const soundPath = soundLibrary[notificationSettings.defaultSound] || soundLibrary.Default;
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       audioRef.current.src = soundPath;
-      
-      // Play with promise handling
       const playPromise = audioRef.current.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log('Notification sound played successfully');
-          })
-          .catch(error => {
-            console.warn('Failed to play notification sound:', error);
-          });
+      if (playPromise?.catch) {
+        playPromise.catch(() => {});
       }
     } catch (error) {
       console.error('Error playing notification sound:', error);
     }
   }, [notificationSettings.enableNotifications, notificationSettings.soundEnabled, notificationSettings.defaultSound]);
-  
-  // Update notification settings
+
   const updateNotificationSettings = useCallback((newSettings) => {
-    setNotificationSettings(prev => ({
-      ...prev,
-      ...newSettings
-    }));
+    setNotificationSettings((prev) => ({ ...prev, ...newSettings }));
   }, []);
 
-  // Function to add an in-app notification
-  const addNotification = useCallback((type, item, onClick = null, playSound = true) => {
-    const notificationTemplates = {
-      // Task notifications
-      task_created: {
-        title: 'Task Created',
-        message: `Created: "${item.title}"`,
-        type: 'success'
-      },
-      task_completed: {
-        title: 'Task Completed',
-        message: `Completed: "${item.title}"`,
-        type: 'success'
-      },
-      task_in_progress: {
-        title: 'Task In Progress',
-        message: `Started working on: "${item.title}"`,
-        type: 'info'
-      },
-      task_updated: {
-        title: 'Task Updated',
-        message: `Updated: "${item.title}"`,
-        type: 'info'
-      },
-      task_deleted: {
-        title: 'Task Deleted',
-        message: `Deleted: "${item.title}"`,
-        type: 'warning'
-      },
-      
-      // Goal notifications
-      goal_created: {
-        title: 'Goal Created',
-        message: `New goal: "${item.title}"`,
-        type: 'success'
-      },
-      goal_completed: {
-        title: 'Goal Completed',
-        message: `Congratulations! Completed: "${item.title}"`,
-        type: 'success'
-      },
-      goal_updated: {
-        title: 'Goal Updated',
-        message: `Updated: "${item.title}"`,
-        type: 'info'
-      },
-      goal_progress: {
-        title: 'Progress Updated',
-        message: `"${item.title}" is now at ${item.progress}%`,
-        type: 'info'
-      },
-      goal_deleted: {
-        title: 'Goal Deleted',
-        message: `Removed: "${item.title}"`,
-        type: 'warning'
-      },
-      goal_milestone: {
-        title: 'Milestone Reached',
-        message: `Milestone achieved for "${item.title}"`,
-        type: 'success'
-      },
-      goal_reminder: {
-        title: 'Goal Reminder',
-        message: `Don't forget about: "${item.title}"`,
-        type: 'info'
-      },
-      goal_deadline_approaching: {
-        title: 'Deadline Approaching',
-        message: `"${item.title}" is due soon`,
-        type: 'warning'
-      },
-      
-      // Reminder notifications
-      reminder_created: {
-        title: 'Reminder Set',
-        message: `Reminder created: "${item.title}"`,
-        type: 'success'
-      },
-      reminder_triggered: {
-        title: 'Reminder',
-        message: `${item.title}`,
-        type: 'info'
-      },
-      reminder_snoozed: {
-        title: 'Reminder Snoozed',
-        message: `"${item.title}" snoozed`,
-        type: 'info'
-      },
-      reminder_completed: {
-        title: 'Reminder Completed',
-        message: `Completed: "${item.title}"`,
-        type: 'success'
-      },
-      
-      // Profile notifications
-      profile_updated: {
-        title: 'Profile Updated',
-        message: `${item.title}`,
-        type: 'success'
-      },
-      profile_image_uploaded: {
-        title: 'Image Uploaded',
-        message: `${item.title}`,
-        type: 'success'
-      }
-    };
+  const addNotification = useCallback((type, item = {}, onClick = null, playSound = true, options = {}) => {
+    const source = normalizeText(options.source, 'local');
+    const itemPayload = item || {};
+    const normalizedType = normalizeText(type, 'socket_message');
+    const dedupeKey = buildDedupeKey({
+      type: normalizedType,
+      item: itemPayload,
+      eventId: options.eventId,
+      dedupeKey: options.dedupeKey
+    });
 
-    const template = notificationTemplates[type] || {
-      title: 'Notification',
-      message: item.title || 'Activity update',
-      type: 'info'
-    };
+    if (shouldSuppressDuplicate(dedupeKey, options.dedupeMs ?? DEFAULT_DEDUPE_MS)) {
+      return null;
+    }
+
+    const template = getNotificationTemplate(normalizedType, itemPayload, options.templateOverride || null);
+    const now = new Date();
+    const itemTypeFromType = normalizedType.includes('_') ? normalizedType.split('_')[0] : null;
+    const itemType = normalizeText(options.itemType, itemTypeFromType || normalizeText(itemPayload.itemType, 'system'));
+    const itemId = itemPayload.id ?? options.eventId ?? Date.now();
 
     const newNotification = {
-      id: Date.now() + Math.random(), // Unique ID with timestamp and random
+      id: options.eventId ?? `${Date.now()}-${Math.random()}`,
       title: template.title,
       message: template.message,
       type: template.type,
-      itemId: item.id || Date.now(),
-      itemTitle: item.title || '',
-      itemType: type.split('_')[0], // Extract 'goal', 'task', 'reminder', or 'profile'
-      notificationType: type,
+      itemId,
+      itemTitle: normalizeText(itemPayload.title, ''),
+      itemType,
+      notificationType: normalizedType,
       read: false,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      date: new Date().toLocaleDateString(),
+      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      date: now.toLocaleDateString(),
       onClick: onClick || null,
-      timestamp: new Date().toISOString()
+      timestamp: options.timestamp || now.toISOString(),
+      source
     };
 
-    console.log('Adding notification:', newNotification);
-
-    setNotifications(prev => {
-      const next = [newNotification, ...prev].slice(0, 100); // Keep only latest 100
-      return next;
-    });
-    
-    // Play notification sound if enabled
-    if (playSound) {
-      console.log('Playing notification sound...');
-      playNotificationSound();
-    }
-
+    setNotifications((prev) => [newNotification, ...prev].slice(0, MAX_NOTIFICATIONS));
+    if (playSound) playNotificationSound();
     return newNotification;
-  }, [playNotificationSound]);
+  }, [playNotificationSound, shouldSuppressDuplicate]);
 
-  // Alias for backward compatibility
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const enableFlag = import.meta.env.VITE_ENABLE_SOCKET_NOTIFICATIONS;
+    const socketUrl = normalizeText(import.meta.env.VITE_SOCKET_IO_URL, '');
+    const scriptUrlFromEnv = normalizeText(import.meta.env.VITE_SOCKET_IO_SCRIPT_URL, '');
+    const shouldAttemptConnection = enableFlag === 'true' || Boolean(socketUrl || scriptUrlFromEnv || window.io);
+
+    if (!shouldAttemptConnection) return undefined;
+
+    let isDisposed = false;
+    let socketInstance = null;
+    let cleanupNotification = null;
+    let cleanupNotifications = null;
+
+    const initializeSocket = async () => {
+      const baseUrl = socketUrl || window.location.origin;
+      const scriptUrl = scriptUrlFromEnv || `${baseUrl.replace(/\/$/, '')}/socket.io/socket.io.js`;
+
+      try {
+        let ioFactory = window.io;
+        if (typeof ioFactory !== 'function') {
+          ioFactory = await loadSocketScript(scriptUrl);
+        }
+        if (typeof ioFactory !== 'function' || isDisposed) return;
+
+        socketInstance = ioFactory(baseUrl, {
+          transports: ['websocket', 'polling'],
+          withCredentials: true
+        });
+
+        socketInstance.on('connect', () => {
+          if (!isDisposed) setSocketConnected(true);
+        });
+        socketInstance.on('disconnect', () => {
+          if (!isDisposed) setSocketConnected(false);
+        });
+
+        const handleSocketPayload = (payload) => {
+          const data = payload || {};
+          const rawType = normalizeText(data.notificationType, '') ||
+            normalizeText(data.eventType, '') ||
+            normalizeText(data.action, '') ||
+            normalizeText(data.type, '');
+
+          const knownType = rawType.includes('_') ? rawType : 'socket_message';
+          const severity = ['success', 'info', 'warning', 'error'].includes(rawType) ? rawType : 'info';
+          const hasCustomTitleOrMessage = Boolean(data.title || data.message);
+
+          const item = data.item || {
+            id: data.itemId ?? data.id,
+            title: data.itemTitle || data.title || data.message || 'Realtime update',
+            progress: data.progress,
+            status: data.status
+          };
+
+          const templateOverride = hasCustomTitleOrMessage
+            ? {
+                title: normalizeText(data.title, 'Notification'),
+                message: normalizeText(data.message, normalizeText(item?.title, 'Realtime update')),
+                type: severity
+              }
+            : null;
+
+          addNotification(knownType, item, null, data.playSound !== false, {
+            source: 'socket',
+            eventId: data.eventId ?? data.notificationId ?? data.id,
+            dedupeMs: SOCKET_DEDUPE_MS,
+            itemType: data.itemType,
+            templateOverride
+          });
+        };
+
+        socketInstance.on('notification', handleSocketPayload);
+        socketInstance.on('notifications', (list) => {
+          if (!Array.isArray(list)) return;
+          list.forEach((entry) => handleSocketPayload(entry));
+        });
+
+        cleanupNotification = () => socketInstance?.off('notification', handleSocketPayload);
+        cleanupNotifications = () => socketInstance?.off('notifications');
+      } catch (error) {
+        setSocketConnected(false);
+        console.warn('Socket notifications unavailable:', error);
+      }
+    };
+
+    initializeSocket();
+
+    return () => {
+      isDisposed = true;
+      setSocketConnected(false);
+      cleanupNotification?.();
+      cleanupNotifications?.();
+      if (!socketInstance) return;
+      socketInstance.off('connect');
+      socketInstance.off('disconnect');
+      socketInstance.disconnect();
+      socketInstance = null;
+    };
+  }, [addNotification]);
+
   const addTaskNotification = addNotification;
 
-  // Mark a single notification as read
   const markAsRead = useCallback((id) => {
-    setNotifications(prev => prev.map(notification =>
+    setNotifications((prev) => prev.map((notification) => (
       notification.id === id ? { ...notification, read: true } : notification
-    ));
+    )));
   }, []);
 
-  // Mark all notifications as read
   const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(notification => ({ ...notification, read: true })));
+    setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
   }, []);
 
-  // Clear all notifications
   const clearAll = useCallback(() => {
     setNotifications([]);
   }, []);
 
-  // Clear a specific notification
   const clearNotification = useCallback((id) => {
-    setNotifications(prev => prev.filter(notification => notification.id !== id));
+    setNotifications((prev) => prev.filter((notification) => notification.id !== id));
   }, []);
 
-  // Get notifications by type
   const getNotificationsByType = useCallback((itemType) => {
-    return notifications.filter(n => n.itemType === itemType);
+    return notifications.filter((notification) => notification.itemType === itemType);
   }, [notifications]);
 
-  // Get notifications by item ID
   const getNotificationsByItem = useCallback((itemId, itemType) => {
-    return notifications.filter(n => n.itemId === itemId && n.itemType === itemType);
+    return notifications.filter((notification) => (
+      notification.itemId === itemId && notification.itemType === itemType
+    ));
   }, [notifications]);
 
-  // Get unread count
   const getUnreadCount = useCallback(() => {
-    return notifications.filter(n => !n.read).length;
+    return notifications.filter((notification) => !notification.read).length;
   }, [notifications]);
-  
-  // Test notification sound
+
   const testNotificationSound = useCallback(() => {
-    console.log('Testing notification sound...');
     playNotificationSound();
   }, [playNotificationSound]);
 
-  // Context value
   const contextValue = {
     notifications,
     notificationSettings,
+    socketConnected,
     addNotification,
     addTaskNotification,
     markAsRead,

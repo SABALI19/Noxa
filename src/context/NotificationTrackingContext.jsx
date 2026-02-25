@@ -1,54 +1,66 @@
 // src/context/NotificationTrackingContext.jsx
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
 
-// Create the context
 const NotificationTrackingContext = createContext(null);
 
-// Provider component
+const TRACKING_DEDUPE_MS = 1500;
+const TRACKING_CACHE_TTL_MS = 60000;
+
+const createBaseTrackingRecord = (itemId, itemType) => ({
+  totalNotifications: 0,
+  snoozedCount: 0,
+  lastViewed: null,
+  progressUpdates: [],
+  completions: 0,
+  notificationHistory: [],
+  notificationTypes: {},
+  itemType,
+  itemId,
+  viewCount: 0
+});
+
 export const NotificationTrackingProvider = ({ children }) => {
   const [trackingData, setTrackingData] = useState(() => {
     const savedData = localStorage.getItem('notificationTrackingData');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        // Ensure parsedData is a plain object, not undefined, null, or array
-        if (parsedData && typeof parsedData === 'object' && !Array.isArray(parsedData)) {
-          return parsedData;
-        } else {
-          console.warn('Invalid tracking data format, using empty object');
-          return {};
-        }
-      } catch (error) {
-        console.error('Failed to parse saved tracking data:', error);
-        // Clear corrupted data
-        localStorage.removeItem('notificationTrackingData');
-        return {};
-      }
+    if (!savedData) return {};
+    try {
+      const parsedData = JSON.parse(savedData);
+      return parsedData && typeof parsedData === 'object' && !Array.isArray(parsedData) ? parsedData : {};
+    } catch (error) {
+      console.error('Failed to parse saved tracking data:', error);
+      localStorage.removeItem('notificationTrackingData');
+      return {};
     }
-    return {};
   });
 
-  // Save tracking data to localStorage whenever it changes
+  const recentTrackingRef = useRef(new Map());
+
   useEffect(() => {
     localStorage.setItem('notificationTrackingData', JSON.stringify(trackingData));
   }, [trackingData]);
 
-  // Track when an item is viewed
+  const shouldSkipTracking = useCallback((key, dedupeMs = TRACKING_DEDUPE_MS) => {
+    const now = Date.now();
+    const cache = recentTrackingRef.current;
+    for (const [existingKey, ts] of cache.entries()) {
+      if (now - ts > TRACKING_CACHE_TTL_MS) {
+        cache.delete(existingKey);
+      }
+    }
+
+    const previous = cache.get(key);
+    if (previous && now - previous < dedupeMs) {
+      return true;
+    }
+
+    cache.set(key, now);
+    return false;
+  }, []);
+
   const trackView = useCallback((itemId, itemType = 'goal') => {
-    setTrackingData(prev => {
+    setTrackingData((prev) => {
       const key = `${itemType}_${itemId}`;
-      const current = prev[key] || {
-        totalNotifications: 0,
-        snoozedCount: 0,
-        lastViewed: null,
-        progressUpdates: [],
-        completions: 0,
-        notificationHistory: [],
-        notificationTypes: {},
-        itemType,
-        itemId
-      };
-      
+      const current = prev[key] || createBaseTrackingRecord(itemId, itemType);
       return {
         ...prev,
         [key]: {
@@ -60,138 +72,107 @@ export const NotificationTrackingProvider = ({ children }) => {
     });
   }, []);
 
-  // Track when an item is completed
   const trackCompletion = useCallback((itemId, itemType = 'goal') => {
-    setTrackingData(prev => {
+    setTrackingData((prev) => {
       const key = `${itemType}_${itemId}`;
-      const current = prev[key] || {
-        totalNotifications: 0,
-        snoozedCount: 0,
-        lastViewed: null,
-        progressUpdates: [],
-        completions: 0,
-        notificationHistory: [],
-        notificationTypes: {},
-        itemType,
-        itemId
-      };
-      
+      const current = prev[key] || createBaseTrackingRecord(itemId, itemType);
+      const now = new Date().toISOString();
       return {
         ...prev,
         [key]: {
           ...current,
-          completions: current.completions + 1,
-          lastCompletion: new Date().toISOString(),
-          completedAt: new Date().toISOString()
+          completions: (current.completions || 0) + 1,
+          lastCompletion: now,
+          completedAt: now
         }
       };
     });
   }, []);
 
-  // Track progress updates
   const trackProgressUpdate = useCallback((itemId, oldProgress, newProgress, itemType = 'goal') => {
-    setTrackingData(prev => {
+    setTrackingData((prev) => {
       const key = `${itemType}_${itemId}`;
-      const current = prev[key] || {
-        totalNotifications: 0,
-        snoozedCount: 0,
-        lastViewed: null,
-        progressUpdates: [],
-        completions: 0,
-        notificationHistory: [],
-        notificationTypes: {},
-        itemType,
-        itemId
-      };
-      
+      const current = prev[key] || createBaseTrackingRecord(itemId, itemType);
       const progressUpdate = {
         timestamp: new Date().toISOString(),
         oldProgress,
         newProgress,
         change: newProgress - oldProgress
       };
-      
       return {
         ...prev,
         [key]: {
           ...current,
-          progressUpdates: [...current.progressUpdates, progressUpdate].slice(-50) // Keep last 50 updates
+          progressUpdates: [...current.progressUpdates, progressUpdate].slice(-50)
         }
       };
     });
   }, []);
 
-  // Track notification interactions
-  const trackNotification = useCallback((itemId, itemType = 'goal', action = 'viewed', notificationType = null) => {
-    setTrackingData(prev => {
+  const trackNotification = useCallback((
+    itemId,
+    itemType = 'goal',
+    action = 'viewed',
+    notificationType = null,
+    metadata = {},
+    options = {}
+  ) => {
+    const trackingKey = options.eventId
+      ? `event:${options.eventId}`
+      : `${itemType}:${itemId}:${action}:${notificationType || ''}`;
+    if (shouldSkipTracking(trackingKey, options.dedupeMs ?? TRACKING_DEDUPE_MS)) {
+      return;
+    }
+
+    setTrackingData((prev) => {
       const key = `${itemType}_${itemId}`;
-      const current = prev[key] || {
-        totalNotifications: 0,
-        snoozedCount: 0,
-        lastViewed: null,
-        progressUpdates: [],
-        completions: 0,
-        notificationHistory: [],
-        notificationTypes: {},
-        itemType,
-        itemId
-      };
-      
+      const current = prev[key] || createBaseTrackingRecord(itemId, itemType);
+      const now = new Date().toISOString();
       const notificationTypes = { ...current.notificationTypes };
       if (notificationType && action === 'sent') {
         notificationTypes[notificationType] = (notificationTypes[notificationType] || 0) + 1;
       }
-      
+
       const historyEntry = {
-        timestamp: new Date().toISOString(),
+        timestamp: now,
         action,
         notificationType,
-        metadata: {}
+        metadata: metadata || {}
       };
-      
-      const updates = {
-        totalNotifications: current.totalNotifications + (action === 'sent' ? 1 : 0),
-        snoozedCount: current.snoozedCount + (action === 'snoozed' ? 1 : 0),
-        lastNotification: action === 'sent' ? new Date().toISOString() : current.lastNotification,
-        lastNotificationAction: action,
-        lastNotificationType: notificationType || current.lastNotificationType,
-        notificationTypes,
-        notificationHistory: [...current.notificationHistory, historyEntry].slice(-100) // Keep last 100 history items
-      };
-      
+
       return {
         ...prev,
         [key]: {
           ...current,
-          ...updates
+          totalNotifications: (current.totalNotifications || 0) + (action === 'sent' ? 1 : 0),
+          snoozedCount: (current.snoozedCount || 0) + (action === 'snoozed' ? 1 : 0),
+          lastNotification: action === 'sent' ? now : current.lastNotification,
+          lastNotificationAction: action,
+          lastNotificationType: notificationType || current.lastNotificationType,
+          notificationTypes,
+          notificationHistory: [...current.notificationHistory, historyEntry].slice(-100)
         }
       };
     });
-  }, []);
+  }, [shouldSkipTracking]);
 
-  // Get notification stats for a specific item
+  const trackSnooze = useCallback((itemId, itemType = 'goal', snoozeMinutes = 30) => {
+    trackNotification(
+      itemId,
+      itemType,
+      'snoozed',
+      'reminder_snoozed',
+      { snoozeMinutes }
+    );
+  }, [trackNotification]);
+
   const getNotificationStats = useCallback((itemId, itemType = 'goal') => {
     const key = `${itemType}_${itemId}`;
-    return trackingData[key] || {
-      totalNotifications: 0,
-      snoozedCount: 0,
-      lastViewed: null,
-      progressUpdates: [],
-      completions: 0,
-      notificationHistory: [],
-      notificationTypes: {},
-      itemType,
-      itemId,
-      viewCount: 0
-    };
+    return trackingData[key] || createBaseTrackingRecord(itemId, itemType);
   }, [trackingData]);
 
-  // Get all tracking data
-  const getAllTrackingData = useCallback(() => {
-    return trackingData;
-  }, [trackingData]);
+  const getAllTrackingData = useCallback(() => trackingData, [trackingData]);
 
-  // Get tracking data by type
   const getTrackingByType = useCallback((itemType) => {
     return Object.entries(trackingData)
       .filter(([key]) => key.startsWith(`${itemType}_`))
@@ -201,25 +182,21 @@ export const NotificationTrackingProvider = ({ children }) => {
       }, {});
   }, [trackingData]);
 
-  // Clear tracking data for a specific item
   const clearTrackingForItem = useCallback((itemId, itemType = 'goal') => {
-    setTrackingData(prev => {
+    setTrackingData((prev) => {
       const key = `${itemType}_${itemId}`;
-      const newData = { ...prev };
-      delete newData[key];
-      return newData;
+      const next = { ...prev };
+      delete next[key];
+      return next;
     });
   }, []);
 
-  // Clear all tracking data
   const clearAllTrackingData = useCallback(() => {
     setTrackingData({});
   }, []);
 
-  // Get summary statistics
   const getSummaryStats = useCallback(() => {
     const allData = Object.values(trackingData);
-    
     return {
       totalItems: allData.length,
       totalNotifications: allData.reduce((sum, item) => sum + (item.totalNotifications || 0), 0),
@@ -230,13 +207,13 @@ export const NotificationTrackingProvider = ({ children }) => {
     };
   }, [trackingData]);
 
-  // Context value
   const contextValue = {
     trackingData,
     trackView,
     trackCompletion,
     trackProgressUpdate,
     trackNotification,
+    trackSnooze,
     getNotificationStats,
     getAllTrackingData,
     getTrackingByType,

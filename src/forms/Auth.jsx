@@ -35,6 +35,12 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
         [name]: ''
       }));
     }
+    if (errors.submit) {
+      setErrors(prev => ({
+        ...prev,
+        submit: ''
+      }));
+    }
   };
 
   const handleSignupChange = (e) => {
@@ -47,6 +53,12 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
       setErrors(prev => ({
         ...prev,
         [name]: ''
+      }));
+    }
+    if (errors.submit) {
+      setErrors(prev => ({
+        ...prev,
+        submit: ''
       }));
     }
   };
@@ -97,7 +109,7 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
 
     if (validateLogin() && !isLoading) {
@@ -107,12 +119,19 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
       };
       
       if (onLogin) {
-        onLogin(formData);
+        try {
+          await onLogin(formData);
+        } catch (error) {
+          setErrors(prev => ({
+            ...prev,
+            submit: error?.message || "Login failed. Please try again."
+          }));
+        }
       }
     }
   };
 
-  const handleSignupSubmit = (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
 
     if (validateSignup() && !isLoading) {
@@ -124,7 +143,14 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
       };
       
       if (onSignup) {
-        onSignup(formData);
+        try {
+          await onSignup(formData);
+        } catch (error) {
+          setErrors(prev => ({
+            ...prev,
+            submit: error?.message || "Signup failed. Please try again."
+          }));
+        }
       }
     }
   };
@@ -144,7 +170,12 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
             <div className="flex justify-center mb-6 sm:mb-8">
               <div className="flex space-x-2">
                 <button
-                  onClick={() => !isLoading && setIsLogin(true)}
+                  onClick={() => {
+                    if (!isLoading) {
+                      setIsLogin(true);
+                      setErrors({});
+                    }
+                  }}
                   disabled={isLoading}
                   className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium text-sm sm:text-base transition-colors ${
                     isLogin
@@ -155,7 +186,12 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
                   Login
                 </button>
                 <button
-                  onClick={() => !isLoading && setIsLogin(false)}
+                  onClick={() => {
+                    if (!isLoading) {
+                      setIsLogin(false);
+                      setErrors({});
+                    }
+                  }}
                   disabled={isLoading}
                   className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium text-sm sm:text-base transition-colors ${
                     !isLogin
@@ -262,6 +298,11 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
                 >
                   {isLoading ? "Loading..." : "Sign In"}
                 </Button>
+                {errors.submit && (
+                  <p className="text-sm text-red-600 text-center -mt-2">
+                    {errors.submit}
+                  </p>
+                )}
 
                 <div className="relative my-4 sm:my-6">
                   <div className="absolute inset-0 flex items-center">
@@ -444,12 +485,22 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
                 >
                   {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
+                {errors.submit && (
+                  <p className="text-sm text-red-600 text-center -mt-2">
+                    {errors.submit}
+                  </p>
+                )}
 
                 <p className="text-center text-xs sm:text-sm text-gray-600">
                   Already have an account?{" "}
                   <button
                     type="button"
-                    onClick={() => !isLoading && setIsLogin(true)}
+                    onClick={() => {
+                      if (!isLoading) {
+                        setIsLogin(true);
+                        setErrors({});
+                      }
+                    }}
                     className={`text-[#3D9B9B] hover:text-[#2D8B8B] font-medium ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     disabled={isLoading}
                   >

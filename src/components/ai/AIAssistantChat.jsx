@@ -261,7 +261,7 @@ const AIAssistantChat = ({
       const errorMessage = {
         role: 'assistant',
         content: isProxyUnavailable
-          ? "I can't reach the AI proxy server right now. Start your backend proxy (usually on http://localhost:3001) and try again."
+          ? "I can't reach the backend AI endpoint right now. Make sure your backend server is running and try again."
           : "I'm sorry, I encountered an error processing your request.",
         timestamp: new Date(),
         isError: true
@@ -315,13 +315,14 @@ const AIAssistantChat = ({
   }
 
   return (
+    //minimized header noxa assistance
    <div
   className={`fixed z-50 flex flex-col transition-all duration-300 
     ${isMinimized 
       ? 'bottom-6 right-6 w-80 h-16' 
       : 'bottom-0 right-0 md:bottom-6 md:right-6 w-full h-full md:w-96 md:h-[600px] md:rounded-2xl'
     } 
-    bg-white dark:bg-gray-800 shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden
+    bg-white dark:bg-gray-800 shadow-2xl rounded-t-2xl border border-gray-200 dark:border-gray-400 overflow-hidden
     ${!isMinimized && 'rounded-t-2xl md:rounded-2xl'}
   `}
 >
@@ -367,7 +368,7 @@ const AIAssistantChat = ({
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl p-3 ${
+                    className={`max-w-[80%] rounded-2xl p-2 ${
                       message.role === 'user'
                         ? 'bg-blue-500 text-white'
                         : message.isError

@@ -26,67 +26,48 @@ import HowItWorksModal from "../components/HowItWorksModal"; // Import the modal
 
 const LandingPage = ({ onLogin, onSignup }) => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithBackend, signupWithBackend } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
 
-  const simulateLoading = () => {
-    return new Promise((resolve) => {
-      setIsLoading(true);
-      setLoadingProgress(0);
-      
-      const startTime = Date.now();
-      const totalDuration = 1500;
-      let animationFrameId;
-      
-      const updateProgress = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min((elapsed / totalDuration) * 100, 100);
-        
-        setLoadingProgress(progress);
-        
-        if (progress < 100) {
-          animationFrameId = requestAnimationFrame(updateProgress);
-        } else {
-          cancelAnimationFrame(animationFrameId);
-          setTimeout(() => {
-            setIsLoading(false);
-            setLoadingProgress(0);
-            resolve(true);
-          }, 150);
-        }
-      };
-      
-      updateProgress();
-    });
+  const startLoading = (progress = 20) => {
+    setIsLoading(true);
+    setLoadingProgress(progress);
+  };
+
+  const finishLoading = () => {
+    setLoadingProgress(100);
+    setIsLoading(false);
+    setLoadingProgress(0);
+  };
+
+  const failLoading = () => {
+    setIsLoading(false);
+    setLoadingProgress(0);
   };
 
   const handleUserLogin = async (userData) => {
     try {
-      await simulateLoading();
-      
-      login(userData);
-      
+      startLoading(40);
+      const loggedInUser = login(userData);
       if (onLogin) {
-        onLogin(userData);
+        onLogin(loggedInUser);
       }
-      
+      finishLoading();
       navigate("/dashboard");
-      
+      return loggedInUser;
     } catch (error) {
       console.error("Login error:", error);
-      setIsLoading(false);
-      setLoadingProgress(0);
+      failLoading();
+      throw error;
     }
   };
 
   const handleDemoLogin = async () => {
     try {
-      await simulateLoading();
-      
       const demoUser = {
         id: "demo-123",
         name: "Demo User",
@@ -98,54 +79,52 @@ const LandingPage = ({ onLogin, onSignup }) => {
       await handleUserLogin(demoUser);
     } catch (error) {
       console.error("Demo login error:", error);
-      setIsLoading(false);
-      setLoadingProgress(0);
+      failLoading();
+      throw error;
     }
   };
 
   const handleAuthLogin = async (formData) => {
     try {
-      await simulateLoading();
-      
-      const userData = {
-        id: Date.now().toString(),
-        name: formData.name || formData.email.split('@')[0],
+      startLoading(25);
+      const loggedInUser = await loginWithBackend({
         email: formData.email,
-        role: "Administrator",
-        avatar: null,
-        createdAt: new Date().toISOString(),
-      };
-
-      await handleUserLogin(userData);
+        password: formData.password
+      });
+      setLoadingProgress(85);
+      if (onLogin) {
+        onLogin(loggedInUser);
+      }
+      finishLoading();
+      navigate("/dashboard");
+      return loggedInUser;
     } catch (error) {
       console.error("Login error:", error);
-      setIsLoading(false);
-      setLoadingProgress(0);
+      failLoading();
+      throw new Error(error?.message || "Login failed. Please try again.");
     }
   };
 
   const handleAuthSignup = async (formData) => {
     try {
-      await simulateLoading();
-      
-      const userData = {
-        id: Date.now().toString(),
+      startLoading(25);
+      const newUser = await signupWithBackend({
         name: formData.name,
         email: formData.email,
-        role: "Member",
-        avatar: null,
-        createdAt: new Date().toISOString(),
-      };
-
-      await handleUserLogin(userData);
-      
+        password: formData.password,
+        confirmPassword: formData.confirmPassword
+      });
+      setLoadingProgress(85);
       if (onSignup) {
-        onSignup(userData);
+        onSignup(newUser);
       }
+      finishLoading();
+      navigate("/dashboard");
+      return newUser;
     } catch (error) {
       console.error("Signup error:", error);
-      setIsLoading(false);
-      setLoadingProgress(0);
+      failLoading();
+      throw new Error(error?.message || "Signup failed. Please try again.");
     }
   };
 

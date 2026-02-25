@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fi';
 import Button from '../components/Button';
 import { useNotificationTracking } from '../hooks/useNotificationTracking';
+import { useNotifications } from '../hooks/useNotifications';
 import TaskTrackingDetail from '../components/tracking/TaskTrackingDetail';
 import { useTasks } from '../context/TaskContext';
 import SetReminderModal from '../components/reminders/SetReminderModal'; // Import the modal
@@ -17,7 +18,8 @@ import SetReminderModal from '../components/reminders/SetReminderModal'; // Impo
 const ReminderPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { trackSnooze, trackView, trackCompletion, getNotificationStats } = useNotificationTracking();
+  const { addNotification } = useNotifications();
+  const { trackSnooze, trackView, trackCompletion, trackNotification, getNotificationStats } = useNotificationTracking();
   
   const { 
     reminders, 
@@ -228,7 +230,8 @@ const ReminderPage = () => {
     e?.stopPropagation();
     if (!editingReminder) return;
     
-    updateReminder(reminderId, {
+    const updatedReminder = {
+      id: reminderId,
       title: editForm.title,
       note: editForm.description,
       dueDate: `${editForm.dueDate}T${new Date(editingReminder.dueDate).toTimeString().split('T')[0] || '12:00:00'}`,
@@ -238,7 +241,10 @@ const ReminderPage = () => {
       frequency: editForm.frequency,
       notificationMethod: editForm.notificationMethod,
       status: editForm.status
-    });
+    };
+    updateReminder(reminderId, updatedReminder);
+    addNotification('reminder_updated', updatedReminder);
+    trackNotification(reminderId, 'reminder', 'sent', 'reminder_updated');
     
     setEditingReminder(null);
     setEditForm({});
@@ -268,22 +274,29 @@ const ReminderPage = () => {
   const handleSnooze = (reminderId, e) => {
     e?.stopPropagation();
     const reminder = reminders.find(r => r.id === reminderId);
+    const snoozedUntil = new Date(new Date().getTime() + 30 * 60000).toISOString();
     
     updateReminder(reminderId, {
-      reminderTime: new Date(new Date().getTime() + 30 * 60000).toISOString(),
+      reminderTime: snoozedUntil,
       status: 'upcoming'
     });
     
     if (activeReminder?.id === reminderId) {
       setActiveReminder(prev => ({
         ...prev,
-        reminderTime: new Date(new Date().getTime() + 30 * 60000).toISOString(),
+        reminderTime: snoozedUntil,
         status: 'upcoming'
       }));
     }
     
     // Track snooze
     if (reminder) {
+      addNotification('reminder_snoozed', {
+        ...reminder,
+        reminderTime: snoozedUntil,
+        status: 'upcoming'
+      });
+      trackNotification(reminder.id, 'reminder', 'snoozed', 'reminder_snoozed', { snoozeMinutes: 30 });
       trackSnooze(reminder.taskId, 'task', 30);
     }
   };
@@ -291,7 +304,12 @@ const ReminderPage = () => {
   // Handle dismiss
   const handleDismiss = (reminderId, e) => {
     e?.stopPropagation();
+    const reminder = reminders.find(r => r.id === reminderId);
     deleteReminder(reminderId);
+    if (reminder) {
+      addNotification('reminder_deleted', reminder);
+      trackNotification(reminderId, 'reminder', 'sent', 'reminder_deleted');
+    }
     
     if (activeReminder?.id === reminderId) {
       setActiveReminder(null);
@@ -300,11 +318,22 @@ const ReminderPage = () => {
 
   // Clear all completed
   const handleClearCompleted = () => {
+    let deletedCount = 0;
     reminders.forEach(reminder => {
       if (reminder.status === 'completed') {
         deleteReminder(reminder.id);
+        deletedCount += 1;
       }
     });
+    if (deletedCount > 0) {
+      const bulkEventId = `bulk_${Date.now()}`;
+      addNotification('reminders_cleared', {
+        id: bulkEventId,
+        title: `${deletedCount} completed reminders`,
+        count: deletedCount
+      });
+      trackNotification(bulkEventId, 'reminder', 'sent', 'reminders_cleared', { count: deletedCount });
+    }
     
     if (activeReminder?.status === 'completed') {
       setActiveReminder(null);
@@ -315,6 +344,7 @@ const ReminderPage = () => {
   const handleToggleReminder = (reminderId, e) => {
     e?.stopPropagation();
     const reminder = reminders.find(r => r.id === reminderId);
+    if (!reminder) return;
     const isCompleting = reminder?.status !== 'completed';
     
     const newStatus = reminder.status === 'completed' ? 'upcoming' : 'completed';
@@ -335,6 +365,11 @@ const ReminderPage = () => {
     // Track completion if completing
     if (isCompleting && reminder) {
       trackCompletion(reminder.taskId, 'task');
+      addNotification('reminder_completed', { ...reminder, status: newStatus });
+      trackNotification(reminderId, 'reminder', 'sent', 'reminder_completed');
+    } else {
+      addNotification('reminder_reopened', { ...reminder, status: newStatus });
+      trackNotification(reminderId, 'reminder', 'sent', 'reminder_reopened');
     }
   };
 
@@ -369,6 +404,10 @@ const ReminderPage = () => {
         if (reminder.status === 'upcoming' && reminderTime > now && reminderTime - now < 60000) {
           // Update status to today
           updateReminder(reminder.id, { status: 'today' });
+          addNotification('reminder_triggered', { ...reminder, status: 'today' }, null, true, {
+            dedupeMs: 10000
+          });
+          trackNotification(reminder.id, 'reminder', 'sent', 'reminder_triggered');
         }
       });
     }, 30000); // Check every 30 seconds

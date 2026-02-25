@@ -6,12 +6,7 @@
  * 2. Pattern recognition & automation
  * 3. AI assistant capabilities
  */
-
-const AI_CONFIG = {
-  apiEndpoint: 'http://localhost:3001/api/ai', // ✅ Points to your proxy server
-  model: 'claude-sonnet-4-20250514',
-  maxTokens: 1000
-};
+import { AI_CONFIG } from '../config/aiConfig';
 
 class AiService {
   constructor() {
@@ -23,11 +18,11 @@ class AiService {
    */
   setApiKey(key) {
     this.apiKey = key;
-    console.log('✅ AI Service configured to use backend proxy');
+    console.log('AI Service configured to use backend API');
   }
 
   /**
-   * Make a request to Claude API via backend proxy
+   * Make a request to Claude API via backend API route
    */
   async makeRequest(messages, systemPrompt = '') {
     try {
@@ -41,12 +36,14 @@ class AiService {
         requestBody.system = systemPrompt;
       }
 
-      // ✅ No API key in headers - proxy handles it
+      const token = localStorage.getItem('token');
       const response = await fetch(AI_CONFIG.apiEndpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: 'Bearer ' + token } : {})
         },
+        credentials: 'include',
         body: JSON.stringify(requestBody)
       });
 
@@ -664,7 +661,7 @@ Rules:
     try {
       const parsed = this.parseActionPayload(response.text);
       return parsed;
-    } catch (error) {
+    } catch {
       return {
         message: response.text,
         actions: []
