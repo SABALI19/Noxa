@@ -69,8 +69,8 @@ const AuthRedirect = () => {
 function App() {
   return (
     <BrowserRouter>
+      <AuthProvider>
       <TaskProvider>
-        <AuthProvider>
         <NotificationProvider>
           <NotificationTrackingProvider>
             <Routes>
@@ -115,8 +115,8 @@ function App() {
             </Routes>
           </NotificationTrackingProvider>
         </NotificationProvider>
-      </AuthProvider>
       </TaskProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

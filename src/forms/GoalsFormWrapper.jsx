@@ -17,7 +17,7 @@ const GoalsFormWrapper = ({ mode }) => {
         action: mode === 'edit' ? 'updated' : 'created',
         goalData: {
           ...goalData,
-          id: mode === 'edit' ? parseInt(id) : Date.now()
+          id: mode === 'edit' ? id : `tmp-goal-${Date.now()}`
         }
       } 
     });

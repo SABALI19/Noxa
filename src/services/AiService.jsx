@@ -7,6 +7,7 @@
  * 3. AI assistant capabilities
  */
 import { AI_CONFIG } from '../config/aiConfig';
+import { authFetch } from './authService';
 
 class AiService {
   constructor() {
@@ -36,20 +37,25 @@ class AiService {
         requestBody.system = systemPrompt;
       }
 
-      const token = localStorage.getItem('token');
-      const response = await fetch(AI_CONFIG.apiEndpoint, {
+      const response = await authFetch(AI_CONFIG.apiEndpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: 'Bearer ' + token } : {})
+          'Content-Type': 'application/json'
         },
-        credentials: 'include',
         body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || `API request failed: ${response.status}`);
+        let error = null;
+        try {
+          error = await response.json();
+        } catch {
+          error = null;
+        }
+
+        throw new Error(
+          error?.message || error?.error?.message || `API request failed: ${response.status}`
+        );
       }
 
       const data = await response.json();
@@ -421,6 +427,51 @@ Summarize this week's productivity.`;
     );
 
     return response.text;
+  }
+
+  /**
+   * Summarize an email and extract actionable intelligence
+   */
+  async summarizeEmail(emailData = {}) {
+    const response = await authFetch('/api/v1/emails/summarize', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: emailData.from || 'Unknown sender',
+        to: emailData.to || 'Me',
+        subject: emailData.subject || 'No subject',
+        date: emailData.date || new Date().toISOString(),
+        body: emailData.body || '',
+        goals: emailData.goals || [],
+        tasks: emailData.tasks || []
+      })
+    });
+
+    if (!response.ok) {
+      let error = null;
+      try {
+        error = await response.json();
+      } catch {
+        error = null;
+      }
+
+      throw new Error(error?.message || `Email summary request failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const data = payload?.data || payload || {};
+
+    return {
+      summary: data.summary || '',
+      actionItems: Array.isArray(data.actionItems) ? data.actionItems : [],
+      urgency: data.urgency || 'medium',
+      needsReply: Boolean(data.needsReply),
+      suggestedReply: data.suggestedReply || '',
+      linkedGoal: data.linkedGoal ?? null,
+      linkedTask: data.linkedTask ?? null
+    };
   }
 
   /**

@@ -1,14 +1,27 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiChevronRight } from 'react-icons/fi';
+import { useTasks } from '../../context/TaskContext';
 
 const ReminderCard = ({ 
-  today = 0,
-  upcoming = 0,
-  completed = 0
+  today,
+  upcoming,
+  completed
 }) => {
   const navigate = useNavigate();
-  const totalReminders = today + upcoming + completed;
+  const { getReminderStats } = useTasks();
+  const stats = getReminderStats();
+
+  const todayCount = Number.isFinite(today) ? today : stats.today;
+  const upcomingCount = Number.isFinite(upcoming) ? upcoming : stats.upcoming;
+  const completedCount = Number.isFinite(completed) ? completed : stats.completed;
+  const hasPropCounts =
+    Number.isFinite(today) && Number.isFinite(upcoming) && Number.isFinite(completed);
+  const totalReminders = hasPropCounts
+    ? todayCount + upcomingCount + completedCount
+    : Number.isFinite(stats.total)
+    ? stats.total
+    : todayCount + upcomingCount + completedCount;
   
   const handleViewAllClick = () => {
     navigate('/reminders', { state: { from: window.location.pathname } });
@@ -38,7 +51,7 @@ const ReminderCard = ({
       </div>
       
       <div className=''>
-        <div className="space-y-4">
+        <div className="space-y-2">
         <div 
           className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors"
           onClick={handleViewAllClick}
@@ -48,13 +61,20 @@ const ReminderCard = ({
               <div className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></div>
               <span className="font-normal text-gray-800 dark:text-gray-300">Today</span>
             </div>
-            <span className="font-bold text-yellow-700 dark:text-yellow-400">{today}</span>
+            <span className="font-bold text-yellow-700 dark:text-yellow-400">{todayCount}</span>
           </div>
           <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Reminders for today</p>
         </div>
-        
-        <div className='flex'>
-          
+
+        <div className="px-1 py-1">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-gray-500 dark:text-gray-400">Upcoming</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">{upcomingCount}</span>
+          </div>
+          <div className="flex justify-between items-center text-xs mt-1.5">
+            <span className="text-gray-500 dark:text-gray-400">Completed</span>
+            <span className="font-medium text-gray-700 dark:text-gray-300">{completedCount}</span>
+          </div>
         </div>
       </div>
       

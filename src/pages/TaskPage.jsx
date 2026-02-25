@@ -832,7 +832,7 @@ const TaskPage = () => {
                 className="flex items-center gap-2"
               >
                 <FiPlus className="text-lg" />
-                Create New Task
+                Create Task
               </Button>
             </div>
           </div>

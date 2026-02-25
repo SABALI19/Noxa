@@ -171,28 +171,16 @@ const ReminderPage = () => {
   // Handle creating a new reminder from the modal
   const handleCreateReminder = async (reminderData) => {
     try {
-      // Generate a unique ID for the reminder
-      const newReminder = {
-        id: `reminder_${Date.now()}`,
+      const createdReminder = addReminder({
         ...reminderData,
-        taskId: `task_${Date.now()}`, // Create a dummy task ID
-        note: reminderData.description,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Add the reminder using your context function
-      if (addReminder) {
-        addReminder(newReminder);
-      } else {
-        console.warn('addReminder function not found in context. Using fallback.');
-        // Fallback: You might need to handle this differently based on your context
+        note: reminderData.description || reminderData.note || "",
+      });
+
+      if (createdReminder?.taskId) {
+        trackView(createdReminder.taskId, 'task');
       }
-      
-      // Track the creation
-      trackView(newReminder.taskId, 'task');
-      
-      return Promise.resolve();
+
+      return createdReminder;
     } catch (error) {
       console.error('Error creating reminder:', error);
       throw error;
@@ -799,7 +787,7 @@ const ReminderPage = () => {
                     className="flex items-center gap-2 mx-auto rounded-xl"
                   >
                     <FiPlus className="text-lg" />
-                    Set a Reminder
+                    Create Reminder
                   </Button>
                 </div>
               )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   NotebookText, 
   Star, 
@@ -11,6 +11,7 @@ import {
   Lightbulb
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import backendService from '../services/backendService';
 
 const NotesPage = () => {
   const navigate = useNavigate();
@@ -21,35 +22,8 @@ const NotesPage = () => {
     }
     navigate('/dashboard');
   };
-  const [notes, setNotes] = useState([
-    {
-      id: 1,
-      title: 'Team Meeting Notes',
-      content: 'Discussed Q4 goals and project timeline. Key decisions: Launch date set for December 15th.',
-      category: 'work',
-      isPinned: true,
-      createdAt: '2024-01-15',
-      color: 'bg-blue-50'
-    },
-    {
-      id: 2,
-      title: 'Shopping List',
-      content: 'Milk, Bread, Eggs, Vegetables, Fruits, Chicken',
-      category: 'personal',
-      isPinned: false,
-      createdAt: '2024-01-14',
-      color: 'bg-green-50'
-    },
-    {
-      id: 3,
-      title: 'Project Ideas',
-      content: '1. Mobile app for task management\n2. AI-powered calendar\n3. Voice assistant integration',
-      category: 'ideas',
-      isPinned: false,
-      createdAt: '2024-01-13',
-      color: 'bg-purple-50'
-    }
-  ]);
+  const [notes, setNotes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,41 +45,110 @@ const NotesPage = () => {
   const noteColors = {
     work: 'bg-blue-50',
     personal: 'bg-green-50',
-    ideas: 'bg-purple-50'
+    ideas: 'bg-purple-50',
+    study: 'bg-amber-50',
+    general: 'bg-slate-50',
+    other: 'bg-gray-50',
   };
 
-  const handleCreateNote = () => {
+  const normalizeNote = (note) => ({
+    id: note._id || note.id || `note-${Date.now()}`,
+    title: note.title || 'Untitled note',
+    content: note.content || '',
+    category: note.category || 'work',
+    isPinned: Boolean(note.isPinned),
+    createdAt: note.createdAt
+      ? new Date(note.createdAt).toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0],
+    color: noteColors[note.category] || 'bg-gray-50',
+  });
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadNotes = async () => {
+      try {
+        const payload = await backendService.getNotes();
+        if (!isCancelled) {
+          const normalizedNotes = Array.isArray(payload) ? payload.map(normalizeNote) : [];
+          setNotes(normalizedNotes);
+        }
+      } catch (error) {
+        console.error('Failed to load notes from backend:', error);
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadNotes();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const handleCreateNote = async () => {
     const trimmedTitle = newNote.title.trim();
     const trimmedContent = newNote.content.trim();
 
     if (!trimmedTitle || !trimmedContent) return;
 
-    const today = new Date().toISOString().split('T')[0];
-    const createdNote = {
-      id: Date.now(),
-      title: trimmedTitle,
-      content: trimmedContent,
-      category: newNote.category,
-      isPinned: newNote.isPinned,
-      createdAt: today,
-      color: noteColors[newNote.category] || 'bg-gray-50'
-    };
-
-    setNotes((prev) => [createdNote, ...prev]);
-    setShowNewNoteModal(false);
-    setNewNote({ title: '', content: '', category: 'work', isPinned: false });
+    try {
+      const created = await backendService.createNote({
+        title: trimmedTitle,
+        content: trimmedContent,
+        category: newNote.category,
+        isPinned: Boolean(newNote.isPinned),
+      });
+      setNotes((prev) => [normalizeNote(created), ...prev]);
+      setShowNewNoteModal(false);
+      setNewNote({ title: '', content: '', category: 'work', isPinned: false });
+    } catch (error) {
+      console.error('Failed to create note:', error);
+    }
   };
 
-  const handleDeleteNote = (id) => {
-    setNotes((prev) => prev.filter((note) => note.id !== id));
+  const handleDeleteNote = async (id) => {
+    const snapshot = notes.find((note) => String(note.id) === String(id));
+    setNotes((prev) => prev.filter((note) => String(note.id) !== String(id)));
+
+    try {
+      await backendService.deleteNote(id);
+    } catch (error) {
+      console.error('Failed to delete note:', error);
+      if (snapshot) {
+        setNotes((prev) => [snapshot, ...prev]);
+      }
+    }
   };
 
-  const handleTogglePin = (id) => {
+  const handleTogglePin = async (id) => {
+    const current = notes.find((note) => String(note.id) === String(id));
+    if (!current) return;
+
+    const nextPinned = !current.isPinned;
     setNotes((prev) =>
       prev.map((note) =>
-        note.id === id ? { ...note, isPinned: !note.isPinned } : note
+        String(note.id) === String(id) ? { ...note, isPinned: nextPinned } : note
       )
     );
+
+    try {
+      const updated = await backendService.updateNote(id, { isPinned: nextPinned });
+      const normalized = normalizeNote(updated);
+      setNotes((prev) =>
+        prev.map((note) => (String(note.id) === String(id) ? normalized : note))
+      );
+    } catch (error) {
+      console.error('Failed to update note pin state:', error);
+      setNotes((prev) =>
+        prev.map((note) =>
+          String(note.id) === String(id) ? { ...note, isPinned: current.isPinned } : note
+        )
+      );
+    }
   };
 
   const filteredNotes = notes.filter(note => {
@@ -117,6 +160,14 @@ const NotesPage = () => {
 
   const pinnedNotes = filteredNotes.filter(note => note.isPinned);
   const regularNotes = filteredNotes.filter(note => !note.isPinned);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <p className="text-gray-600 dark:text-gray-300">Loading notes...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-6">

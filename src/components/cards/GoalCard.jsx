@@ -1,14 +1,61 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FiTarget } from 'react-icons/fi';
+import { getGoals, goalEvents, hydrateGoalsFromBackend } from '../../services/goalStorage';
 
 const GoalCard = ({ 
   title = "Goals", 
-  count = 0, 
-  completed = 0,
+  count,
+  completed,
   color = "#3D9B9B",
   onClick 
 }) => {
-  const completionRate = count > 0 ? Math.round((completed / count) * 100) : 0;
+  const [goals, setGoals] = useState(() => getGoals());
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrate = async () => {
+      const hydratedGoals = await hydrateGoalsFromBackend();
+      if (isMounted && Array.isArray(hydratedGoals)) {
+        setGoals(hydratedGoals);
+      }
+    };
+
+    hydrate();
+
+    const syncGoals = (event) => {
+      if (event?.detail && Array.isArray(event.detail)) {
+        setGoals(event.detail);
+      } else {
+        setGoals(getGoals());
+      }
+    };
+
+    const syncFromStorage = (event) => {
+      if (event.key === 'noxa_goals') {
+        setGoals(getGoals());
+      }
+    };
+
+    window.addEventListener(goalEvents.updated, syncGoals);
+    window.addEventListener('storage', syncFromStorage);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener(goalEvents.updated, syncGoals);
+      window.removeEventListener('storage', syncFromStorage);
+    };
+  }, []);
+
+  const derivedStats = useMemo(() => {
+    const total = goals.length;
+    const completedCount = goals.filter((goal) => goal.completed).length;
+    return { total, completedCount };
+  }, [goals]);
+
+  const totalGoals = Number.isFinite(count) ? count : derivedStats.total;
+  const completedGoals = Number.isFinite(completed) ? completed : derivedStats.completedCount;
+  const completionRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
   
   return (
     <div 
@@ -32,14 +79,14 @@ const GoalCard = ({
           </div>
         </div>
         <span className="text-2xl font-bold dark:text-gray-300" style={{ color }}>
-          {count}
+          {totalGoals}
         </span>
       </div>
       
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-500 dark:text-gray-400">Completed</span>
-          <span className="font-medium dark:text-gray-300">{completed}/{count}</span>
+          <span className="font-medium dark:text-gray-300">{completedGoals}/{totalGoals}</span>
         </div>
         
         {/* Progress bar */}

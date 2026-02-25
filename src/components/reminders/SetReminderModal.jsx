@@ -144,7 +144,6 @@ const SetReminderModal = ({ isOpen, onClose, onSubmit, linkedGoal = null, linked
         : null;
       
       const reminderData = {
-        id: Date.now(), // Generate temporary ID
         title: formData.title,
         description: formData.description,
         reminderTime: reminderDateTime.toISOString(),
@@ -158,17 +157,17 @@ const SetReminderModal = ({ isOpen, onClose, onSubmit, linkedGoal = null, linked
         linkedGoalId: formData.linkedGoalId,
         linkedTaskId: formData.linkedTaskId,
         status: 'upcoming',
-        createdAt: new Date().toISOString()
       };
       
       // Call the onSubmit callback
-      await onSubmit(reminderData);
+      const createdReminder = await onSubmit(reminderData);
+      const reminderEventId = createdReminder?.id || `reminder-${Date.now()}`;
       
       // Send reminder creation notification
-      addNotification('reminder_created', reminderData);
+      addNotification('reminder_created', { ...reminderData, id: reminderEventId });
       
       // Track notification
-      trackNotification(reminderData.id, 'reminder', 'sent', 'reminder_created');
+      trackNotification(reminderEventId, 'reminder', 'sent', 'reminder_created');
       
       // If linked to a goal, send goal reminder notification
       if (formData.linkedGoalId && linkedGoal) {

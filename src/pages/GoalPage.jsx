@@ -32,7 +32,7 @@ import Button from "../components/Button";
 import SortDropdown from "../components/SortDropdown";
 import GoalTrackingDetail from '../components/tracking/GoalTrackingDetail';
 import GoalDropdownMenuPortal from '../components/GoalDropdownMenu';
-import { getGoals, saveGoals, goalEvents } from '../services/goalStorage';
+import { getGoals, saveGoals, goalEvents, hydrateGoalsFromBackend } from '../services/goalStorage';
 
 // ========== NEW AI IMPORTS ==========
 import AIInsights from '../components/ai/AIInsight';
@@ -69,6 +69,23 @@ const GoalsPage = () => {
   const processedActionsRef = useRef(new Set());
 
   useEffect(() => {
+    let isCancelled = false;
+
+    const hydrate = async () => {
+      const hydratedGoals = await hydrateGoalsFromBackend();
+      if (!isCancelled && Array.isArray(hydratedGoals)) {
+        setGoals(hydratedGoals);
+      }
+    };
+
+    hydrate();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const actionKey = location.state?.action;
     const goalDataKey = location.state?.goalData?.title;
 
@@ -79,7 +96,7 @@ const GoalsPage = () => {
       }
 
       const newGoalData = location.state.goalData;
-      const newId = goals.length > 0 ? Math.max(...goals.map(g => g.id)) + 1 : 1;
+      const newId = `tmp-goal-${Date.now()}`;
 
       const newGoal = {
         id: newId,
@@ -282,7 +299,13 @@ const GoalsPage = () => {
     }
   };
 
-
+  const handleBackNavigation = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate('/dashboard');
+  };
 
   const handleMenuToggle = (goalId, event) => {
     if (openMenuId === goalId) {
@@ -413,7 +436,7 @@ const GoalsPage = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4 w-full sm:w-auto">
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={handleBackNavigation}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
               >
                 <FiChevronLeft className="text-xl text-gray-600 dark:text-gray-300" />
@@ -643,6 +666,16 @@ const GoalsPage = () => {
             <div className="col-span-full text-center py-12">
               <p className="text-gray-500 text-lg">No active goals found</p>
               <p className="text-gray-400 mt-2">Add a new goal to get started</p>
+              <div className="mt-5">
+                <Button
+                  variant="primary"
+                  size="md"
+                  className="rounded-xl"
+                  onClick={() => navigate('/goals/new')}
+                >
+                  + Create goal
+                </Button>
+              </div>
             </div>
           )}
         </div>

@@ -1,7 +1,106 @@
 // src/contexts/TaskContext.jsx
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import backendService from '../services/backendService';
+import { useAuth } from '../hooks/UseAuth.jsx';
 
 const TaskContext = createContext();
+
+const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
+const PRIORITY_VALUES = ['low', 'medium', 'high'];
+const CATEGORY_VALUES = ['work', 'personal', 'health', 'finance', 'education', 'other'];
+const TASK_STATUS_VALUES = ['pending', 'in_progress', 'completed', 'cancelled'];
+const REMINDER_FREQ_VALUES = ['once', 'daily', 'weekly', 'monthly'];
+
+const isObjectId = (value) => OBJECT_ID_RE.test(String(value ?? ''));
+const normalizePriority = (value) => {
+  const candidate = String(value || '').toLowerCase();
+  return PRIORITY_VALUES.includes(candidate) ? candidate : 'medium';
+};
+
+const normalizeCategory = (value) => {
+  const candidate = String(value || '').toLowerCase();
+  return CATEGORY_VALUES.includes(candidate) ? candidate : 'other';
+};
+
+const normalizeTaskStatus = (value, completed = false) => {
+  if (completed) return 'completed';
+  const candidate = String(value || '').toLowerCase();
+  return TASK_STATUS_VALUES.includes(candidate) ? candidate : 'pending';
+};
+
+const toIso = (value) => {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  return parsed.toISOString();
+};
+
+const toUiReminderMethod = (method) => (String(method || '').toLowerCase() === 'email' ? 'email' : 'app');
+const toApiReminderMethod = (method) => (String(method || '').toLowerCase() === 'email' ? 'email' : 'in_app');
+
+const toUiReminderStatus = (status) => {
+  const value = String(status || '').toLowerCase();
+  if (value === 'sent') return 'today';
+  if (value === 'dismissed') return 'completed';
+  if (value === 'snoozed' || value === 'pending') return 'upcoming';
+  if (['today', 'upcoming', 'completed', 'missed'].includes(value)) return value;
+  return 'upcoming';
+};
+
+const toApiReminderStatus = (status) => {
+  const value = String(status || '').toLowerCase();
+  if (value === 'today') return 'sent';
+  if (value === 'completed') return 'dismissed';
+  if (value === 'missed') return 'sent';
+  if (['pending', 'sent', 'dismissed', 'snoozed'].includes(value)) return value;
+  return 'pending';
+};
+
+const normalizeReminderFrequency = (value) => {
+  const candidate = String(value || '').toLowerCase();
+  return REMINDER_FREQ_VALUES.includes(candidate) ? candidate : 'once';
+};
+
+const normalizeTaskFromApi = (task = {}) => {
+  const completed = Boolean(task.completed || task.status === 'completed');
+  return {
+    id: String(task._id || task.id),
+    title: task.title || 'Untitled task',
+    description: task.description || '',
+    dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
+    priority: normalizePriority(task.priority),
+    category: normalizeCategory(task.category),
+    completed,
+    overdue: false,
+    status: normalizeTaskStatus(task.status, completed),
+    createdAt: task.createdAt ? new Date(task.createdAt).toISOString() : new Date().toISOString(),
+  };
+};
+
+const normalizeReminderFromApi = (reminder = {}, tasks = []) => {
+  const taskId = reminder.taskId?._id || reminder.taskId || null;
+  const normalizedTaskId = taskId ? String(taskId) : null;
+  const linkedTask = normalizedTaskId
+    ? tasks.find((task) => String(task.id) === normalizedTaskId)
+    : null;
+
+  return {
+    id: String(reminder._id || reminder.id),
+    taskId: normalizedTaskId,
+    title: reminder.title || 'Reminder',
+    dueDate: reminder.dueDate ? new Date(reminder.dueDate).toISOString() : new Date().toISOString(),
+    reminderTime: reminder.reminderTime
+      ? new Date(reminder.reminderTime).toISOString()
+      : new Date().toISOString(),
+    status: toUiReminderStatus(reminder.status),
+    category: normalizeCategory(reminder.category),
+    priority: normalizePriority(reminder.priority),
+    frequency: normalizeReminderFrequency(reminder.frequency),
+    notificationMethod: toUiReminderMethod(reminder.notificationMethod),
+    taskCompleted: Boolean(linkedTask?.completed),
+    note: reminder.note || '',
+  };
+};
 
 export const useTasks = () => {
   const context = useContext(TaskContext);
@@ -12,24 +111,31 @@ export const useTasks = () => {
 };
 
 export const TaskProvider = ({ children }) => {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+
   // Initial filters state
   const [filters, setFilters] = useState(() => {
+    const defaultFilters = {
+      activeView: 'all',
+      activeCategory: null,
+      activePriority: null,
+      statusFilter: null,
+      searchTerm: '',
+      sortBy: 'dueDate'
+    };
+
     const savedFilters = localStorage.getItem('noxa_filters');
     if (savedFilters) {
       try {
-        return JSON.parse(savedFilters);
+        const parsed = JSON.parse(savedFilters);
+        return { ...defaultFilters, ...(parsed || {}) };
       } catch (e) {
         console.error('Error parsing saved filters:', e);
       }
     }
     
     // Default filters
-    return {
-      activeView: 'all',
-      activeCategory: null,
-      activePriority: null,
-      sortBy: 'dueDate'
-    };
+    return defaultFilters;
   });
 
   // Initial tasks data
@@ -38,75 +144,17 @@ export const TaskProvider = ({ children }) => {
     const savedTasks = localStorage.getItem('noxa_tasks');
     if (savedTasks) {
       try {
-        return JSON.parse(savedTasks);
+        const parsed = JSON.parse(savedTasks);
+        if (Array.isArray(parsed)) {
+          return parsed.map((task) => normalizeTaskFromApi(task));
+        }
       } catch (e) {
         console.error('Error parsing saved tasks:', e);
       }
     }
     
     // Default tasks
-    return [
-      {
-        id: 1,
-        title: 'Review quarterly budget report',
-        description: '',
-        dueDate: '2024-01-20T20:00:00',
-        priority: 'high',
-        category: 'work',
-        completed: false,
-        overdue: true,
-        status: 'in_progress',
-        createdAt: '2024-01-15T10:00:00'
-      },
-      {
-        id: 2,
-        title: 'Prepare presentation slides',
-        description: '',
-        dueDate: '2024-01-22T17:30:00',
-        priority: 'medium',
-        category: 'work',
-        completed: false,
-        overdue: false,
-        status: 'in_progress',
-        createdAt: '2024-01-16T14:30:00'
-      },
-      {
-        id: 3,
-        title: 'Schedule dentist appointment',
-        description: '',
-        dueDate: '2024-01-23T10:00:00',
-        priority: 'low',
-        category: 'personal',
-        completed: false,
-        overdue: false,
-        status: 'pending',
-        createdAt: '2024-01-17T09:15:00'
-      },
-      {
-        id: 4,
-        title: 'Morning workout routine',
-        description: '',
-        dueDate: '2024-01-22T08:00:00',
-        priority: 'medium',
-        category: 'health',
-        completed: true,
-        overdue: false,
-        status: 'completed',
-        createdAt: '2024-01-18T07:00:00'
-      },
-      {
-        id: 5,
-        title: 'Buy groceries for the week',
-        description: '',
-        dueDate: '2024-01-26T21:00:00',
-        priority: 'low',
-        category: 'personal',
-        completed: false,
-        overdue: false,
-        status: 'pending',
-        createdAt: '2024-01-19T18:45:00'
-      }
-    ];
+    return [];
   });
 
   // Initial reminders data (linked to tasks)
@@ -114,84 +162,16 @@ export const TaskProvider = ({ children }) => {
     const savedReminders = localStorage.getItem('noxa_reminders');
     if (savedReminders) {
       try {
-        return JSON.parse(savedReminders);
+        const parsed = JSON.parse(savedReminders);
+        if (Array.isArray(parsed)) {
+          return parsed.map((reminder) => normalizeReminderFromApi(reminder));
+        }
       } catch (e) {
         console.error('Error parsing saved reminders:', e);
       }
     }
     
-    return [
-      {
-        id: 1,
-        taskId: 1,
-        title: 'Review quarterly budget report',
-        dueDate: '2024-01-20T20:00:00',
-        reminderTime: '2024-01-20T18:00:00',
-        status: 'upcoming',
-        category: 'work',
-        priority: 'high',
-        frequency: 'once',
-        notificationMethod: 'app',
-        taskCompleted: false,
-        note: 'Reminder: 2 hours before due time'
-      },
-      {
-        id: 2,
-        taskId: 2,
-        title: 'Prepare presentation slides',
-        dueDate: '2024-01-22T17:30:00',
-        reminderTime: '2024-01-21T17:30:00',
-        status: 'upcoming',
-        category: 'work',
-        priority: 'medium',
-        frequency: 'once',
-        notificationMethod: 'both',
-        taskCompleted: false,
-        note: 'Daily reminder until completed'
-      },
-      {
-        id: 3,
-        taskId: 3,
-        title: 'Schedule dentist appointment',
-        dueDate: '2024-01-23T10:00:00',
-        reminderTime: '2024-01-22T10:00:00',
-        status: 'today',
-        category: 'personal',
-        priority: 'low',
-        frequency: 'daily',
-        notificationMethod: 'email',
-        taskCompleted: false,
-        note: 'Reminder set for 1 day before'
-      },
-      {
-        id: 4,
-        taskId: 4,
-        title: 'Morning workout routine',
-        dueDate: '2024-01-22T08:00:00',
-        reminderTime: '2024-01-22T07:30:00',
-        status: 'completed',
-        category: 'health',
-        priority: 'medium',
-        frequency: 'daily',
-        notificationMethod: 'app',
-        taskCompleted: true,
-        note: 'Completed task - reminder dismissed'
-      },
-      {
-        id: 5,
-        taskId: 5,
-        title: 'Buy groceries for the week',
-        dueDate: '2024-01-26T21:00:00',
-        reminderTime: '2024-01-25T21:00:00',
-        status: 'upcoming',
-        category: 'personal',
-        priority: 'low',
-        frequency: 'multiple',
-        notificationMethod: 'both',
-        taskCompleted: false,
-        note: 'Multiple reminders set'
-      }
-    ];
+    return [];
   });
 
   // Save to localStorage whenever tasks or reminders change
@@ -207,6 +187,42 @@ export const TaskProvider = ({ children }) => {
     localStorage.setItem('noxa_filters', JSON.stringify(filters));
   }, [filters]);
 
+  const refreshFromBackend = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const [taskPayload, reminderPayload] = await Promise.all([
+        backendService.getTasks(),
+        backendService.getReminders(),
+      ]);
+
+      const normalizedTasks = Array.isArray(taskPayload)
+        ? taskPayload.map((task) => normalizeTaskFromApi(task))
+        : [];
+
+      const normalizedReminders = Array.isArray(reminderPayload)
+        ? reminderPayload.map((reminder) => normalizeReminderFromApi(reminder, normalizedTasks))
+        : [];
+
+      setTasks(normalizedTasks);
+      setReminders(normalizedReminders);
+    } catch (error) {
+      console.error('Failed to load task/reminder data from backend:', error);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!isAuthenticated) {
+      setTasks([]);
+      setReminders([]);
+      return;
+    }
+
+    refreshFromBackend();
+  }, [authLoading, isAuthenticated, refreshFromBackend]);
+
   // Filter functions
   const updateFilters = useCallback((newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
@@ -217,6 +233,8 @@ export const TaskProvider = ({ children }) => {
       activeView: 'all',
       activeCategory: null,
       activePriority: null,
+      statusFilter: null,
+      searchTerm: '',
       sortBy: 'dueDate'
     });
   }, []);
@@ -293,6 +311,30 @@ export const TaskProvider = ({ children }) => {
     if (filters.activePriority) {
       filtered = filtered.filter(task => task.priority === filters.activePriority);
     }
+
+    // Apply status filter (used by header search)
+    if (filters.statusFilter) {
+      if (filters.statusFilter === 'completed') {
+        filtered = filtered.filter((task) => task.completed);
+      } else if (filters.statusFilter === 'pending') {
+        filtered = filtered.filter((task) => !task.completed);
+      } else if (filters.statusFilter === 'overdue') {
+        const now = new Date();
+        filtered = filtered.filter((task) => task.dueDate && !task.completed && new Date(task.dueDate) < now);
+      } else {
+        filtered = filtered.filter((task) => task.status === filters.statusFilter);
+      }
+    }
+
+    // Apply text search filter (used by header search)
+    if (filters.searchTerm && String(filters.searchTerm).trim()) {
+      const query = String(filters.searchTerm).trim().toLowerCase();
+      filtered = filtered.filter(
+        (task) =>
+          String(task.title || '').toLowerCase().includes(query) ||
+          String(task.description || '').toLowerCase().includes(query)
+      );
+    }
     
     // Apply sorting
     if (filters.sortBy) {
@@ -321,73 +363,265 @@ export const TaskProvider = ({ children }) => {
     }
     
     return filtered;
-  }, [tasks, filters, getTodayTasks, getOverdueTasks]);
+  }, [tasks, filters, getTodayTasks, getOverdueTasks, getWeekTasks]);
 
   // Task operations
-  const addTask = useCallback((newTask) => {
-    const newId = tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
-    const taskWithId = {
-      ...newTask,
-      id: newId,
-      createdAt: new Date().toISOString(),
-      overdue: false // Will be calculated dynamically
-    };
-    
-    setTasks(prev => [...prev, taskWithId]);
-    return taskWithId;
-  }, [tasks]);
+  const addTask = useCallback(
+    (newTask) => {
+      const optimisticId = `tmp-task-${Date.now()}`;
+      const taskWithId = {
+        ...newTask,
+        id: optimisticId,
+        createdAt: new Date().toISOString(),
+        priority: normalizePriority(newTask.priority),
+        category: normalizeCategory(newTask.category),
+        status: normalizeTaskStatus(newTask.status, Boolean(newTask.completed)),
+        overdue: false,
+      };
 
-  const updateTask = useCallback((taskId, updates) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, ...updates } : task
-    ));
-    
-    // If task is marked as completed, update corresponding reminders
-    if (updates.completed !== undefined) {
-      setReminders(prev => prev.map(reminder => 
-        reminder.taskId === taskId 
-          ? { ...reminder, taskCompleted: updates.completed, status: updates.completed ? 'completed' : reminder.status }
-          : reminder
-      ));
-    }
-  }, []);
+      setTasks((prev) => [...prev, taskWithId]);
 
-  const deleteTask = useCallback((taskId) => {
-    setTasks(prev => prev.filter(task => task.id !== taskId));
-    // Also delete related reminders
-    setReminders(prev => prev.filter(reminder => reminder.taskId !== taskId));
-  }, []);
+      if (isAuthenticated) {
+        const payload = {
+          title: newTask.title || 'Untitled task',
+          description: newTask.description || '',
+          dueDate: toIso(newTask.dueDate),
+          priority: normalizePriority(newTask.priority),
+          category: normalizeCategory(newTask.category),
+          completed: Boolean(newTask.completed),
+          status: normalizeTaskStatus(newTask.status, Boolean(newTask.completed)),
+          recurrence: ['none', 'daily', 'weekly', 'monthly', 'yearly'].includes(
+            String(newTask.recurrence || '').toLowerCase()
+          )
+            ? String(newTask.recurrence).toLowerCase()
+            : 'none',
+        };
 
-  const toggleTaskCompletion = useCallback((taskId) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
-    
-    // Update corresponding reminders
-    setReminders(prev => prev.map(reminder => 
-      reminder.taskId === taskId 
-        ? { ...reminder, taskCompleted: !reminder.taskCompleted } 
-        : reminder
-    ));
-  }, []);
+        void backendService
+          .createTask(payload)
+          .then((created) => {
+            const normalized = normalizeTaskFromApi(created);
+            setTasks((prev) =>
+              prev.map((task) => (String(task.id) === optimisticId ? normalized : task))
+            );
+          })
+          .catch((error) => {
+            console.error('Failed to create task:', error);
+            setTasks((prev) => prev.filter((task) => String(task.id) !== optimisticId));
+          });
+      }
+
+      return taskWithId;
+    },
+    [isAuthenticated]
+  );
+
+  const updateTask = useCallback(
+    (taskId, updates) => {
+      const normalizedId = String(taskId);
+      const existingTask = tasks.find((task) => String(task.id) === normalizedId);
+      if (!existingTask) return;
+
+      setTasks((prev) =>
+        prev.map((task) => (String(task.id) === normalizedId ? { ...task, ...updates } : task))
+      );
+
+      if (updates.completed !== undefined) {
+        setReminders((prev) =>
+          prev.map((reminder) =>
+            String(reminder.taskId) === normalizedId
+              ? {
+                  ...reminder,
+                  taskCompleted: Boolean(updates.completed),
+                  status: updates.completed
+                    ? 'completed'
+                    : reminder.status === 'completed'
+                    ? 'upcoming'
+                    : reminder.status,
+                }
+              : reminder
+          )
+        );
+      }
+
+      if (isAuthenticated && isObjectId(normalizedId)) {
+        const merged = { ...existingTask, ...updates };
+        const payload = {
+          title: merged.title,
+          description: merged.description || '',
+          dueDate: toIso(merged.dueDate),
+          priority: normalizePriority(merged.priority),
+          category: normalizeCategory(merged.category),
+          completed: Boolean(merged.completed),
+          status: normalizeTaskStatus(merged.status, Boolean(merged.completed)),
+          recurrence: ['none', 'daily', 'weekly', 'monthly', 'yearly'].includes(
+            String(merged.recurrence || '').toLowerCase()
+          )
+            ? String(merged.recurrence).toLowerCase()
+            : 'none',
+        };
+
+        void backendService
+          .updateTask(normalizedId, payload)
+          .then((updated) => {
+            const normalized = normalizeTaskFromApi(updated);
+            setTasks((prev) =>
+              prev.map((task) => (String(task.id) === normalizedId ? normalized : task))
+            );
+          })
+          .catch((error) => {
+            console.error('Failed to update task:', error);
+          });
+      }
+    },
+    [isAuthenticated, tasks]
+  );
+
+  const deleteTask = useCallback(
+    (taskId) => {
+      const normalizedId = String(taskId);
+      const taskSnapshot = tasks.find((task) => String(task.id) === normalizedId);
+      const reminderSnapshot = reminders.filter((reminder) => String(reminder.taskId) === normalizedId);
+
+      setTasks((prev) => prev.filter((task) => String(task.id) !== normalizedId));
+      setReminders((prev) => prev.filter((reminder) => String(reminder.taskId) !== normalizedId));
+
+      if (isAuthenticated && isObjectId(normalizedId)) {
+        void backendService.deleteTask(normalizedId).catch((error) => {
+          console.error('Failed to delete task:', error);
+          if (taskSnapshot) setTasks((prev) => [taskSnapshot, ...prev]);
+          if (reminderSnapshot.length > 0) setReminders((prev) => [...prev, ...reminderSnapshot]);
+        });
+      }
+    },
+    [isAuthenticated, reminders, tasks]
+  );
+
+  const toggleTaskCompletion = useCallback(
+    (taskId) => {
+      const task = tasks.find((entry) => String(entry.id) === String(taskId));
+      if (!task) return;
+      updateTask(taskId, {
+        completed: !task.completed,
+        status: !task.completed ? 'completed' : 'pending',
+      });
+    },
+    [tasks, updateTask]
+  );
 
   // Reminder operations
-  const addReminder = useCallback((newReminder) => {
-    const newId = reminders.length > 0 ? Math.max(...reminders.map(r => r.id)) + 1 : 1;
-    const reminderWithId = { ...newReminder, id: newId };
-    setReminders(prev => [...prev, reminderWithId]);
-    return reminderWithId;
-  }, [reminders]);
+  const addReminder = useCallback(
+    (newReminder) => {
+      const optimisticId = `tmp-reminder-${Date.now()}`;
+      const reminderWithId = {
+        ...newReminder,
+        id: optimisticId,
+        status: toUiReminderStatus(newReminder.status),
+        notificationMethod: toUiReminderMethod(newReminder.notificationMethod),
+        frequency: normalizeReminderFrequency(newReminder.frequency),
+        category: normalizeCategory(newReminder.category),
+        priority: normalizePriority(newReminder.priority),
+      };
 
-  const updateReminder = useCallback((reminderId, updates) => {
-    setReminders(prev => prev.map(reminder => 
-      reminder.id === reminderId ? { ...reminder, ...updates } : reminder
-    ));
-  }, []);
+      setReminders((prev) => [...prev, reminderWithId]);
 
-  const deleteReminder = useCallback((reminderId) => {
-    setReminders(prev => prev.filter(reminder => reminder.id !== reminderId));
-  }, []);
+      if (isAuthenticated) {
+        const payload = {
+          title: newReminder.title || 'Reminder',
+          dueDate: toIso(newReminder.dueDate) || new Date().toISOString(),
+          reminderTime: toIso(newReminder.reminderTime) || new Date().toISOString(),
+          status: toApiReminderStatus(newReminder.status),
+          priority: normalizePriority(newReminder.priority),
+          category: normalizeCategory(newReminder.category),
+          frequency: normalizeReminderFrequency(newReminder.frequency),
+          notificationMethod: toApiReminderMethod(newReminder.notificationMethod),
+          note: newReminder.note || '',
+        };
+
+        if (newReminder.taskId && isObjectId(newReminder.taskId)) {
+          payload.taskId = String(newReminder.taskId);
+        }
+
+        void backendService
+          .createReminder(payload)
+          .then((created) => {
+            const normalized = normalizeReminderFromApi(created, tasks);
+            setReminders((prev) =>
+              prev.map((reminder) => (String(reminder.id) === optimisticId ? normalized : reminder))
+            );
+          })
+          .catch((error) => {
+            console.error('Failed to create reminder:', error);
+            setReminders((prev) => prev.filter((reminder) => String(reminder.id) !== optimisticId));
+          });
+      }
+
+      return reminderWithId;
+    },
+    [isAuthenticated, tasks]
+  );
+
+  const updateReminder = useCallback(
+    (reminderId, updates) => {
+      const normalizedId = String(reminderId);
+      const existingReminder = reminders.find((reminder) => String(reminder.id) === normalizedId);
+      if (!existingReminder) return;
+
+      setReminders((prev) =>
+        prev.map((reminder) =>
+          String(reminder.id) === normalizedId ? { ...reminder, ...updates } : reminder
+        )
+      );
+
+      if (isAuthenticated && isObjectId(normalizedId)) {
+        const merged = { ...existingReminder, ...updates };
+        const payload = {
+          title: merged.title || 'Reminder',
+          dueDate: toIso(merged.dueDate) || new Date().toISOString(),
+          reminderTime: toIso(merged.reminderTime) || new Date().toISOString(),
+          status: toApiReminderStatus(merged.status),
+          priority: normalizePriority(merged.priority),
+          category: normalizeCategory(merged.category),
+          frequency: normalizeReminderFrequency(merged.frequency),
+          notificationMethod: toApiReminderMethod(merged.notificationMethod),
+          note: merged.note || '',
+        };
+
+        if (merged.taskId && isObjectId(merged.taskId)) {
+          payload.taskId = String(merged.taskId);
+        }
+
+        void backendService
+          .updateReminder(normalizedId, payload)
+          .then((updated) => {
+            const normalized = normalizeReminderFromApi(updated, tasks);
+            setReminders((prev) =>
+              prev.map((reminder) => (String(reminder.id) === normalizedId ? normalized : reminder))
+            );
+          })
+          .catch((error) => {
+            console.error('Failed to update reminder:', error);
+          });
+      }
+    },
+    [isAuthenticated, reminders, tasks]
+  );
+
+  const deleteReminder = useCallback(
+    (reminderId) => {
+      const normalizedId = String(reminderId);
+      const reminderSnapshot = reminders.find((reminder) => String(reminder.id) === normalizedId);
+      setReminders((prev) => prev.filter((reminder) => String(reminder.id) !== normalizedId));
+
+      if (isAuthenticated && isObjectId(normalizedId)) {
+        void backendService.deleteReminder(normalizedId).catch((error) => {
+          console.error('Failed to delete reminder:', error);
+          if (reminderSnapshot) setReminders((prev) => [reminderSnapshot, ...prev]);
+        });
+      }
+    },
+    [isAuthenticated, reminders]
+  );
 
   // Calculate task statistics
   const getTaskStats = useCallback(() => {
@@ -414,23 +648,29 @@ export const TaskProvider = ({ children }) => {
 
   // Calculate reminder statistics
   const getReminderStats = useCallback(() => {
+    const now = new Date();
     const total = reminders.length;
     const today = reminders.filter(r => r.status === 'today').length;
     const upcoming = reminders.filter(r => r.status === 'upcoming').length;
     const completed = reminders.filter(r => r.status === 'completed').length;
-    const missed = reminders.filter(r => r.status === 'missed').length;
+    const missed = reminders.filter((reminder) => {
+      if (reminder.status === 'missed') return true;
+      if (reminder.status === 'completed') return false;
+      const reminderTime = new Date(reminder.reminderTime);
+      return !Number.isNaN(reminderTime.getTime()) && reminderTime < now && reminder.status !== 'today';
+    }).length;
 
     return { total, today, upcoming, completed, missed };
   }, [reminders]);
 
   // Get task by ID
   const getTaskById = useCallback((taskId) => {
-    return tasks.find(task => task.id === taskId);
+    return tasks.find(task => String(task.id) === String(taskId));
   }, [tasks]);
 
   // Get reminders for a task
   const getRemindersForTask = useCallback((taskId) => {
-    return reminders.filter(reminder => reminder.taskId === taskId);
+    return reminders.filter(reminder => String(reminder.taskId) === String(taskId));
   }, [reminders]);
 
   // Get today's reminders
@@ -474,7 +714,8 @@ export const TaskProvider = ({ children }) => {
     getRemindersForTask,
     getOverdueTasks,
     getTodayTasks,
-    getTodayReminders  
+    getTodayReminders,
+    reloadData: refreshFromBackend,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

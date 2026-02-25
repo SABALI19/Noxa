@@ -1,20 +1,18 @@
 import React from 'react';
 import { FiCheckSquare } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { useTasks } from '../../context/TaskContext';
 
-const TaskCard = () => {
+const TaskCard = ({ pending, completed, overdue, total }) => {
   const navigate = useNavigate();
-  
-  // Mock task stats - replace with actual context if available
-  const stats = {
-    total: 12,
-    completed: 7,
-    pending: 3,
-    overdue: 2
-  };
-  
-  const totalTasks = stats.total;
-  const completionRate = totalTasks > 0 ? Math.round((stats.completed / totalTasks) * 100) : 0;
+  const { getTaskStats } = useTasks();
+  const stats = getTaskStats();
+
+  const totalTasks = Number.isFinite(total) ? total : stats.total;
+  const pendingTasks = Number.isFinite(pending) ? pending : stats.pending;
+  const completedTasks = Number.isFinite(completed) ? completed : stats.completed;
+  const overdueTasks = Number.isFinite(overdue) ? overdue : stats.overdue;
+  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   
   const handleViewAll = () => {
     navigate('/tasks?view=all&page=1');
@@ -46,7 +44,7 @@ const TaskCard = () => {
             <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
             <span className="text-gray-500 dark:text-gray-400">Pending</span>
           </div>
-          <span className="font-medium dark:text-gray-300">{stats.pending}</span>
+          <span className="font-medium dark:text-gray-300">{pendingTasks}</span>
         </div>
         
         <div className="flex justify-between text-xs">
@@ -54,7 +52,7 @@ const TaskCard = () => {
             <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
             <span className="text-gray-500 dark:text-gray-400">Completed</span>
           </div>
-          <span className="font-medium dark:text-gray-300">{stats.completed}</span>
+          <span className="font-medium dark:text-gray-300">{completedTasks}</span>
         </div>
         
         <div className="flex justify-between text-xs">
@@ -62,7 +60,7 @@ const TaskCard = () => {
             <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
             <span className="text-gray-500 dark:text-gray-400">Overdue</span>
           </div>
-          <span className="font-medium dark:text-gray-300">{stats.overdue}</span>
+          <span className="font-medium dark:text-gray-300">{overdueTasks}</span>
         </div>
       </div>
       

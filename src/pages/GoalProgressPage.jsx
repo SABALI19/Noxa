@@ -17,6 +17,7 @@ import Button from '../components/Button';
 import { useNotifications } from '../hooks/useNotifications';
 import { useNotificationTracking } from '../hooks/useNotificationTracking';
 import { useTheme } from '../context/ThemeContext';
+import { getGoals, saveGoals, goalEvents, hydrateGoalsFromBackend } from '../services/goalStorage';
 
 const GoalProgressPage = () => {
   const { goalId } = useParams();
@@ -25,74 +26,64 @@ const GoalProgressPage = () => {
   const { trackView, trackProgressUpdate, trackNotification } = useNotificationTracking();
   const { isDark } = useTheme();
   
-  // Mock goals data in useMemo to prevent recreation
-  const mockGoals = useMemo(() => [
-    {
-      id: 1,
-      title: "Read 24 books this year",
-      category: "Personal",
-      targetDate: "Dec 31, 2024",
-      progress: 75,
-      currentValue: 18,
-      targetValue: 24,
-      unit: "books",
-      milestone: "18/24 books",
-      nextCheckin: "Dec 20",
-      completed: false,
-      description: "Reading 2 books per month to improve knowledge and relax",
-      priority: "medium",
-      milestones: [
-        { id: 1, title: "Read 6 books", completed: true, date: "Mar 31, 2024" },
-        { id: 2, title: "Read 12 books", completed: true, date: "Jun 30, 2024" },
-        { id: 3, title: "Read 18 books", completed: true, date: "Sep 30, 2024" },
-        { id: 4, title: "Read 24 books", completed: false, date: "Dec 31, 2024" }
-      ],
-      trackingHistory: [
-        { id: 1, date: "Jan 15, 2024", progress: 8, value: 2, notes: "Started strong with two books" },
-        { id: 2, date: "Apr 20, 2024", progress: 33, value: 8, notes: "Ahead of schedule!" },
-        { id: 3, date: "Jul 31, 2024", progress: 50, value: 12, notes: "Halfway there!" },
-        { id: 4, date: "Oct 15, 2024", progress: 67, value: 16, notes: "Two more books finished" },
-        { id: 5, date: "Dec 1, 2024", progress: 75, value: 18, notes: "On track to finish by year end" }
-      ],
-    },
-  ], []); // Empty dependency array means this only creates once
-
-  // SOLUTION 1: Initialize state with computed value (recommended)
-  // Find the goal from mock data immediately
-  const initialGoal = useMemo(() => {
-    const found = mockGoals.find(g => g.id === parseInt(goalId));
-    if (found) {
-      // Store in localStorage for testing
-      localStorage.setItem(`goal_${goalId}`, JSON.stringify(found));
-      return found;
-    }
-    
-    // Check localStorage for saved goal
-    const savedGoal = localStorage.getItem(`goal_${goalId}`);
-    return savedGoal ? JSON.parse(savedGoal) : null;
-  }, [goalId, mockGoals]); // Dependencies: goalId and mockGoals
-
-  const initialTrackingData = useMemo(() => {
-    return initialGoal?.trackingHistory || [];
-  }, [initialGoal]);
-
-  // Initialize state with computed values
-  const [goal, setGoal] = useState(initialGoal);
-  const [trackingData, setTrackingData] = useState(initialTrackingData);
+  const [goals, setGoals] = useState(() => getGoals());
+  const [isHydratingGoals, setIsHydratingGoals] = useState(true);
+  const [goal, setGoal] = useState(() =>
+    getGoals().find((entry) => String(entry.id) === String(goalId)) || null
+  );
+  const [trackingData, setTrackingData] = useState(() => goal?.trackingHistory || []);
   const [progressValue, setProgressValue] = useState('');
   const [progressNotes, setProgressNotes] = useState('');
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const hydrate = async () => {
+      try {
+        const hydratedGoals = await hydrateGoalsFromBackend();
+        if (!isCancelled && Array.isArray(hydratedGoals)) {
+          setGoals(hydratedGoals);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsHydratingGoals(false);
+        }
+      }
+    };
+
+    const syncGoals = (event) => {
+      if (event?.detail && Array.isArray(event.detail)) {
+        setGoals(event.detail);
+      } else {
+        setGoals(getGoals());
+      }
+    };
+
+    hydrate();
+    window.addEventListener(goalEvents.updated, syncGoals);
+    return () => {
+      isCancelled = true;
+      window.removeEventListener(goalEvents.updated, syncGoals);
+    };
+  }, []);
+
+  useEffect(() => {
+    const foundGoal = goals.find((entry) => String(entry.id) === String(goalId)) || null;
+    setGoal(foundGoal);
+    setTrackingData(foundGoal?.trackingHistory || []);
+  }, [goals, goalId]);
 
   // SOLUTION 2: Use useEffect only for side effects (tracking, navigation)
   useEffect(() => {
     if (goal) {
       // Only do side effects here (tracking, notifications)
-      trackView(parseInt(goalId), 'goal');
-      trackNotification(parseInt(goalId), 'goal', 'viewed', 'progress_tracking_view');
-    } else if (!initialGoal) {
+      trackView(goalId, 'goal');
+      trackNotification(goalId, 'goal', 'viewed', 'progress_tracking_view');
+    } else if (!isHydratingGoals) {
       // Only navigate if no goal was found
       navigate('/goals');
     }
-  }, [goal, goalId, navigate, trackView, trackNotification, initialGoal]);
+  }, [goal, goalId, navigate, trackView, trackNotification, isHydratingGoals]);
 
 
 
@@ -122,9 +113,16 @@ const GoalProgressPage = () => {
     setTrackingData([newEntry, ...trackingData]);
     setProgressValue('');
     setProgressNotes('');
-    
-    // Save to localStorage for testing
-    localStorage.setItem(`goal_${goalId}`, JSON.stringify(updatedGoal));
+
+    setGoals((prevGoals) => {
+      const nextGoals = prevGoals.map((entry) =>
+        String(entry.id) === String(goalId)
+          ? { ...updatedGoal, trackingHistory: [newEntry, ...trackingData] }
+          : entry
+      );
+      saveGoals(nextGoals);
+      return nextGoals;
+    });
     
     // Send progress notification
     addNotification('goal_progress', {
@@ -135,8 +133,8 @@ const GoalProgressPage = () => {
     });
     
     // Track progress update
-    trackProgressUpdate(parseInt(goalId), oldProgress, newProgress, 'goal');
-    trackNotification(parseInt(goalId), 'goal', 'sent', 'progress_update');
+    trackProgressUpdate(goalId, oldProgress, newProgress, 'goal');
+    trackNotification(goalId, 'goal', 'sent', 'progress_update');
   };
 
   const getProgressColor = (progress) => {

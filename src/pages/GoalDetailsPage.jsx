@@ -25,6 +25,7 @@ import {
 import Button from '../components/Button';
 import { useNotifications } from '../hooks/useNotifications';
 import { useNotificationTracking } from '../hooks/useNotificationTracking';
+import { getGoals, saveGoals, goalEvents, hydrateGoalsFromBackend } from '../services/goalStorage';
 
 const GoalDetailsPage = () => {
   const { goalId } = useParams();
@@ -49,176 +50,84 @@ const GoalDetailsPage = () => {
     return tabParam && ['overview', 'milestones', 'notes', 'progress'].includes(tabParam) ? tabParam : 'overview';
   }, [searchParams]);
 
-  const mockGoals = [
-    {
-      id: 1,
-      title: "Read 24 books this year",
-      category: "Personal",
-      targetDate: "Dec 31, 2024",
-      progress: 75,
-      currentValue: 18,
-      targetValue: 24,
-      unit: "books",
-      milestone: "18/24 books",
-      nextCheckin: "Dec 20",
-      completed: false,
-      icon: <FiBook className="text-blue-500" />,
-      description: "Reading 2 books per month to improve knowledge and relax",
-      priority: "medium",
-      milestones: [
-        { id: 1, title: "Read 6 books", completed: true, date: "Mar 31, 2024" },
-        { id: 2, title: "Read 12 books", completed: true, date: "Jun 30, 2024" },
-        { id: 3, title: "Read 18 books", completed: true, date: "Sep 30, 2024" },
-        { id: 4, title: "Read 24 books", completed: false, date: "Dec 31, 2024" }
-      ],
-      notes: [
-        { id: 1, date: "Jan 15, 2024", content: "Starting with fiction novels first" },
-        { id: 2, date: "Mar 20, 2024", content: "Switching to non-fiction for variety" }
-      ],
-      trackingHistory: [
-        { id: 1, date: "Jan 15, 2024", progress: 8, value: 2, notes: "Started strong with two books" },
-        { id: 2, date: "Apr 20, 2024", progress: 33, value: 8, notes: "Ahead of schedule!" },
-        { id: 3, date: "Jul 31, 2024", progress: 50, value: 12, notes: "Halfway there!" },
-        { id: 4, date: "Oct 15, 2024", progress: 67, value: 16, notes: "Two more books finished" },
-        { id: 5, date: "Dec 1, 2024", progress: 75, value: 18, notes: "On track to finish by year end" }
-      ],
-      createdAt: "Jan 1, 2024"
-    },
-    {
-      id: 2,
-      title: "Exercise 3x per week",
-      category: "Health",
-      targetDate: "Ongoing",
-      progress: 67,
-      currentValue: 27,
-      targetValue: 36,
-      unit: "workouts",
-      milestone: "27 workouts this week",
-      nextCheckin: "Dec 16",
-      completed: false,
-      icon: <FiActivity className="text-green-500" />,
-      description: "Maintain consistent exercise routine for better health",
-      priority: "high",
-      milestones: [
-        { id: 1, title: "First month complete", completed: true, date: "Feb 1, 2024" },
-        { id: 2, title: "100 days streak", completed: true, date: "Apr 10, 2024" },
-        { id: 3, title: "200 workouts", completed: false, date: "Dec 31, 2024" }
-      ],
-      notes: [],
-      trackingHistory: [],
-      createdAt: "Jan 1, 2024"
-    },
-    {
-      id: 3,
-      title: "Learn Spanish Conversation",
-      category: "Education",
-      targetDate: "Mar 15, 2024",
-      progress: 75,
-      milestone: "Intermediate level",
-      nextCheckin: "Dec 20",
-      completed: false,
-      icon: <FiGlobe className="text-purple-500" />,
-      description: "Achieve conversational fluency in Spanish",
-      currentValue: 75,
-      targetValue: 100,
-      unit: "proficiency",
-      priority: "medium",
-      milestones: [],
-      notes: [],
-      trackingHistory: [],
-      createdAt: "Jan 15, 2024"
-    },
-    {
-      id: 4,
-      title: "Complete project documentation",
-      category: "Work",
-      targetDate: "Dec 12, 2024",
-      progress: 100,
-      completed: true,
-      icon: <FiFileText className="text-gray-500" />,
-      description: "Document all project processes and outcomes",
-      currentValue: 100,
-      targetValue: 100,
-      unit: "pages",
-      priority: "low",
-      milestones: [],
-      notes: [],
-      trackingHistory: [],
-      createdAt: "Nov 1, 2024"
-    },
-    {
-      id: 5,
-      title: "Save $5000",
-      category: "Financial",
-      targetDate: "Dec 31, 2024",
-      progress: 30,
-      milestone: "$1500 saved",
-      nextCheckin: "Jan 15, 2025",
-      completed: false,
-      icon: <FiDollarSign className="text-yellow-500" />,
-      description: "Build emergency fund savings",
-      currentValue: 1500,
-      targetValue: 5000,
-      unit: "dollars",
-      priority: "high",
-      milestones: [],
-      notes: [],
-      trackingHistory: [],
-      createdAt: "Jan 1, 2024"
-    },
-    {
-      id: 6,
-      title: "Write a new book",
-      category: "Personal",
-      targetDate: "Jun 30, 2025",
-      progress: 46,
-      milestone: "Chapter 1 completed",
-      nextCheckin: "Feb 1, 2025",
-      completed: false,
-      icon: <FiEdit className="text-red-500" />,
-      description: "Complete first draft of new novel",
-      currentValue: 46,
-      targetValue: 100,
-      unit: "chapters",
-      priority: "medium",
-      milestones: [],
-      notes: [],
-      trackingHistory: [],
-      createdAt: "Jan 1, 2024"
-    },
-  ];
-
-  const goal = useMemo(() => {
-    return mockGoals.find(g => g.id === parseInt(goalId)) || null;
-  }, [goalId]);
-
-  const editedGoal = useMemo(() => {
-    return goal ? { ...goal } : null;
-  }, [goal]);
-
+  const [goals, setGoals] = useState(() => getGoals());
+  const [isHydratingGoals, setIsHydratingGoals] = useState(true);
   const [localGoal, setLocalGoal] = useState(null);
+  const [editedGoal, setEditedGoal] = useState(null);
+  const goal = useMemo(
+    () => goals.find((entry) => String(entry.id) === String(goalId)) || null,
+    [goals, goalId]
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const hydrate = async () => {
+      try {
+        const hydratedGoals = await hydrateGoalsFromBackend();
+        if (!isCancelled && Array.isArray(hydratedGoals)) {
+          setGoals(hydratedGoals);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsHydratingGoals(false);
+        }
+      }
+    };
+
+    const syncGoals = (event) => {
+      if (event?.detail && Array.isArray(event.detail)) {
+        setGoals(event.detail);
+      } else {
+        setGoals(getGoals());
+      }
+    };
+
+    hydrate();
+    window.addEventListener(goalEvents.updated, syncGoals);
+    return () => {
+      isCancelled = true;
+      window.removeEventListener(goalEvents.updated, syncGoals);
+    };
+  }, []);
 
   // Initialize local goal when goal changes
   useEffect(() => {
     if (goal) {
       setLocalGoal(goal);
+      setEditedGoal({ ...goal });
     }
   }, [goal]);
 
   // Track view when goal is loaded
   useEffect(() => {
     if (goal) {
-      trackView(parseInt(goalId), 'goal');
-      trackNotification(parseInt(goalId), 'goal', 'viewed', 'goal_view');
-    } else {
+      trackView(goalId, 'goal');
+      trackNotification(goalId, 'goal', 'viewed', 'goal_view');
+    } else if (!isHydratingGoals) {
       navigate('/goals');
     }
-  }, [goal, goalId, navigate, trackView, trackNotification]);
+  }, [goal, goalId, navigate, trackView, trackNotification, isHydratingGoals]);
+
+  const persistGoal = (updatedGoal) => {
+    if (!updatedGoal) return;
+
+    setGoals((prevGoals) => {
+      const nextGoals = prevGoals.map((entry) =>
+        String(entry.id) === String(goalId) ? updatedGoal : entry
+      );
+      saveGoals(nextGoals);
+      return nextGoals;
+    });
+    setLocalGoal(updatedGoal);
+    setEditedGoal({ ...updatedGoal });
+  };
 
 
 
   const handleSaveGoal = () => {
-    setLocalGoal(editedGoal);
+    if (!editedGoal) return;
+    persistGoal(editedGoal);
     const newSearchParams = new URLSearchParams(searchParams);
     newSearchParams.delete('edit');
     navigate(`?${newSearchParams.toString()}`);
@@ -229,7 +138,7 @@ const GoalDetailsPage = () => {
     });
 
     // Track notification
-    trackNotification(parseInt(goalId), 'goal', 'sent', 'goal_updated');
+    trackNotification(goalId, 'goal', 'sent', 'goal_updated');
   };
 
   const handleMarkComplete = () => {
@@ -239,7 +148,7 @@ const GoalDetailsPage = () => {
       progress: 100,
       completedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     };
-    setLocalGoal(updatedGoal);
+    persistGoal(updatedGoal);
 
     // Send completion notification
     addNotification('goal_completed', updatedGoal, () => {
@@ -247,8 +156,8 @@ const GoalDetailsPage = () => {
     });
 
     // Track completion
-    trackCompletion(parseInt(goalId), 'goal');
-    trackNotification(parseInt(goalId), 'goal', 'sent', 'goal_completed');
+    trackCompletion(goalId, 'goal');
+    trackNotification(goalId, 'goal', 'sent', 'goal_completed');
   };
 
   const handleDeleteGoal = () => {
@@ -257,8 +166,13 @@ const GoalDetailsPage = () => {
       addNotification('goal_deleted', localGoal);
 
       // Track notification
-      trackNotification(parseInt(goalId), 'goal', 'sent', 'goal_deleted');
+      trackNotification(goalId, 'goal', 'sent', 'goal_deleted');
 
+      setGoals((prevGoals) => {
+        const nextGoals = prevGoals.filter((entry) => String(entry.id) !== String(goalId));
+        saveGoals(nextGoals);
+        return nextGoals;
+      });
       navigate('/goals');
     }
   };
@@ -278,7 +192,7 @@ const GoalDetailsPage = () => {
       milestones: [...localGoal.milestones, newMilestoneObj]
     };
 
-    setLocalGoal(updatedGoal);
+    persistGoal(updatedGoal);
     setNewMilestone('');
     setShowAddMilestone(false);
 
@@ -288,7 +202,7 @@ const GoalDetailsPage = () => {
       title: `Added milestone: ${newMilestone}`
     });
 
-    trackNotification(parseInt(goalId), 'goal', 'sent', 'milestone_added');
+    trackNotification(goalId, 'goal', 'sent', 'milestone_added');
   };
 
   const handleAddNote = () => {
@@ -305,7 +219,7 @@ const GoalDetailsPage = () => {
       notes: [...localGoal.notes, newNoteObj]
     };
 
-    setLocalGoal(updatedGoal);
+    persistGoal(updatedGoal);
     setNewNote('');
     setShowNoteForm(false);
   };
@@ -332,7 +246,7 @@ const GoalDetailsPage = () => {
       currentValue: localGoal.currentValue + newValue
     };
 
-    setLocalGoal(updatedGoal);
+    persistGoal(updatedGoal);
     setProgressUpdate('');
     setProgressNotes('');
     setShowProgressForm(false);
@@ -346,8 +260,8 @@ const GoalDetailsPage = () => {
     });
 
     // Track progress update
-    trackProgressUpdate(parseInt(goalId), oldProgress, newProgress, 'goal');
-    trackNotification(parseInt(goalId), 'goal', 'sent', 'progress_update');
+    trackProgressUpdate(goalId, oldProgress, newProgress, 'goal');
+    trackNotification(goalId, 'goal', 'sent', 'progress_update');
   };
 
   const toggleMilestone = (milestoneId) => {
@@ -359,7 +273,7 @@ const GoalDetailsPage = () => {
 
     const milestone = localGoal.milestones.find(m => m.id === milestoneId);
     const updatedGoal = { ...localGoal, milestones: updatedMilestones };
-    setLocalGoal(updatedGoal);
+    persistGoal(updatedGoal);
 
     // Send milestone completion notification
     if (milestone && !milestone.completed) {
@@ -368,7 +282,7 @@ const GoalDetailsPage = () => {
         title: `Completed milestone: ${milestone.title}`
       });
 
-      trackNotification(parseInt(goalId), 'goal', 'sent', 'milestone_completed');
+      trackNotification(goalId, 'goal', 'sent', 'milestone_completed');
     }
   };
 
@@ -519,13 +433,15 @@ const GoalDetailsPage = () => {
                 <div className="space-y-4">
                   <input
                     type="text"
-                    value={editedGoal.title}
-                    onChange={(e) => setEditedGoal({...editedGoal, title: e.target.value})}
+                    value={editedGoal?.title || ''}
+                    onChange={(e) => setEditedGoal({ ...(editedGoal || goal || {}), title: e.target.value })}
                     className="w-full text-xl md:text-2xl font-bold p-3 border rounded-lg bg-gray-50"
                   />
                   <textarea
-                    value={editedGoal.description}
-                    onChange={(e) => setEditedGoal({...editedGoal, description: e.target.value})}
+                    value={editedGoal?.description || ''}
+                    onChange={(e) =>
+                      setEditedGoal({ ...(editedGoal || goal || {}), description: e.target.value })
+                    }
                     className="w-full p-3 border rounded-lg bg-gray-50"
                     rows="3"
                   />
@@ -534,16 +450,20 @@ const GoalDetailsPage = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">Target Date</label>
                       <input
                         type="text"
-                        value={editedGoal.targetDate}
-                        onChange={(e) => setEditedGoal({...editedGoal, targetDate: e.target.value})}
+                        value={editedGoal?.targetDate || ''}
+                        onChange={(e) =>
+                          setEditedGoal({ ...(editedGoal || goal || {}), targetDate: e.target.value })
+                        }
                         className="w-full p-3 border rounded-lg bg-gray-50"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                       <select
-                        value={editedGoal.category}
-                        onChange={(e) => setEditedGoal({...editedGoal, category: e.target.value})}
+                        value={editedGoal?.category || ''}
+                        onChange={(e) =>
+                          setEditedGoal({ ...(editedGoal || goal || {}), category: e.target.value })
+                        }
                         className="w-full p-3 border rounded-lg bg-gray-50"
                       >
                         <option value="Personal">Personal</option>

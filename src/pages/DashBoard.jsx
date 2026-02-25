@@ -30,25 +30,6 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
   
-  const [dashboardData] = React.useState({
-    goals: {
-      total: 6,
-      completed: 1,
-      active: 5,
-      progress: 72
-    },
-    tasks: {
-      pending: 12,
-      completed: 8,
-      overdue: 2
-    },
-    reminders: {
-      today: 3,
-      upcoming: 5,
-      completed: 10
-    }
-  });
-
   const handleGoalCardClick = () => {
     navigate('/goals');
   };
@@ -121,27 +102,17 @@ const Dashboard = ({ isSidebarOpen = true }) => {
         <div className="lg:col-span-1">
           <GoalCard 
             title="Goals"
-            count={dashboardData.goals.total}
-            completed={dashboardData.goals.completed}
             color="#3D9B9B"
             onClick={handleGoalCardClick}
           />
         </div>
         
         <div className="lg:col-span-1">
-          <TaskCard 
-            pending={dashboardData.tasks.pending}
-            completed={dashboardData.tasks.completed}
-            overdue={dashboardData.tasks.overdue}
-          />
+          <TaskCard />
         </div>
         
         <div className="lg:col-span-1">
-          <ReminderCard 
-            today={dashboardData.reminders.today}
-            upcoming={dashboardData.reminders.upcoming}
-            completed={dashboardData.reminders.completed}
-          />
+          <ReminderCard />
         </div>
       </div>
 
