@@ -1,10 +1,16 @@
 // src/forms/Auth.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiMail, FiLock, FiUser, FiCheck, FiBell, FiTrendingUp, FiEye, FiEyeOff } from 'react-icons/fi';
 import Button from '../components/Button';
 
-const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading = false }) => {
+const Auth = ({
+  onLogin,
+  onSignup,
+  onDemoLogin,
+  initialIsLogin = true,
+  isLoading = false,
+}) => {
   const [isLogin, setIsLogin] = useState(initialIsLogin);
   const [showPassword, setShowPassword] = useState(false);
   const [loginForm, setLoginForm] = useState({
@@ -18,6 +24,11 @@ const Auth = ({ onLogin, onSignup, onDemoLogin, initialIsLogin = true, isLoading
     confirmPassword: ''
   });
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    setIsLogin(initialIsLogin);
+    setErrors({});
+  }, [initialIsLogin]);
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);

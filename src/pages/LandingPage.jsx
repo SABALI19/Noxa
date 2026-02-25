@@ -3,7 +3,6 @@ import { GiRobotGolem } from "react-icons/gi";
 import { useNavigate, Link } from "react-router-dom";
 import Noxalogo from "../assets/logo-items/logo-dark-transparent.png";
 import LogoIcon from "../assets/logo-items/logo-icon.png";
-import Auth from "../forms/Auth";
 import {
   FiCalendar,
   FiBell,
@@ -21,112 +20,16 @@ import CalanderTask from "../assets/img/calendar-and-tasks.svg"
 import ModernChat from "../assets/img/Modern-chat.png"
 import Approval from "../assets/img/Approval-interface.svg"
 import Testimonials from "../components/Testimonials";
-import { useAuth } from "../hooks/UseAuth";
 import HowItWorksModal from "../components/HowItWorksModal"; // Import the modal component
+import LandingAuthSection from "../components/auth/LandingAuthSection";
 
 const LandingPage = ({ onLogin, onSignup }) => {
   const navigate = useNavigate();
-  const { login, loginWithBackend, signupWithBackend } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLogin, setIsLogin] = useState(true);
+  const [authMode, setAuthMode] = useState("login");
+  const [demoLoginSignal, setDemoLoginSignal] = useState(0);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-
-  const startLoading = (progress = 20) => {
-    setIsLoading(true);
-    setLoadingProgress(progress);
-  };
-
-  const finishLoading = () => {
-    setLoadingProgress(100);
-    setIsLoading(false);
-    setLoadingProgress(0);
-  };
-
-  const failLoading = () => {
-    setIsLoading(false);
-    setLoadingProgress(0);
-  };
-
-  const handleUserLogin = async (userData) => {
-    try {
-      startLoading(40);
-      const loggedInUser = login(userData);
-      if (onLogin) {
-        onLogin(loggedInUser);
-      }
-      finishLoading();
-      navigate("/dashboard");
-      return loggedInUser;
-    } catch (error) {
-      console.error("Login error:", error);
-      failLoading();
-      throw error;
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    try {
-      const demoUser = {
-        id: "demo-123",
-        name: "Demo User",
-        email: "demo@example.com",
-        role: "Administrator",
-        avatar: null,
-      };
-
-      await handleUserLogin(demoUser);
-    } catch (error) {
-      console.error("Demo login error:", error);
-      failLoading();
-      throw error;
-    }
-  };
-
-  const handleAuthLogin = async (formData) => {
-    try {
-      startLoading(25);
-      const loggedInUser = await loginWithBackend({
-        email: formData.email,
-        password: formData.password
-      });
-      setLoadingProgress(85);
-      if (onLogin) {
-        onLogin(loggedInUser);
-      }
-      finishLoading();
-      navigate("/dashboard");
-      return loggedInUser;
-    } catch (error) {
-      console.error("Login error:", error);
-      failLoading();
-      throw new Error(error?.message || "Login failed. Please try again.");
-    }
-  };
-
-  const handleAuthSignup = async (formData) => {
-    try {
-      startLoading(25);
-      const newUser = await signupWithBackend({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        confirmPassword: formData.confirmPassword
-      });
-      setLoadingProgress(85);
-      if (onSignup) {
-        onSignup(newUser);
-      }
-      finishLoading();
-      navigate("/dashboard");
-      return newUser;
-    } catch (error) {
-      console.error("Signup error:", error);
-      failLoading();
-      throw new Error(error?.message || "Signup failed. Please try again.");
-    }
-  };
 
   const featureHighlights = [
     {
@@ -163,42 +66,6 @@ const LandingPage = ({ onLogin, onSignup }) => {
 
   return (
     <div className="min-h-screen bg-[#f7f8fa]">
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4">
-            <div className="text-center">
-              <div className="relative inline-block mb-6">
-                <div className="w-16 h-16 border-4 border-[#3D9B9B]/20 border-t-[#3D9B9B] rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-12 h-12 bg-[#3D9B9B] rounded-full flex items-center justify-center">
-                    <GiRobotGolem className="text-white text-2xl" />
-                  </div>
-                </div>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3 font-roboto">
-                Thank you for choosing Noxa!
-              </h3>
-              <p className="text-gray-600 text-sm mb-6">
-                Preparing your personalized workspace...
-              </p>
-              <div className="space-y-4">
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-[#3D9B9B] to-[#2D8B8B] rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${loadingProgress}%` }}
-                  ></div>
-                </div>
-                <div className="flex text-sm text-gray-500">
-                  <span>Initializing</span>
-                  <span className="animate-pulse">...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
       <nav className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -246,13 +113,13 @@ const LandingPage = ({ onLogin, onSignup }) => {
             <div className="flex items-center space-x-2 md:space-x-4">
               <button
                 onClick={() => {
-                  setIsLogin(true);
+                  setAuthMode("login");
                   document
                     .getElementById("auth-section")
                     ?.scrollIntoView({ behavior: "smooth" });
                 }}
                 className={`px-3 md:px-4 py-2 rounded-lg font-medium text-sm md:text-base transition-colors ${
-                  isLogin
+                  authMode === "login"
                     ? "bg-[#3D9B9B] text-white"
                     : "text-gray-700 hover:text-[#3D9B9B]"
                 }`}
@@ -261,13 +128,13 @@ const LandingPage = ({ onLogin, onSignup }) => {
               </button>
               <button
                 onClick={() => {
-                  setIsLogin(false);
+                  setAuthMode("signup");
                   document
                     .getElementById("auth-section")
                     ?.scrollIntoView({ behavior: "smooth" });
                 }}
                 className={`px-3 md:px-4 py-2 rounded-lg font-medium text-sm md:text-base transition-colors ${
-                  !isLogin
+                  authMode === "signup"
                     ? "bg-[#3D9B9B] text-white"
                     : "text-gray-700 hover:text-[#3D9B9B]"
                 }`}
@@ -356,12 +223,15 @@ const LandingPage = ({ onLogin, onSignup }) => {
                     <Button
                       variant="cta"
                       size="md"
-                      onClick={handleDemoLogin}
+                      onClick={() => {
+                        setAuthMode("login");
+                        setDemoLoginSignal((prev) => prev + 1);
+                      }}
                       className="flex items-center justify-center gap-2"
-                      disabled={isLoading}
+                      disabled={isAuthLoading}
                     >
-                      {isLoading ? "Loading..." : "Try Demo Version"}
-                      {!isLoading && <FiArrowRight />}
+                      {isAuthLoading ? "Loading..." : "Try Demo Version"}
+                      {!isAuthLoading && <FiArrowRight />}
                     </Button>
                     <Button
                       variant="icon"
@@ -371,7 +241,7 @@ const LandingPage = ({ onLogin, onSignup }) => {
                           .getElementById("auth-section")
                           ?.scrollIntoView({ behavior: "smooth" })
                       }
-                      disabled={isLoading}
+                      disabled={isAuthLoading}
                     >
                       See how it works
                     </Button>
@@ -694,15 +564,13 @@ const LandingPage = ({ onLogin, onSignup }) => {
           </div>
 
           {/* Auth Section */}
-          <div id="auth-section" className="py-12 md:py-16">
-            <Auth 
-              onLogin={handleAuthLogin}
-              onSignup={handleAuthSignup}
-              onDemoLogin={handleDemoLogin}
-              initialIsLogin={isLogin}
-              isLoading={isLoading}
-            />
-          </div>
+          <LandingAuthSection
+            onLogin={onLogin}
+            onSignup={onSignup}
+            requestedMode={authMode}
+            demoLoginSignal={demoLoginSignal}
+            onLoadingChange={setIsAuthLoading}
+          />
 
           {/* Footer */}
           <footer className="py-8 border-t border-gray-200">
