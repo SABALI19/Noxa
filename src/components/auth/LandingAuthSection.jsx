@@ -13,19 +13,9 @@ const LandingAuthSection = ({
   const navigate = useNavigate();
   const { loginWithBackend, signupWithBackend } = useAuth();
 
-  const [isLogin, setIsLogin] = useState(requestedMode !== "signup");
+  const isLogin = requestedMode !== "signup";
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
-
-  useEffect(() => {
-    if (requestedMode === "signup") {
-      setIsLogin(false);
-      return;
-    }
-    if (requestedMode === "login") {
-      setIsLogin(true);
-    }
-  }, [requestedMode]);
 
   useEffect(() => {
     if (typeof onLoadingChange === "function") {

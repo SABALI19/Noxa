@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import backendService from '../services/backendService';
+import { useNotifications } from '../hooks/useNotifications';
 
 const NotesPage = () => {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ const NotesPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewNoteModal, setShowNewNoteModal] = useState(false);
+  const { addNotification } = useNotifications();
   const [newNote, setNewNote] = useState({
     title: '',
     content: '',
@@ -51,11 +53,38 @@ const NotesPage = () => {
     other: 'bg-gray-50',
   };
 
+  const categoryFilterStyles = {
+    all: {
+      selected: 'bg-slate-200 text-slate-800 border-slate-300',
+      default: 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100',
+    },
+    work: {
+      selected: 'bg-blue-200 text-blue-900 border-blue-300',
+      default: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+    },
+    personal: {
+      selected: 'bg-green-200 text-green-900 border-green-300',
+      default: 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100',
+    },
+    ideas: {
+      selected: 'bg-purple-200 text-purple-900 border-purple-300',
+      default: 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100',
+    },
+  };
+
+  const toCategoryLabel = (category) => {
+    const normalized = String(category || '').toLowerCase();
+    if (normalized === 'personal') return 'Personal';
+    if (normalized === 'ideas') return 'Ideas';
+    if (normalized === 'work') return 'Work';
+    return 'General';
+  };
+
   const normalizeNote = (note) => ({
     id: note._id || note.id || `note-${Date.now()}`,
     title: note.title || 'Untitled note',
     content: note.content || '',
-    category: note.category || 'work',
+    category: String(note.category || 'work').toLowerCase(),
     isPinned: Boolean(note.isPinned),
     createdAt: note.createdAt
       ? new Date(note.createdAt).toISOString().split('T')[0]
@@ -102,7 +131,28 @@ const NotesPage = () => {
         category: newNote.category,
         isPinned: Boolean(newNote.isPinned),
       });
-      setNotes((prev) => [normalizeNote(created), ...prev]);
+      const normalizedCreated = normalizeNote(created);
+      setNotes((prev) => [normalizedCreated, ...prev]);
+      addNotification(
+        'note_created',
+        {
+          id: normalizedCreated.id,
+          title: normalizedCreated.title,
+          category: normalizedCreated.category,
+          itemType: 'note',
+        },
+        () => {
+          setSelectedCategory(normalizedCreated.category);
+        },
+        true,
+        {
+          templateOverride: {
+            title: `${toCategoryLabel(normalizedCreated.category)} Note Created`,
+            message: `Created "${normalizedCreated.title}" in ${toCategoryLabel(normalizedCreated.category)}`,
+            type: 'success',
+          },
+        }
+      );
       setShowNewNoteModal(false);
       setNewNote({ title: '', content: '', category: 'work', isPinned: false });
     } catch (error) {
@@ -217,15 +267,14 @@ const NotesPage = () => {
         <div className="flex flex-wrap gap-2 mb-6">
           {categories.map(cat => {
             const Icon = cat.icon;
+            const styleConfig = categoryFilterStyles[cat.id] || categoryFilterStyles.all;
+            const buttonColorClass =
+              selectedCategory === cat.id ? styleConfig.selected : styleConfig.default;
             return (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
-                  selectedCategory === cat.id
-                    ? 'bg-[#3D9B9B] text-white'
-                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${buttonColorClass}`}
               >
                 <Icon size={18} />
                 <span className="font-medium">{cat.label}</span>
