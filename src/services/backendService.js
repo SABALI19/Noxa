@@ -74,6 +74,22 @@ export const backendService = {
     requestJson("/api/v1/tracking/events", { method: "POST", body: event }),
   getTrackingByItem: (itemType, itemId) => requestJson(`/api/v1/tracking/${itemType}/${itemId}`),
 
+  // Push notifications
+  getPushPublicKey: async () => {
+    const payload = await requestJson("/api/v1/users/push/public-key");
+    return payload?.publicKey || "";
+  },
+  subscribePushNotifications: (subscription) =>
+    requestJson("/api/v1/users/push/subscribe", {
+      method: "POST",
+      body: { subscription },
+    }),
+  unsubscribePushNotifications: (endpoint) =>
+    requestJson("/api/v1/users/push/unsubscribe", {
+      method: "POST",
+      body: endpoint ? { endpoint } : {},
+    }),
+
   // AI chat history
   getAiChatHistory: async () => {
     const payload = await requestJson("/api/v1/ai/chats");

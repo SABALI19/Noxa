@@ -26,7 +26,7 @@ const MAX_CHAT_SESSIONS = 20;
 const createAssistantWelcomeMessage = () => ({
   role: 'assistant',
   content:
-    "Hi! I'm Noxa, your AI productivity assistant. I can help you draft emails, prepare agendas, summarize your week, or provide insights about your goals and tasks. What would you like help with?",
+    "Hi! I'm Noxa, your AI productivity assistant. I can help you draft emails, prepare agendas, summarize your week, or manage your goals, tasks, reminders, and notes. What would you like help with?",
   timestamp: new Date()
 });
 
@@ -355,6 +355,14 @@ const AIAssistantChat = ({
     return 'app';
   };
 
+  const normalizeNoteCategory = (category) => {
+    const value = String(category || '').toLowerCase();
+    if (value === 'work' || value === 'personal' || value === 'ideas') return value;
+    if (value === 'study') return 'study';
+    if (value === 'general' || value === 'other') return value;
+    return 'work';
+  };
+
   const toIsoDate = (input, fallbackDate) => {
     const date = input ? new Date(input) : fallbackDate;
     if (Number.isNaN(date?.getTime?.())) {
@@ -363,11 +371,12 @@ const AIAssistantChat = ({
     return date.toISOString();
   };
 
-  const executeActions = async (actions, liveTasks) => {
+  const executeActions = async (actions, liveTasks, liveNotes = []) => {
     if (!Array.isArray(actions) || actions.length === 0) return [];
 
     const created = [];
     let taskSnapshot = [...liveTasks];
+    let noteSnapshot = Array.isArray(liveNotes) ? [...liveNotes] : [];
 
     for (const action of actions) {
       const type = action?.type;
@@ -464,6 +473,40 @@ const AIAssistantChat = ({
           trackNotification(goal.id, 'goal', 'sent', 'goal_completed');
           created.push(`Goal completed: ${goal.title}`);
         }
+        continue;
+      }
+
+      if (type === 'create_note') {
+        const createdNote = await backendService.createNote({
+          title: String(payload.title || '').trim() || 'New Note',
+          content: String(payload.content || '').trim() || 'Created by Noxa AI assistant.',
+          category: normalizeNoteCategory(payload.category),
+          isPinned: Boolean(payload.isPinned)
+        });
+
+        const normalizedNote = {
+          id: createdNote?._id || createdNote?.id || `note-${Date.now()}`,
+          title: createdNote?.title || 'New Note',
+          content: createdNote?.content || '',
+          category: normalizeNoteCategory(createdNote?.category || payload.category),
+          isPinned: Boolean(createdNote?.isPinned),
+          createdAt: createdNote?.createdAt || new Date().toISOString()
+        };
+
+        noteSnapshot = [normalizedNote, ...noteSnapshot];
+        addNotification(
+          'note_created',
+          {
+            id: normalizedNote.id,
+            title: normalizedNote.title,
+            category: normalizedNote.category,
+            itemType: 'note'
+          },
+          null,
+          true
+        );
+        trackNotification(normalizedNote.id, 'note', 'sent', 'note_created');
+        created.push(`Note created: ${normalizedNote.title}`);
       }
     }
 
@@ -489,11 +532,29 @@ const AIAssistantChat = ({
     try {
       const liveGoals = goals.length > 0 ? goals : getGoals();
       const liveTasks = tasks.length > 0 ? tasks : contextTasks;
+      let liveNotes = [];
+
+      try {
+        const notesPayload = await backendService.getNotes();
+        liveNotes = Array.isArray(notesPayload)
+          ? notesPayload.slice(0, 30).map((note) => ({
+              id: note._id || note.id,
+              title: note.title || 'Untitled note',
+              content: note.content || '',
+              category: note.category || 'work',
+              isPinned: Boolean(note.isPinned),
+              createdAt: note.createdAt || null
+            }))
+          : [];
+      } catch (error) {
+        console.warn('Failed to load notes context for AI chat:', error);
+      }
 
       // Prepare context for AI
       const context = {
         goals: liveGoals,
         tasks: liveTasks,
+        notes: liveNotes,
         ...userContext,
         previousMessages: nextMessagesForContext.map(m => ({
           role: m.role,
@@ -502,7 +563,7 @@ const AIAssistantChat = ({
       };
 
       const response = await AiService.chatWithActions(prompt, context);
-      const actionResults = await executeActions(response.actions, liveTasks);
+      const actionResults = await executeActions(response.actions, liveTasks, liveNotes);
       const actionSummary = actionResults.length > 0
         ? `\n\nActions completed:\n- ${actionResults.join('\n- ')}`
         : '';

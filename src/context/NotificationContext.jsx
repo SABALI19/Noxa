@@ -2,6 +2,7 @@
 import React, { createContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { getAuthTokens } from '../services/authService';
 import { useAuth } from '../hooks/UseAuth';
+import backendService from '../services/backendService';
 
 const NotificationContext = createContext(null);
 
@@ -17,6 +18,19 @@ const DEFAULT_NOTIFICATION_SETTINGS = {
   customRingtones: false,
   defaultSound: 'Default',
   soundEnabled: true
+};
+
+const urlBase64ToUint8Array = (base64String = '') => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = `${base64String}${padding}`.replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; i += 1) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+
+  return outputArray;
 };
 
 const getInitialNotificationSettings = () => {
@@ -146,7 +160,7 @@ const loadSocketScript = (scriptUrl) => {
 };
 
 export const NotificationProvider = ({ children }) => {
-  const { token: authTokenFromContext } = useAuth();
+  const { token: authTokenFromContext, isAuthenticated, loading: authLoading } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState(getInitialNotificationSettings);
@@ -158,6 +172,9 @@ export const NotificationProvider = ({ children }) => {
 
   const audioRef = useRef(null);
   const recentDispatchRef = useRef(new Map());
+  const swRegistrationRef = useRef(null);
+  const pushEndpointRef = useRef('');
+  const vapidPublicKeyRef = useRef('');
   const pushSupported = notificationPermission !== 'unsupported';
 
   useEffect(() => {
@@ -264,6 +281,113 @@ export const NotificationProvider = ({ children }) => {
     return permission;
   }, []);
 
+  const resolveVapidPublicKey = useCallback(async () => {
+    if (vapidPublicKeyRef.current) {
+      return vapidPublicKeyRef.current;
+    }
+
+    const fromEnv = normalizeText(import.meta.env.VITE_VAPID_PUBLIC_KEY, '');
+    if (fromEnv) {
+      vapidPublicKeyRef.current = fromEnv;
+      return fromEnv;
+    }
+
+    try {
+      const fromApi = await backendService.getPushPublicKey();
+      if (fromApi) {
+        vapidPublicKeyRef.current = fromApi;
+        return fromApi;
+      }
+    } catch (error) {
+      console.warn('Unable to fetch VAPID public key:', error);
+    }
+
+    return '';
+  }, []);
+
+  const ensureServiceWorkerRegistration = useCallback(async () => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+      return null;
+    }
+
+    if (swRegistrationRef.current) {
+      return swRegistrationRef.current;
+    }
+
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    swRegistrationRef.current = registration;
+    return registration;
+  }, []);
+
+  const syncPushSubscription = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+    if (!pushSupported) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    const registration = await ensureServiceWorkerRegistration();
+    if (!registration) return;
+
+    const shouldBeSubscribed =
+      isAuthenticated &&
+      !authLoading &&
+      notificationSettings.enableNotifications &&
+      notificationSettings.pushNotifications &&
+      notificationPermission === 'granted';
+
+    const existingSubscription = await registration.pushManager.getSubscription();
+
+    if (!shouldBeSubscribed) {
+      if (existingSubscription) {
+        const endpoint = existingSubscription.endpoint || pushEndpointRef.current;
+        if (endpoint && isAuthenticated) {
+          try {
+            await backendService.unsubscribePushNotifications(endpoint);
+          } catch (error) {
+            console.warn('Failed to unregister push subscription on backend:', error);
+          }
+        }
+
+        await existingSubscription.unsubscribe();
+      } else if (pushEndpointRef.current && isAuthenticated) {
+        try {
+          await backendService.unsubscribePushNotifications(pushEndpointRef.current);
+        } catch (error) {
+          console.warn('Failed to unregister stale push endpoint:', error);
+        }
+      }
+
+      pushEndpointRef.current = '';
+      return;
+    }
+
+    const vapidPublicKey = await resolveVapidPublicKey();
+    if (!vapidPublicKey) {
+      console.warn('Missing VAPID public key. Push subscription is not configured.');
+      return;
+    }
+
+    let subscription = existingSubscription;
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+    }
+
+    const serialized = subscription.toJSON ? subscription.toJSON() : subscription;
+    await backendService.subscribePushNotifications(serialized);
+    pushEndpointRef.current = subscription.endpoint || '';
+  }, [
+    authLoading,
+    ensureServiceWorkerRegistration,
+    isAuthenticated,
+    notificationPermission,
+    notificationSettings.enableNotifications,
+    notificationSettings.pushNotifications,
+    pushSupported,
+    resolveVapidPublicKey
+  ]);
+
   const showBrowserNotification = useCallback((notification) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     if (!notificationSettings.enableNotifications || !notificationSettings.pushNotifications) return;
@@ -286,6 +410,14 @@ export const NotificationProvider = ({ children }) => {
     notificationSettings.pushNotifications,
     notificationPermission
   ]);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    syncPushSubscription().catch((error) => {
+      console.warn('Push subscription sync failed:', error);
+    });
+  }, [authLoading, syncPushSubscription]);
 
   const addNotification = useCallback((type, item = {}, onClick = null, playSound = true, options = {}) => {
     const source = normalizeText(options.source, 'local');
