@@ -1,5 +1,7 @@
 // src/context/NotificationContext.jsx
-import React, { createContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { getAuthTokens } from '../services/authService';
+import { useAuth } from '../hooks/UseAuth';
 
 const NotificationContext = createContext(null);
 
@@ -7,6 +9,33 @@ const MAX_NOTIFICATIONS = 100;
 const DEFAULT_DEDUPE_MS = 1500;
 const SOCKET_DEDUPE_MS = 5000;
 const RECENT_CACHE_TTL_MS = 60000;
+const NOTIFICATION_SETTINGS_STORAGE_KEY = 'noxa_notification_settings';
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  enableNotifications: true,
+  pushNotifications: false,
+  emailNotifications: false,
+  customRingtones: false,
+  defaultSound: 'Default',
+  soundEnabled: true
+};
+
+const getInitialNotificationSettings = () => {
+  if (typeof window === 'undefined') return DEFAULT_NOTIFICATION_SETTINGS;
+
+  try {
+    const raw = window.localStorage.getItem(NOTIFICATION_SETTINGS_STORAGE_KEY);
+    if (!raw) return DEFAULT_NOTIFICATION_SETTINGS;
+
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return DEFAULT_NOTIFICATION_SETTINGS;
+    return {
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      ...parsed
+    };
+  } catch {
+    return DEFAULT_NOTIFICATION_SETTINGS;
+  }
+};
 
 const normalizeText = (value, fallback = '') => {
   if (value === null || value === undefined) return fallback;
@@ -18,6 +47,15 @@ const getNotificationTemplate = (type, item, templateOverride = null) => {
   const title = normalizeText(item?.title, 'Untitled');
   const progress = Number.isFinite(Number(item?.progress)) ? Number(item.progress) : null;
   const count = Number.isFinite(Number(item?.count)) ? Number(item.count) : null;
+  const normalizedCategory = normalizeText(item?.category, 'general').toLowerCase();
+  const noteCategoryLabel =
+    normalizedCategory === 'work'
+      ? 'Work'
+      : normalizedCategory === 'personal'
+      ? 'Personal'
+      : normalizedCategory === 'ideas'
+      ? 'Ideas'
+      : 'General';
 
   if (templateOverride) {
     return {
@@ -52,8 +90,16 @@ const getNotificationTemplate = (type, item, templateOverride = null) => {
     reminders_cleared: { title: 'Reminders Cleared', message: `Cleared ${count ?? 0} completed reminders`, type: 'info' },
     profile_updated: { title: 'Profile Updated', message: title, type: 'success' },
     profile_image_uploaded: { title: 'Image Uploaded', message: title, type: 'success' },
-    note_created: { title: 'Note Created', message: `Created: "${title}"`, type: 'success' },
-    note_updated: { title: 'Note Updated', message: `Updated: "${title}"`, type: 'info' },
+    note_created: {
+      title: `${noteCategoryLabel} Note Created`,
+      message: `Created "${title}" in ${noteCategoryLabel}`,
+      type: 'success'
+    },
+    note_updated: {
+      title: `${noteCategoryLabel} Note Updated`,
+      message: `Updated "${title}" in ${noteCategoryLabel}`,
+      type: 'info'
+    },
     note_deleted: { title: 'Note Deleted', message: `Deleted: "${title}"`, type: 'warning' },
     socket_message: { title: 'Notification', message: title || 'Realtime update', type: 'info' }
   };
@@ -100,19 +146,41 @@ const loadSocketScript = (scriptUrl) => {
 };
 
 export const NotificationProvider = ({ children }) => {
+  const { token: authTokenFromContext } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [notificationSettings, setNotificationSettings] = useState({
-    enableNotifications: true,
-    pushNotifications: false,
-    emailNotifications: false,
-    customRingtones: false,
-    defaultSound: 'Default',
-    soundEnabled: true
+  const [notificationSettings, setNotificationSettings] = useState(getInitialNotificationSettings);
+  const [notificationPermission, setNotificationPermission] = useState(() => {
+    if (typeof window === 'undefined') return 'unsupported';
+    if (!('Notification' in window)) return 'unsupported';
+    return Notification.permission;
   });
 
   const audioRef = useRef(null);
   const recentDispatchRef = useRef(new Map());
+  const pushSupported = notificationPermission !== 'unsupported';
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      NOTIFICATION_SETTINGS_STORAGE_KEY,
+      JSON.stringify(notificationSettings)
+    );
+  }, [notificationSettings]);
+
+  useEffect(() => {
+    if (!pushSupported) return undefined;
+
+    const syncPermission = () => setNotificationPermission(Notification.permission);
+    syncPermission();
+
+    window.addEventListener('focus', syncPermission);
+    document.addEventListener('visibilitychange', syncPermission);
+    return () => {
+      window.removeEventListener('focus', syncPermission);
+      document.removeEventListener('visibilitychange', syncPermission);
+    };
+  }, [pushSupported]);
 
   useEffect(() => {
     audioRef.current = new Audio();
@@ -124,14 +192,14 @@ export const NotificationProvider = ({ children }) => {
     };
   }, []);
 
-  const soundLibrary = {
+  const soundLibrary = useMemo(() => ({
     Default: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
     Chime: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
     Bell: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
     Ding: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
     Alert: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
     Notification: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty'
-  };
+  }), []);
 
   const shouldSuppressDuplicate = useCallback((key, dedupeMs = DEFAULT_DEDUPE_MS) => {
     const now = Date.now();
@@ -169,11 +237,55 @@ export const NotificationProvider = ({ children }) => {
     } catch (error) {
       console.error('Error playing notification sound:', error);
     }
-  }, [notificationSettings.enableNotifications, notificationSettings.soundEnabled, notificationSettings.defaultSound]);
+  }, [
+    notificationSettings.enableNotifications,
+    notificationSettings.soundEnabled,
+    notificationSettings.defaultSound,
+    soundLibrary
+  ]);
 
   const updateNotificationSettings = useCallback((newSettings) => {
     setNotificationSettings((prev) => ({ ...prev, ...newSettings }));
   }, []);
+
+  const requestPushPermission = useCallback(async () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotificationPermission('unsupported');
+      return 'unsupported';
+    }
+
+    if (Notification.permission === 'granted') {
+      setNotificationPermission('granted');
+      return 'granted';
+    }
+
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+    return permission;
+  }, []);
+
+  const showBrowserNotification = useCallback((notification) => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (!notificationSettings.enableNotifications || !notificationSettings.pushNotifications) return;
+    if (notificationPermission !== 'granted') return;
+
+    const instance = new Notification(notification.title, {
+      body: notification.message,
+      tag: String(notification.id),
+      renotify: false
+    });
+
+    instance.onclick = () => {
+      window.focus();
+      instance.close();
+    };
+
+    window.setTimeout(() => instance.close(), 10000);
+  }, [
+    notificationSettings.enableNotifications,
+    notificationSettings.pushNotifications,
+    notificationPermission
+  ]);
 
   const addNotification = useCallback((type, item = {}, onClick = null, playSound = true, options = {}) => {
     const source = normalizeText(options.source, 'local');
@@ -215,16 +327,22 @@ export const NotificationProvider = ({ children }) => {
 
     setNotifications((prev) => [newNotification, ...prev].slice(0, MAX_NOTIFICATIONS));
     if (playSound) playNotificationSound();
+    if (source === 'socket') showBrowserNotification(newNotification);
     return newNotification;
-  }, [playNotificationSound, shouldSuppressDuplicate]);
+  }, [playNotificationSound, shouldSuppressDuplicate, showBrowserNotification]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
     const enableFlag = import.meta.env.VITE_ENABLE_SOCKET_NOTIFICATIONS;
     const socketUrl = normalizeText(import.meta.env.VITE_SOCKET_IO_URL, '');
+    const apiBaseUrl = normalizeText(import.meta.env.VITE_API_BASE_URL, '');
     const scriptUrlFromEnv = normalizeText(import.meta.env.VITE_SOCKET_IO_SCRIPT_URL, '');
-    const shouldAttemptConnection = enableFlag === 'true' || Boolean(socketUrl || scriptUrlFromEnv || window.io);
+    const authToken = getAuthTokens()?.accessToken || authTokenFromContext || null;
+    const shouldAttemptConnection = Boolean(
+      authToken &&
+        (enableFlag === 'true' || socketUrl || apiBaseUrl || scriptUrlFromEnv || window.io)
+    );
 
     if (!shouldAttemptConnection) return undefined;
 
@@ -234,7 +352,7 @@ export const NotificationProvider = ({ children }) => {
     let cleanupNotifications = null;
 
     const initializeSocket = async () => {
-      const baseUrl = socketUrl || window.location.origin;
+      const baseUrl = socketUrl || apiBaseUrl || window.location.origin;
       const scriptUrl = scriptUrlFromEnv || `${baseUrl.replace(/\/$/, '')}/socket.io/socket.io.js`;
 
       try {
@@ -246,13 +364,21 @@ export const NotificationProvider = ({ children }) => {
 
         socketInstance = ioFactory(baseUrl, {
           transports: ['websocket', 'polling'],
-          withCredentials: true
+          withCredentials: true,
+          auth: (callback) => {
+            callback({
+              token: getAuthTokens()?.accessToken || authTokenFromContext || null
+            });
+          }
         });
 
         socketInstance.on('connect', () => {
           if (!isDisposed) setSocketConnected(true);
         });
         socketInstance.on('disconnect', () => {
+          if (!isDisposed) setSocketConnected(false);
+        });
+        socketInstance.on('connect_error', () => {
           if (!isDisposed) setSocketConnected(false);
         });
 
@@ -315,10 +441,11 @@ export const NotificationProvider = ({ children }) => {
       if (!socketInstance) return;
       socketInstance.off('connect');
       socketInstance.off('disconnect');
+      socketInstance.off('connect_error');
       socketInstance.disconnect();
       socketInstance = null;
     };
-  }, [addNotification]);
+  }, [addNotification, authTokenFromContext]);
 
   const addTaskNotification = addNotification;
 
@@ -362,6 +489,8 @@ export const NotificationProvider = ({ children }) => {
     notifications,
     notificationSettings,
     socketConnected,
+    pushSupported,
+    notificationPermission,
     addNotification,
     addTaskNotification,
     markAsRead,
@@ -372,6 +501,7 @@ export const NotificationProvider = ({ children }) => {
     getNotificationsByItem,
     getUnreadCount,
     updateNotificationSettings,
+    requestPushPermission,
     playNotificationSound,
     testNotificationSound
   };

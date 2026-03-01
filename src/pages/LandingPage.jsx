@@ -629,7 +629,7 @@ const LandingPage = ({ onLogin, onSignup }) => {
                 
                 <div className="hover:text-[#3D9B9B]">
                   <a href="https://docs.noxa.ai" target="_blank" rel="noopener noreferrer">
-                    mail to:support@noxa.com
+                    mail to:noxasup@gmail.com
                   </a>
                 </div>
               </div>

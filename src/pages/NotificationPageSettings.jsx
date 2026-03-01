@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
 
 // Reusable Toggle Switch Component
-const ToggleSwitch = ({ checked, onChange, label, description }) => {
+const ToggleSwitch = ({ checked, onChange, label, description, disabled = false }) => {
   return (
     <div className="flex items-start justify-between py-4">
       <div className="flex-1">
@@ -13,8 +13,11 @@ const ToggleSwitch = ({ checked, onChange, label, description }) => {
         type="button"
         role="switch"
         aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`ml-4 relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        className={`ml-4 relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+        } ${
           checked ? 'bg-blue-600' : 'bg-gray-200'
         }`}
       >
@@ -71,7 +74,13 @@ const SelectDropdown = ({ value, onChange, options, label, description }) => {
 
 // Main Settings Component
 const NotificationPageSettings = () => {
-  const { notificationSettings, updateNotificationSettings, testNotificationSound } = useNotifications();
+  const {
+    notificationSettings,
+    updateNotificationSettings,
+    requestPushPermission,
+    pushSupported,
+    notificationPermission
+  } = useNotifications();
   
   // Initialize state directly from context (no useEffect needed)
   const [enableNotifications, setEnableNotifications] = useState(notificationSettings.enableNotifications);
@@ -346,7 +355,37 @@ const NotificationPageSettings = () => {
     }
   };
 
-  const handleSaveChanges = () => {
+  const handlePushNotificationsChange = async (checked) => {
+    if (!checked) {
+      setPushNotifications(false);
+      return;
+    }
+
+    if (!pushSupported) {
+      alert('Push notifications are not supported in this browser.');
+      setPushNotifications(false);
+      return;
+    }
+
+    const permission = await requestPushPermission();
+    if (permission !== 'granted') {
+      alert('Please allow browser notifications to enable push notifications.');
+      setPushNotifications(false);
+      return;
+    }
+
+    setPushNotifications(true);
+  };
+
+  const handleSaveChanges = async () => {
+    if (pushNotifications && notificationPermission !== 'granted') {
+      const permission = await requestPushPermission();
+      if (permission !== 'granted') {
+        alert('Push notifications were not enabled because browser permission is blocked.');
+        return;
+      }
+    }
+
     // Update notification settings in context
     updateNotificationSettings({
       enableNotifications,
@@ -425,9 +464,16 @@ const NotificationPageSettings = () => {
               {/* Push Notifications */}
               <ToggleSwitch
                 checked={pushNotifications}
-                onChange={setPushNotifications}
+                onChange={handlePushNotificationsChange}
                 label="Push Notifications"
-                description="Receive notifications on your device"
+                description={
+                  !pushSupported
+                    ? 'Not supported in this browser.'
+                    : notificationPermission === 'denied'
+                    ? 'Blocked in browser settings. Enable it in site permissions.'
+                    : 'Receive notifications on your device'
+                }
+                disabled={!pushSupported}
               />
 
               {/* Email Notifications */}

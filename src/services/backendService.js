@@ -73,6 +73,14 @@ export const backendService = {
   createTrackingEvent: (event) =>
     requestJson("/api/v1/tracking/events", { method: "POST", body: event }),
   getTrackingByItem: (itemType, itemId) => requestJson(`/api/v1/tracking/${itemType}/${itemId}`),
+
+  // AI chat history
+  getAiChatHistory: async () => {
+    const payload = await requestJson("/api/v1/ai/chats");
+    return Array.isArray(payload?.sessions) ? payload.sessions : [];
+  },
+  saveAiChatHistory: (sessions) =>
+    requestJson("/api/v1/ai/chats", { method: "PUT", body: { sessions } }),
 };
 
 export default backendService;
