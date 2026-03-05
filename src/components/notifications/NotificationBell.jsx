@@ -1,11 +1,14 @@
 // src/components/NotificationBell.jsx
 import React, { useState, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FiBell, FiCheck, FiX, FiCheckCircle, FiInfo, FiAlertCircle, FiTarget, FiCalendar } from "react-icons/fi";
 import { useNotifications } from "../../hooks/useNotifications";
 
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+  const location = useLocation();
   
   const { 
     notifications, 
@@ -18,6 +21,55 @@ const NotificationBell = () => {
   
   // Unread notifications count
   const unreadCount = getUnreadCount();
+
+  const getFallbackOriginPath = (notification = {}) => {
+    const itemType = String(notification.itemType || '').toLowerCase();
+    const notificationType = String(notification.notificationType || '').toLowerCase();
+    const itemId = notification.itemId === undefined || notification.itemId === null
+      ? ''
+      : encodeURIComponent(String(notification.itemId));
+
+    if (itemType === 'task' || notificationType.startsWith('task_')) {
+      return itemId ? `/tasks#task-${itemId}` : '/tasks';
+    }
+    if (itemType === 'goal' || notificationType.startsWith('goal_')) {
+      return itemId ? `/goals/${itemId}` : '/goals';
+    }
+    if (itemType === 'reminder' || notificationType.startsWith('reminder_')) {
+      return '/reminders';
+    }
+    if (itemType === 'note' || notificationType.startsWith('note_')) {
+      return '/notes';
+    }
+    if (itemType === 'profile' || notificationType.startsWith('profile_')) {
+      return '/account';
+    }
+
+    return '/notifications';
+  };
+
+  const navigateToNotificationOrigin = (originPath) => {
+    if (!originPath) return;
+
+    const [pathWithSearch, rawHash = ''] = String(originPath).split('#');
+    if (!pathWithSearch) return;
+
+    const currentPath = `${location.pathname}${location.search}`;
+    if (currentPath !== pathWithSearch) {
+      navigate(pathWithSearch);
+    }
+
+    if (rawHash) {
+      const decodedHash = decodeURIComponent(rawHash);
+      window.setTimeout(() => {
+        const targetElement = document.getElementById(decodedHash);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        window.location.hash = `#${rawHash}`;
+      }, 200);
+    }
+  };
   
   const getNotificationIcon = (type, notificationType) => {
     // Check notification type first for more specific icons
@@ -62,8 +114,13 @@ const NotificationBell = () => {
       markAsRead(notification.id);
     }
     if (notification.onClick) {
-      notification.onClick();
+      try {
+        notification.onClick();
+      } catch (error) {
+        console.error('Error executing notification click handler:', error);
+      }
     }
+    navigateToNotificationOrigin(notification.originPath || getFallbackOriginPath(notification));
     setIsOpen(false);
   };
 

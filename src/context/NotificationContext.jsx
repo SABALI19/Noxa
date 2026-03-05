@@ -11,6 +11,8 @@ const DEFAULT_DEDUPE_MS = 1500;
 const SOCKET_DEDUPE_MS = 5000;
 const RECENT_CACHE_TTL_MS = 60000;
 const NOTIFICATION_SETTINGS_STORAGE_KEY = 'noxa_notification_settings';
+const NOTIFICATIONS_STORAGE_KEY = 'noxa_notifications';
+const NOTIFICATION_RETENTION_MS = 1000 * 60 * 60 * 24 * 30;
 const DEFAULT_NOTIFICATION_SETTINGS = {
   enableNotifications: true,
   pushNotifications: false,
@@ -55,6 +57,91 @@ const normalizeText = (value, fallback = '') => {
   if (value === null || value === undefined) return fallback;
   const text = String(value).trim();
   return text.length > 0 ? text : fallback;
+};
+
+const getInitialNotifications = () => {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = window.localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    if (!raw) return [];
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    const now = Date.now();
+    const normalized = parsed
+      .filter((entry) => entry && typeof entry === 'object')
+      .map((entry, index) => {
+        const rawTimestamp = normalizeText(entry.timestamp, '');
+        const parsedTimestamp = rawTimestamp ? new Date(rawTimestamp) : new Date();
+        const safeTimestamp = Number.isNaN(parsedTimestamp.getTime())
+          ? new Date()
+          : parsedTimestamp;
+
+        if (now - safeTimestamp.getTime() > NOTIFICATION_RETENTION_MS) {
+          return null;
+        }
+
+        return {
+          id: entry.id ?? `${safeTimestamp.getTime()}-${index}`,
+          title: normalizeText(entry.title, 'Notification'),
+          message: normalizeText(entry.message, 'Activity update'),
+          type: normalizeText(entry.type, 'info'),
+          itemId: entry.itemId ?? null,
+          itemTitle: normalizeText(entry.itemTitle, ''),
+          itemType: normalizeText(entry.itemType, 'system'),
+          notificationType: normalizeText(entry.notificationType, 'socket_message'),
+          originPath: normalizeText(entry.originPath, '/notifications'),
+          read: Boolean(entry.read),
+          time: normalizeText(
+            entry.time,
+            safeTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          ),
+          date: normalizeText(entry.date, safeTimestamp.toLocaleDateString()),
+          onClick: null,
+          timestamp: safeTimestamp.toISOString(),
+          source: normalizeText(entry.source, 'local')
+        };
+      })
+      .filter(Boolean);
+
+    return normalized.slice(0, MAX_NOTIFICATIONS);
+  } catch {
+    return [];
+  }
+};
+
+const resolveNotificationOriginPath = ({
+  itemType = '',
+  itemId = null,
+  notificationType = '',
+  item = {}
+}) => {
+  const normalizedItemType = normalizeText(itemType, '').toLowerCase();
+  const normalizedNotificationType = normalizeText(notificationType, '').toLowerCase();
+  const normalizedItemId = normalizeText(itemId, '');
+  const encodedItemId = normalizedItemId ? encodeURIComponent(normalizedItemId) : '';
+
+  const taskAnchor = encodedItemId ? `#task-${encodedItemId}` : '';
+
+  if (normalizedItemType === 'task') return `/tasks${taskAnchor}`;
+  if (normalizedItemType === 'goal') return encodedItemId ? `/goals/${encodedItemId}` : '/goals';
+  if (normalizedItemType === 'reminder') return '/reminders';
+  if (normalizedItemType === 'note') return '/notes';
+  if (normalizedItemType === 'profile') return '/account';
+
+  if (normalizedNotificationType.startsWith('task_')) return `/tasks${taskAnchor}`;
+  if (normalizedNotificationType.startsWith('goal_')) return encodedItemId ? `/goals/${encodedItemId}` : '/goals';
+  if (normalizedNotificationType.startsWith('reminder_')) return '/reminders';
+  if (normalizedNotificationType.startsWith('note_')) return '/notes';
+  if (normalizedNotificationType.startsWith('profile_')) return '/account';
+  if (normalizedNotificationType.startsWith('automation_')) return '/goals';
+
+  if (item?.goalId) return `/goals/${encodeURIComponent(String(item.goalId))}`;
+  if (item?.taskId) return `/tasks#task-${encodeURIComponent(String(item.taskId))}`;
+
+  return '/notifications';
 };
 
 const getNotificationTemplate = (type, item, templateOverride = null) => {
@@ -161,7 +248,7 @@ const loadSocketScript = (scriptUrl) => {
 
 export const NotificationProvider = ({ children }) => {
   const { token: authTokenFromContext, isAuthenticated, loading: authLoading } = useAuth();
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(getInitialNotifications);
   const [socketConnected, setSocketConnected] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState(getInitialNotificationSettings);
   const [notificationPermission, setNotificationPermission] = useState(() => {
@@ -177,6 +264,34 @@ export const NotificationProvider = ({ children }) => {
   const vapidPublicKeyRef = useRef('');
   const pushSupported = notificationPermission !== 'unsupported';
 
+  const navigateToNotificationOrigin = useCallback((originPath) => {
+    if (typeof window === 'undefined' || !originPath) return;
+
+    try {
+      const [pathWithSearch, rawHash = ''] = String(originPath).split('#');
+      if (!pathWithSearch) return;
+
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+      if (currentPath !== pathWithSearch) {
+        window.history.pushState({}, '', pathWithSearch);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+
+      if (rawHash) {
+        const decodedHash = decodeURIComponent(rawHash);
+        window.setTimeout(() => {
+          const targetElement = document.getElementById(decodedHash);
+          if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          window.location.hash = `#${rawHash}`;
+        }, 200);
+      }
+    } catch {
+      window.location.assign(originPath);
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(
@@ -184,6 +299,19 @@ export const NotificationProvider = ({ children }) => {
       JSON.stringify(notificationSettings)
     );
   }, [notificationSettings]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const serializable = notifications
+        .slice(0, MAX_NOTIFICATIONS)
+        .map(({ onClick, ...rest }) => rest);
+      window.localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(serializable));
+    } catch (error) {
+      console.warn('Failed to persist notifications:', error);
+    }
+  }, [notifications]);
 
   useEffect(() => {
     if (!pushSupported) return undefined;
@@ -401,11 +529,20 @@ export const NotificationProvider = ({ children }) => {
 
     instance.onclick = () => {
       window.focus();
+      if (typeof notification.onClick === 'function') {
+        try {
+          notification.onClick();
+        } catch (error) {
+          console.error('Error executing notification click handler:', error);
+        }
+      }
+      navigateToNotificationOrigin(notification.originPath);
       instance.close();
     };
 
     window.setTimeout(() => instance.close(), 10000);
   }, [
+    navigateToNotificationOrigin,
     notificationSettings.enableNotifications,
     notificationSettings.pushNotifications,
     notificationPermission
@@ -439,6 +576,15 @@ export const NotificationProvider = ({ children }) => {
     const itemTypeFromType = normalizedType.includes('_') ? normalizedType.split('_')[0] : null;
     const itemType = normalizeText(options.itemType, itemTypeFromType || normalizeText(itemPayload.itemType, 'system'));
     const itemId = itemPayload.id ?? options.eventId ?? Date.now();
+    const originPath = normalizeText(
+      options.originPath,
+      resolveNotificationOriginPath({
+        itemType,
+        itemId,
+        notificationType: normalizedType,
+        item: itemPayload
+      })
+    );
 
     const newNotification = {
       id: options.eventId ?? `${Date.now()}-${Math.random()}`,
@@ -449,6 +595,7 @@ export const NotificationProvider = ({ children }) => {
       itemTitle: normalizeText(itemPayload.title, ''),
       itemType,
       notificationType: normalizedType,
+      originPath,
       read: false,
       time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       date: now.toLocaleDateString(),
