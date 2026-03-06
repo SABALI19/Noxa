@@ -24,6 +24,8 @@ import { AuthProvider } from "./context/AuthContext";
 import { useAuth } from "./hooks/UseAuth";
 import { TaskProvider } from "./context/TaskContext";
 import HowItWorksModal from "./components/HowItWorksModal";
+import InstallPrompt from "./components/pwa/InstallPrompt";
+import ScrollToTop from "./components/scrollToTop";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -69,6 +71,8 @@ const AuthRedirect = () => {
 function App() {
   return (
     <BrowserRouter>
+      <InstallPrompt />
+      <ScrollToTop />
       <AuthProvider>
       <TaskProvider>
         <NotificationProvider>
@@ -76,6 +80,8 @@ function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/landing" element={<LandingPage />} />
+              <Route path="/forgot-password" element={<LandingPage />} />
+              <Route path="/reset-password" element={<LandingPage />} />
               <Route path="/howitworks" element={<HowItWorksModal />} />
               <Route path="/login" element={<Navigate to="/landing" replace />} />
 

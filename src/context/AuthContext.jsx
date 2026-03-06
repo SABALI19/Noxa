@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   clearAuthSession,
+  forgotPasswordRequest,
   getAuthTokens,
   getCurrentUserRequest,
   loginRequest,
+  resetPasswordRequest,
   logoutRequest,
   registerRequest,
 } from "../services/authService";
@@ -126,6 +128,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (email) => {
+    const response = await forgotPasswordRequest({ email });
+    return response?.message || "If an account exists, a reset link has been sent.";
+  };
+
+  const resetPassword = async ({ token: resetToken, password, confirmPassword }) => {
+    const response = await resetPasswordRequest({
+      token: resetToken,
+      password,
+      confirmPassword,
+    });
+    return response?.message || "Password reset successful. Please sign in.";
+  };
+
   const updateProfile = (updatedData) => {
     const updatedUser = {
       ...user,
@@ -142,6 +158,8 @@ export const AuthProvider = ({ children }) => {
     token,
     loginWithBackend,
     signupWithBackend,
+    forgotPassword,
+    resetPassword,
     logout,
     updateProfile,
     loading,

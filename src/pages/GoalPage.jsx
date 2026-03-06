@@ -121,9 +121,6 @@ const GoalsPage = () => {
       };
 
       pendingGoalUpdateRef.current = { action: 'add', goal: newGoal };
-      addNotification('goal_created', newGoal, () => {
-        navigate(`/goals/${newGoal.id}`);
-      });
       trackNotification(newGoal.id, 'goal', 'sent', 'goal_created');
       processedActionsRef.current.add(processKey);
       window.history.replaceState({}, document.title);

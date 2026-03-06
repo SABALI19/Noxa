@@ -1,18 +1,24 @@
 // src/forms/Auth.jsx
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { FiMail, FiLock, FiUser, FiCheck, FiBell, FiTrendingUp, FiEye, FiEyeOff } from 'react-icons/fi';
 import Button from '../components/Button';
 
 const Auth = ({
   onLogin,
   onSignup,
+  onForgotPassword,
+  onResetPassword,
   onDemoLogin,
   initialIsLogin = true,
   isLoading = false,
 }) => {
+  const [searchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(initialIsLogin);
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
@@ -23,12 +29,37 @@ const Auth = ({
     password: '',
     confirmPassword: ''
   });
+  const [forgotForm, setForgotForm] = useState({
+    email: '',
+  });
+  const [resetForm, setResetForm] = useState({
+    token: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     setIsLogin(initialIsLogin);
+    setShowForgotPassword(false);
+    setShowResetPassword(false);
+    setStatusMessage('');
     setErrors({});
   }, [initialIsLogin]);
+
+  useEffect(() => {
+    const tokenFromQuery = searchParams.get('token') || searchParams.get('resetToken') || '';
+    if (tokenFromQuery) {
+      setShowForgotPassword(false);
+      setShowResetPassword(true);
+      setResetForm((prev) => ({
+        ...prev,
+        token: tokenFromQuery,
+      }));
+      setStatusMessage('');
+      setErrors({});
+    }
+  }, [searchParams]);
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -74,6 +105,33 @@ const Auth = ({
     }
   };
 
+  const handleForgotChange = (e) => {
+    const { value } = e.target;
+    setForgotForm({ email: value });
+    if (errors.email || errors.submit) {
+      setErrors((prev) => ({
+        ...prev,
+        email: '',
+        submit: '',
+      }));
+    }
+  };
+
+  const handleResetChange = (e) => {
+    const { name, value } = e.target;
+    setResetForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    if (errors[name] || errors.submit) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: '',
+        submit: '',
+      }));
+    }
+  };
+
   const validateLogin = () => {
     const newErrors = {};
 
@@ -113,6 +171,40 @@ const Auth = ({
     if (!signupForm.confirmPassword) {
       newErrors.confirmPassword = "Please confirm your password";
     } else if (signupForm.password !== signupForm.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateForgotPassword = () => {
+    const newErrors = {};
+    if (!forgotForm.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(forgotForm.email)) {
+      newErrors.email = "Email is invalid";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateResetPassword = () => {
+    const newErrors = {};
+
+    if (!resetForm.token.trim()) {
+      newErrors.token = "Reset token is required";
+    }
+
+    if (!resetForm.password) {
+      newErrors.password = "Password is required";
+    } else if (resetForm.password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+    }
+
+    if (!resetForm.confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password";
+    } else if (resetForm.password !== resetForm.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
@@ -166,73 +258,349 @@ const Auth = ({
     }
   };
 
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForgotPassword() || isLoading) {
+      return;
+    }
+
+    if (!onForgotPassword) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: "Forgot-password is not configured yet.",
+      }));
+      return;
+    }
+
+    try {
+      const responseMessage = await onForgotPassword(forgotForm.email.trim());
+      setStatusMessage(responseMessage || "If an account exists, a reset link has been sent.");
+      setErrors({});
+      setShowForgotPassword(false);
+      setShowResetPassword(true);
+      setResetForm((prev) => ({ ...prev, token: prev.token || '' }));
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: error?.message || "Failed to request password reset.",
+      }));
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateResetPassword() || isLoading) {
+      return;
+    }
+
+    if (!onResetPassword) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: "Reset-password is not configured yet.",
+      }));
+      return;
+    }
+
+    try {
+      const responseMessage = await onResetPassword({
+        token: resetForm.token.trim(),
+        password: resetForm.password,
+        confirmPassword: resetForm.confirmPassword,
+      });
+
+      setStatusMessage(responseMessage || "Password reset successful. Please sign in.");
+      setErrors({});
+      setShowResetPassword(false);
+      setIsLogin(true);
+      setShowPassword(false);
+      setResetForm({
+        token: '',
+        password: '',
+        confirmPassword: '',
+      });
+      setLoginForm((prev) => ({
+        ...prev,
+        password: '',
+      }));
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: error?.message || "Failed to reset password.",
+      }));
+    }
+  };
+
   const handleDemoLoginClick = () => {
     if (!isLoading && onDemoLogin) {
       onDemoLogin();
     }
   };
 
+  const openForgotPassword = () => {
+    setShowForgotPassword(true);
+    setShowResetPassword(false);
+    setStatusMessage('');
+    setErrors({});
+    setForgotForm({ email: loginForm.email || '' });
+  };
+
+  const openLoginView = () => {
+    setShowForgotPassword(false);
+    setShowResetPassword(false);
+    setStatusMessage('');
+    setErrors({});
+    setIsLogin(true);
+    setShowPassword(false);
+  };
+
   return (
     <div id="auth-section" className="w-full">
-      <div className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-lg">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-lg">
         <div className="grid grid-cols-1 lg:grid-cols-2">
           {/* Form Section */}
           <div className="p-6 sm:p-8 lg:p-12 order-1">
             <div className="flex justify-center mb-6 sm:mb-8">
-              <div className="flex space-x-2">
+              {showForgotPassword || showResetPassword ? (
                 <button
-                  onClick={() => {
-                    if (!isLoading) {
-                      setIsLogin(true);
-                      setErrors({});
-                    }
-                  }}
+                  type="button"
+                  onClick={openLoginView}
                   disabled={isLoading}
-                  className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium text-sm sm:text-base transition-colors ${
-                    isLogin
-                      ? "bg-[#3D9B9B] text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`text-sm font-medium text-[#3D9B9B] hover:text-[#2D8B8B] ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Login
+                  Back to sign in
                 </button>
-                <button
-                  onClick={() => {
-                    if (!isLoading) {
-                      setIsLogin(false);
-                      setErrors({});
-                    }
-                  }}
-                  disabled={isLoading}
-                  className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium text-sm sm:text-base transition-colors ${
-                    !isLogin
-                      ? "bg-[#3D9B9B] text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  Sign Up
-                </button>
-              </div>
+              ) : (
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      if (!isLoading) {
+                        setIsLogin(true);
+                        setErrors({});
+                        setStatusMessage('');
+                      }
+                    }}
+                    disabled={isLoading}
+                    className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium text-sm sm:text-base transition-colors ${
+                      isLogin
+                        ? "bg-[#3D9B9B] text-white"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    Login
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!isLoading) {
+                        setIsLogin(false);
+                        setErrors({});
+                        setStatusMessage('');
+                      }
+                    }}
+                    disabled={isLoading}
+                    className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium text-sm sm:text-base transition-colors ${
+                      !isLogin
+                        ? "bg-[#3D9B9B] text-white"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              )}
             </div>
 
-            {isLogin ? (
-              <form onSubmit={handleLoginSubmit} className="space-y-4 sm:space-y-6">
+            {statusMessage && (
+              <p className="mb-4 text-sm text-green-700 dark:text-green-400 text-center">
+                {statusMessage}
+              </p>
+            )}
+
+            {showForgotPassword ? (
+              <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 sm:space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 text-center mb-2">
+                    Forgot your password?
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4">
+                    Enter your account email to receive a reset link or token.
+                  </p>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Email Address
                   </label>
                   <div className="relative">
-                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={forgotForm.email}
+                      onChange={handleForgotChange}
+                      disabled={isLoading}
+                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                        errors.email ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="mt-1 text-xs sm:text-sm text-red-600">
+                      {errors.email}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Sending..." : "Send Reset Instructions"}
+                </Button>
+
+                {errors.submit && (
+                  <p className="text-sm text-red-600 text-center -mt-2">
+                    {errors.submit}
+                  </p>
+                )}
+              </form>
+            ) : showResetPassword ? (
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-4 sm:space-y-6">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 text-center mb-2">
+                    Reset Password
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4">
+                    Enter your reset token and choose a new password.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    Reset Token
+                  </label>
+                  <input
+                    type="text"
+                    name="token"
+                    value={resetForm.token}
+                    onChange={handleResetChange}
+                    disabled={isLoading}
+                    className={`w-full px-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                      errors.token ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    placeholder="Paste your reset token"
+                  />
+                  {errors.token && (
+                    <p className="mt-1 text-xs sm:text-sm text-red-600">
+                      {errors.token}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={resetForm.password}
+                      onChange={handleResetChange}
+                      disabled={isLoading}
+                      className={`w-full pl-10 pr-12 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                        errors.password ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={togglePasswordVisibility}
+                      disabled={isLoading}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="mt-1 text-xs sm:text-sm text-red-600">
+                      {errors.password}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={resetForm.confirmPassword}
+                      onChange={handleResetChange}
+                      disabled={isLoading}
+                      className={`w-full pl-10 pr-12 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                        errors.confirmPassword ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={togglePasswordVisibility}
+                      disabled={isLoading}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <p className="mt-1 text-xs sm:text-sm text-red-600">
+                      {errors.confirmPassword}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Updating..." : "Reset Password"}
+                </Button>
+
+                {errors.submit && (
+                  <p className="text-sm text-red-600 text-center -mt-2">
+                    {errors.submit}
+                  </p>
+                )}
+              </form>
+            ) : isLogin ? (
+              <form onSubmit={handleLoginSubmit} className="space-y-4 sm:space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                     <input
                       type="email"
                       name="email"
                       value={loginForm.email}
                       onChange={handleLoginChange}
                       disabled={isLoading}
-                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none ${
+                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
                         errors.email
                           ? "border-red-500"
-                          : "border-gray-300"
+                          : "border-gray-300 dark:border-gray-600"
                       } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       placeholder="you@example.com"
                     />
@@ -245,21 +613,21 @@ const Auth = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Password
                   </label>
                   <div className="relative">
-                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                     <input
                       type={showPassword ? "text" : "password"}
                       name="password"
                       value={loginForm.password}
                       onChange={handleLoginChange}
                       disabled={isLoading}
-                      className={`w-full pl-10 pr-12 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none ${
+                      className={`w-full pl-10 pr-12 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
                         errors.password
                           ? "border-red-500"
-                          : "border-gray-300"
+                          : "border-gray-300 dark:border-gray-600"
                       } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       placeholder="••••••••"
                     />
@@ -267,7 +635,7 @@ const Auth = ({
                       type="button"
                       onClick={togglePasswordVisibility}
                       disabled={isLoading}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <FiEyeOff /> : <FiEye />}
@@ -287,12 +655,13 @@ const Auth = ({
                       className="rounded text-[#3D9B9B] focus:ring-[#3D9B9B]"
                       disabled={isLoading}
                     />
-                    <span className={`ml-2 text-xs sm:text-sm ${isLoading ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <span className={`ml-2 text-xs sm:text-sm ${isLoading ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'}`}>
                       Remember me
                     </span>
                   </label>
                   <button
                     type="button"
+                    onClick={openForgotPassword}
                     className={`text-xs sm:text-sm text-[#3D9B9B] hover:text-[#2D8B8B] text-left sm:text-right ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     disabled={isLoading}
                   >
@@ -317,10 +686,10 @@ const Auth = ({
 
                 <div className="relative my-4 sm:my-6">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300"></div>
+                    <div className="w-full border-t border-gray-300 dark:border-gray-700"></div>
                   </div>
                   <div className="relative flex justify-center text-xs sm:text-sm">
-                    <span className="px-2 bg-white text-gray-500">
+                    <span className="px-2 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
                       Or continue with
                     </span>
                   </div>
@@ -339,19 +708,19 @@ const Auth = ({
             ) : (
               <form onSubmit={handleSignupSubmit} className="space-y-4 sm:space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Full Name
                   </label>
                   <div className="relative">
-                    <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                     <input
                       type="text"
                       name="name"
                       value={signupForm.name}
                       onChange={handleSignupChange}
                       disabled={isLoading}
-                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none ${
-                        errors.name ? "border-red-500" : "border-gray-300"
+                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                        errors.name ? "border-red-500" : "border-gray-300 dark:border-gray-600"
                       } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       placeholder="John Doe"
                     />
@@ -364,21 +733,21 @@ const Auth = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Email Address
                   </label>
                   <div className="relative">
-                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                     <input
                       type="email"
                       name="email"
                       value={signupForm.email}
                       onChange={handleSignupChange}
                       disabled={isLoading}
-                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none ${
+                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
                         errors.email
                           ? "border-red-500"
-                          : "border-gray-300"
+                          : "border-gray-300 dark:border-gray-600"
                       } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       placeholder="you@example.com"
                     />
@@ -391,21 +760,21 @@ const Auth = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Password
                   </label>
                   <div className="relative">
-                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                     <input
                       type={showPassword ? "text" : "password"}
                       name="password"
                       value={signupForm.password}
                       onChange={handleSignupChange}
                       disabled={isLoading}
-                      className={`w-full pl-10 pr-12 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none ${
+                      className={`w-full pl-10 pr-12 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
                         errors.password
                           ? "border-red-500"
-                          : "border-gray-300"
+                          : "border-gray-300 dark:border-gray-600"
                       } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       placeholder="••••••••"
                     />
@@ -413,7 +782,7 @@ const Auth = ({
                       type="button"
                       onClick={togglePasswordVisibility}
                       disabled={isLoading}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <FiEyeOff /> : <FiEye />}
@@ -427,21 +796,21 @@ const Auth = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                     Confirm Password
                   </label>
                   <div className="relative">
-                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                     <input
                       type={showPassword ? "text" : "password"}
                       name="confirmPassword"
                       value={signupForm.confirmPassword}
                       onChange={handleSignupChange}
                       disabled={isLoading}
-                      className={`w-full pl-10 pr-12 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none ${
+                      className={`w-full pl-10 pr-12 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
                         errors.confirmPassword
                           ? "border-red-500"
-                          : "border-gray-300"
+                          : "border-gray-300 dark:border-gray-600"
                       } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                       placeholder="••••••••"
                     />
@@ -449,7 +818,7 @@ const Auth = ({
                       type="button"
                       onClick={togglePasswordVisibility}
                       disabled={isLoading}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <FiEyeOff /> : <FiEye />}
@@ -469,7 +838,7 @@ const Auth = ({
                     required
                     disabled={isLoading}
                   />
-                  <span className={`ml-2 text-xs sm:text-sm ${isLoading ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <span className={`ml-2 text-xs sm:text-sm ${isLoading ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-300'}`}>
                     I agree to the{" "}
                     <Link
                       to="/terms"
@@ -502,7 +871,7 @@ const Auth = ({
                   </p>
                 )}
 
-                <p className="text-center text-xs sm:text-sm text-gray-600">
+                <p className="text-center text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                   Already have an account?{" "}
                   <button
                     type="button"

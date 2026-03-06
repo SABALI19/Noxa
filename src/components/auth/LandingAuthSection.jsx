@@ -11,7 +11,7 @@ const LandingAuthSection = ({
   onLoadingChange,
 }) => {
   const navigate = useNavigate();
-  const { loginWithBackend, signupWithBackend } = useAuth();
+  const { loginWithBackend, signupWithBackend, forgotPassword, resetPassword } = useAuth();
 
   const isLogin = requestedMode !== "signup";
   const [isLoading, setIsLoading] = useState(false);
@@ -83,6 +83,30 @@ const LandingAuthSection = ({
     }
   };
 
+  const handleForgotPassword = async (email) => {
+    try {
+      startLoading(35);
+      const message = await forgotPassword(email);
+      finishLoading();
+      return message;
+    } catch (error) {
+      failLoading();
+      throw new Error(error?.message || "Failed to request password reset.");
+    }
+  };
+
+  const handleResetPassword = async ({ token, password, confirmPassword }) => {
+    try {
+      startLoading(35);
+      const message = await resetPassword({ token, password, confirmPassword });
+      finishLoading();
+      return message;
+    } catch (error) {
+      failLoading();
+      throw new Error(error?.message || "Failed to reset password.");
+    }
+  };
+
   return (
     <>
       {isLoading && (
@@ -98,10 +122,10 @@ const LandingAuthSection = ({
                 </div>
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-3 font-roboto">
-                Thank you for choosing Noxa!
+                Processing request...
               </h3>
               <p className="text-gray-600 text-sm mb-6">
-                Preparing your personalized workspace...
+                Please wait a moment.
               </p>
               <div className="space-y-4">
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -124,6 +148,8 @@ const LandingAuthSection = ({
         <Auth
           onLogin={handleAuthLogin}
           onSignup={handleAuthSignup}
+          onForgotPassword={handleForgotPassword}
+          onResetPassword={handleResetPassword}
           initialIsLogin={isLogin}
           isLoading={isLoading}
         />

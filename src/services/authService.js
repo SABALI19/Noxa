@@ -7,6 +7,10 @@ const SIGNUP_PATH =
 const REFRESH_PATH = import.meta.env.VITE_AUTH_REFRESH_PATH || "/api/v1/users/refresh";
 const LOGOUT_PATH = import.meta.env.VITE_AUTH_LOGOUT_PATH || "/api/v1/users/logout";
 const ME_PATH = import.meta.env.VITE_AUTH_ME_PATH || "/api/v1/users/me";
+const FORGOT_PASSWORD_PATH =
+  import.meta.env.VITE_AUTH_FORGOT_PASSWORD_PATH || "/api/v1/users/forgot-password";
+const RESET_PASSWORD_PATH =
+  import.meta.env.VITE_AUTH_RESET_PASSWORD_PATH || "/api/v1/users/reset-password";
 
 const TOKEN_STORAGE_KEY = "noxa_tokens";
 let refreshInFlight = null;
@@ -268,6 +272,56 @@ export const logoutRequest = async () => {
   }
 };
 
+export const forgotPasswordRequest = async ({ email }) => {
+  try {
+    const payload = await request(FORGOT_PASSWORD_PATH, {
+      method: "POST",
+      body: { email },
+    });
+
+    return {
+      message: extractMessage(payload, "If an account exists, a reset link has been sent."),
+      raw: payload,
+    };
+  } catch (error) {
+    const message = error?.message || "Forgot password request failed.";
+    if (/404|not found|route not found/i.test(message)) {
+      throw new Error(
+        "Password reset is not enabled on the backend yet (forgot-password route not found)."
+      );
+    }
+    throw error;
+  }
+};
+
+export const resetPasswordRequest = async ({ token, password, confirmPassword }) => {
+  try {
+    const payload = await request(RESET_PASSWORD_PATH, {
+      method: "POST",
+      body: {
+        token,
+        resetToken: token,
+        password,
+        newPassword: password,
+        confirmPassword,
+      },
+    });
+
+    return {
+      message: extractMessage(payload, "Password reset successful. Please sign in."),
+      raw: payload,
+    };
+  } catch (error) {
+    const message = error?.message || "Reset password request failed.";
+    if (/404|not found|route not found/i.test(message)) {
+      throw new Error(
+        "Password reset is not enabled on the backend yet (reset-password route not found)."
+      );
+    }
+    throw error;
+  }
+};
+
 export const authFetch = async (path, init = {}) => {
   const url = /^https?:\/\//i.test(path) ? path : joinUrl(API_BASE_URL, path);
   const requestHeaders = new Headers(init.headers || {});
@@ -313,5 +367,7 @@ export const authConfig = {
   REFRESH_PATH,
   LOGOUT_PATH,
   ME_PATH,
+  FORGOT_PASSWORD_PATH,
+  RESET_PASSWORD_PATH,
   TOKEN_STORAGE_KEY,
 };

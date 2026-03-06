@@ -28,8 +28,7 @@ const ReminderPage = () => {
     addReminder, // Make sure this function exists in your context
     updateTask,
     getReminderStats,
-    getTaskById,
-    getTodayReminders
+    getTaskById
   } = useTasks();
   
   // State for viewing tracking details
@@ -231,7 +230,6 @@ const ReminderPage = () => {
       status: editForm.status
     };
     updateReminder(reminderId, updatedReminder);
-    addNotification('reminder_updated', updatedReminder);
     trackNotification(reminderId, 'reminder', 'sent', 'reminder_updated');
     
     setEditingReminder(null);
@@ -279,11 +277,6 @@ const ReminderPage = () => {
     
     // Track snooze
     if (reminder) {
-      addNotification('reminder_snoozed', {
-        ...reminder,
-        reminderTime: snoozedUntil,
-        status: 'upcoming'
-      });
       trackNotification(reminder.id, 'reminder', 'snoozed', 'reminder_snoozed', { snoozeMinutes: 30 });
       trackSnooze(reminder.taskId, 'task', 30);
     }
@@ -295,7 +288,6 @@ const ReminderPage = () => {
     const reminder = reminders.find(r => r.id === reminderId);
     deleteReminder(reminderId);
     if (reminder) {
-      addNotification('reminder_deleted', reminder);
       trackNotification(reminderId, 'reminder', 'sent', 'reminder_deleted');
     }
     
@@ -353,10 +345,8 @@ const ReminderPage = () => {
     // Track completion if completing
     if (isCompleting && reminder) {
       trackCompletion(reminder.taskId, 'task');
-      addNotification('reminder_completed', { ...reminder, status: newStatus });
       trackNotification(reminderId, 'reminder', 'sent', 'reminder_completed');
     } else {
-      addNotification('reminder_reopened', { ...reminder, status: newStatus });
       trackNotification(reminderId, 'reminder', 'sent', 'reminder_reopened');
     }
   };
@@ -379,29 +369,6 @@ const ReminderPage = () => {
       trackView(reminder.taskId, 'task');
     }
   };
-
-  // Check for due reminders periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      const todayReminders = getTodayReminders();
-      
-      todayReminders.forEach(reminder => {
-        const reminderTime = new Date(reminder.reminderTime);
-        // If reminder is within the next minute and status is upcoming
-        if (reminder.status === 'upcoming' && reminderTime > now && reminderTime - now < 60000) {
-          // Update status to today
-          updateReminder(reminder.id, { status: 'today' });
-          addNotification('reminder_triggered', { ...reminder, status: 'today' }, null, true, {
-            dedupeMs: 10000
-          });
-          trackNotification(reminder.id, 'reminder', 'sent', 'reminder_triggered');
-        }
-      });
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [reminders, updateReminder, getTodayReminders]);
 
   // Get tracking stats for active reminder
   const getActiveReminderTracking = () => {

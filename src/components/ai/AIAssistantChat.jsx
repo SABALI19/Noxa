@@ -415,7 +415,6 @@ const AIAssistantChat = ({
           completed: false,
           progress: 0
         });
-        addNotification('goal_created', goal);
         trackNotification(goal.id, 'goal', 'sent', 'goal_created');
         created.push(`Goal created: ${goal.title}`);
         continue;
@@ -761,14 +760,14 @@ const AIAssistantChat = ({
           )}
           <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
             {/* Messages */}
-            <div className="px-[16keep original%] py-2 space-y-3">
+            <div className="px-8 py-2 space-y-3">
               {messages.map((message, index) => (
                 <div
                   key={index}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl p-1.5 ${
+                    className={`max-w-[80%] rounded-2xl p-2 ${
                       message.role === 'user'
                         ? 'bg-blue-500 text-white'
                         : message.isError
