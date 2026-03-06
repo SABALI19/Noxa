@@ -15,14 +15,12 @@ import {
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import TaskFormModal from '../forms/TaskFormModal.jsx';
-import { useNotifications } from '../hooks/useNotifications.jsx';
 import { useNotificationTracking } from '../hooks/useNotificationTracking.jsx';
 import TaskTrackingDetail from '../components/tracking/TaskTrackingDetail';
 import { useTasks } from '../context/TaskContext.jsx';
 
 const TaskPage = () => {
   const navigate = useNavigate();
-  const { addTaskNotification } = useNotifications();
   const { trackView, trackCompletion, getNotificationStats } = useNotificationTracking();
   
   // Get tasks and operations from context - including filtered tasks
@@ -127,20 +125,6 @@ const TaskPage = () => {
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
 
-  // Helper function for notification click
-  const handleTaskNotificationClick = (taskId) => {
-    const taskElement = document.getElementById(`task-${taskId}`);
-    if (taskElement) {
-      taskElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      
-      // Add temporary highlight
-      taskElement.classList.add('bg-yellow-50');
-      setTimeout(() => {
-        taskElement.classList.remove('bg-yellow-50');
-      }, 2000);
-    }
-  };
-
   const toggleTaskCompletion = (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
@@ -155,29 +139,15 @@ const TaskPage = () => {
     // Update task in context
     updateTask(taskId, updatedTask);
     
-    // Add notification using context
     if (!wasCompleted) {
-      addTaskNotification('task_completed', updatedTask, () => 
-        handleTaskNotificationClick(taskId)
-      );
       // Track completion
       trackCompletion(taskId, 'task');
-    } else {
-      addTaskNotification('task_updated', updatedTask, () => 
-        handleTaskNotificationClick(taskId)
-      );
     }
   };
 
   const deleteTaskFromContext = (taskId) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
-      const taskToDelete = tasks.find(t => t.id === taskId);
       deleteTask(taskId);
-      
-      // Add notification for task deletion
-      if (taskToDelete) {
-        addTaskNotification('task_deleted', taskToDelete);
-      }
     }
   };
 
@@ -185,37 +155,22 @@ const TaskPage = () => {
   const updateTaskStatus = (taskId, newStatus) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    
-    const oldStatus = task.status;
-    const updatedTask = { ...task, status: newStatus };
-    
+
     // Update in context
     updateTask(taskId, { status: newStatus });
     
-    // Add notification for status change to in_progress
-    if (newStatus === 'in_progress' && oldStatus !== 'in_progress') {
-      addTaskNotification('task_in_progress', updatedTask, () => 
-        handleTaskNotificationClick(taskId)
-      );
-    } else if (newStatus !== oldStatus) {
-      addTaskNotification('task_updated', updatedTask, () => 
-        handleTaskNotificationClick(taskId)
-      );
-    }
+    // Notifications are emitted by backend/socket; avoid local duplicates.
   };
 
   // Function to create a new task
   const handleCreateTask = (newTaskData) => {
-    const newTask = addTask({
+    addTask({
       ...newTaskData,
       status: 'pending',
       overdue: false
     });
     
-    // Add notification for task creation
-    addTaskNotification('task_created', newTask, () => 
-      handleTaskNotificationClick(newTask.id)
-    );
+    // Notifications are emitted by backend/socket; avoid local duplicates.
   };
 
   // Function to update an existing task
@@ -234,11 +189,6 @@ const TaskPage = () => {
     
     // Update task in context
     updateTask(taskToEdit.id, finalUpdatedTask);
-    
-    // Add notification for task update
-    addTaskNotification('task_updated', finalUpdatedTask, () => 
-      handleTaskNotificationClick(taskToEdit.id)
-    );
     
     // Close edit modal
     closeEditTaskModal();
