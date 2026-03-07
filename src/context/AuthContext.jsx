@@ -8,6 +8,7 @@ import {
   resetPasswordRequest,
   logoutRequest,
   registerRequest,
+  updateProfileRequest,
 } from "../services/authService";
 
 export const AuthContext = createContext(null);
@@ -150,15 +151,15 @@ export const AuthProvider = ({ children }) => {
     return response?.message || "Password reset successful. Please sign in.";
   };
 
-  const updateProfile = (updatedData) => {
-    const updatedUser = {
-      ...user,
-      ...updatedData,
-      updatedAt: new Date().toISOString(),
-    };
-    const persistedUser = persistUser(updatedUser);
+  const updateProfile = async (updatedData) => {
+    const response = await updateProfileRequest(updatedData);
+    const persistedUser = persistUser(response.user);
     setUser(persistedUser);
-    return persistedUser;
+    return {
+      user: persistedUser,
+      message: response.message || "Profile updated successfully",
+      notification: response.notification || null,
+    };
   };
 
   const value = {

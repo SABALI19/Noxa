@@ -137,8 +137,13 @@ const Profile = ({
   const showSuccessMessage = (message) => {
   setSuccessMessage(message);
   setShowSuccess(true);
-    
-addNotification('profile_image_uploaded', {
+
+  const notificationType =
+    typeof message === "string" && message.toLowerCase().includes("image")
+      ? "profile_image_uploaded"
+      : "profile_updated";
+
+  addNotification(notificationType, {
     id: Date.now(),
     title: message
   });
@@ -328,42 +333,22 @@ addNotification('profile_image_uploaded', {
     if (updateProfile) {
       try {
         setUploading(true);
-        setUploadProgress(0);
-        
-        // Simulate upload progress for profile update
-        const progressInterval = setInterval(() => {
-          setUploadProgress(prev => {
-            if (prev >= 90) {
-              clearInterval(progressInterval);
-              return 90;
-            }
-            return prev + 10;
-          });
-        }, 100);
-        
-        // In production, here you would upload the image to your server
-        // and get back a URL to store
-        
-        // Simulate API call delay
-        setTimeout(() => {
-          clearInterval(progressInterval);
-          setUploadProgress(100);
-          
-          // Update profile
-          updateProfile(profileForm);
-          
-          setUploading(false);
-          setEditMode(false);
-          setCropMode(false);
-          showSuccessMessage('Profile updated successfully!');
-          
-          // Reset progress after success
-          setTimeout(() => setUploadProgress(0), 500);
-        }, 1000);
+        setUploadProgress(40);
+
+        const profileResult = await updateProfile(profileForm);
+
+        setUploadProgress(100);
+        setUploading(false);
+        setEditMode(false);
+        setCropMode(false);
+        showSuccessMessage(profileResult?.message || 'Profile updated successfully!');
+
+        // Reset progress after success
+        setTimeout(() => setUploadProgress(0), 500);
         
       } catch (error) {
         console.error('Update error:', error);
-        setUploadError('Failed to save profile');
+        setUploadError(error?.message || 'Failed to save profile');
         setUploading(false);
         setUploadProgress(0);
       }

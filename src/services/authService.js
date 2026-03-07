@@ -7,6 +7,8 @@ const SIGNUP_PATH =
 const REFRESH_PATH = import.meta.env.VITE_AUTH_REFRESH_PATH || "/api/v1/users/refresh";
 const LOGOUT_PATH = import.meta.env.VITE_AUTH_LOGOUT_PATH || "/api/v1/users/logout";
 const ME_PATH = import.meta.env.VITE_AUTH_ME_PATH || "/api/v1/users/me";
+const UPDATE_PROFILE_PATH =
+  import.meta.env.VITE_AUTH_UPDATE_PROFILE_PATH || "/api/v1/users/me";
 const FORGOT_PASSWORD_PATH =
   import.meta.env.VITE_AUTH_FORGOT_PASSWORD_PATH || "/api/v1/users/forgot-password";
 const RESET_PASSWORD_PATH =
@@ -272,6 +274,37 @@ export const getCurrentUserRequest = async () => {
   };
 };
 
+export const updateProfileRequest = async ({ username, name, email, avatar } = {}) => {
+  const profilePayload = {};
+
+  if (username !== undefined) profilePayload.username = username;
+  if (name !== undefined) profilePayload.name = name;
+  if (email !== undefined) profilePayload.email = email;
+  if (avatar !== undefined) profilePayload.avatar = avatar;
+
+  const payload = await request(UPDATE_PROFILE_PATH, {
+    method: "PATCH",
+    body: profilePayload,
+    requireAuth: true,
+    retryOn401: true,
+  });
+
+  const data = extractData(payload);
+  const userCandidate = data.user || data.account || data.profile || data;
+  const user = normalizeUser(userCandidate);
+
+  if (!user.id || !user.email) {
+    throw new Error("Invalid profile update response from backend.");
+  }
+
+  return {
+    user,
+    message: data.message || "Profile updated successfully",
+    notification: normalizeAuthNotification(data.notification),
+    raw: payload,
+  };
+};
+
 export const logoutRequest = async () => {
   const tokens = getStoredTokens();
   try {
@@ -381,6 +414,7 @@ export const authConfig = {
   REFRESH_PATH,
   LOGOUT_PATH,
   ME_PATH,
+  UPDATE_PROFILE_PATH,
   FORGOT_PASSWORD_PATH,
   RESET_PASSWORD_PATH,
   TOKEN_STORAGE_KEY,
