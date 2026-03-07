@@ -3,6 +3,7 @@ import { GiRobotGolem } from "react-icons/gi";
 import { useNavigate } from "react-router-dom";
 import Auth from "../../forms/Auth";
 import { useAuth } from "../../hooks/UseAuth";
+import { useNotifications } from "../../hooks/useNotifications";
 
 const LandingAuthSection = ({
   onLogin,
@@ -12,6 +13,7 @@ const LandingAuthSection = ({
 }) => {
   const navigate = useNavigate();
   const { loginWithBackend, signupWithBackend, forgotPassword, resetPassword } = useAuth();
+  const { addNotification } = useNotifications();
 
   const isLogin = requestedMode !== "signup";
   const [isLoading, setIsLoading] = useState(false);
@@ -39,13 +41,63 @@ const LandingAuthSection = ({
     setLoadingProgress(0);
   };
 
+  const emitAuthNotification = (authResult, fallbackType, fallbackTitle, fallbackMessage) => {
+    const user = authResult?.user || {};
+    const backendNotification = authResult?.notification;
+    const defaultItem = {
+      id: user.id || user._id || Date.now(),
+      title: user.username || user.name || user.email || "Account",
+    };
+
+    if (backendNotification) {
+      addNotification(
+        backendNotification.notificationType || fallbackType,
+        backendNotification.item || defaultItem,
+        null,
+        true,
+        {
+          source: "api",
+          eventId: backendNotification.eventId || undefined,
+          timestamp: backendNotification.timestamp || undefined,
+          itemType: backendNotification.itemType || "account",
+          templateOverride: {
+            title: backendNotification.title || fallbackTitle,
+            message:
+              backendNotification.message ||
+              authResult?.message ||
+              fallbackMessage,
+            type: "success",
+          },
+        }
+      );
+      return;
+    }
+
+    addNotification(fallbackType, defaultItem, null, true, {
+      source: "api",
+      itemType: "account",
+      templateOverride: {
+        title: fallbackTitle,
+        message: authResult?.message || fallbackMessage,
+        type: "success",
+      },
+    });
+  };
+
   const handleAuthLogin = async (formData) => {
     try {
       startLoading(25);
-      const loggedInUser = await loginWithBackend({
+      const loginResult = await loginWithBackend({
         email: formData.email,
         password: formData.password,
       });
+      const loggedInUser = loginResult?.user || loginResult;
+      emitAuthNotification(
+        loginResult,
+        "user_logged_in",
+        "Login Successful",
+        `Welcome back ${loggedInUser?.username || "there"}, you logged in successfully.`
+      );
       setLoadingProgress(85);
       if (onLogin) {
         onLogin(loggedInUser);
@@ -63,12 +115,19 @@ const LandingAuthSection = ({
   const handleAuthSignup = async (formData) => {
     try {
       startLoading(25);
-      const newUser = await signupWithBackend({
+      const signupResult = await signupWithBackend({
         name: formData.name,
         email: formData.email,
         password: formData.password,
         confirmPassword: formData.confirmPassword,
       });
+      const newUser = signupResult?.user || signupResult;
+      emitAuthNotification(
+        signupResult,
+        "account_created",
+        "Account Created",
+        `Welcome ${newUser?.username || "there"}, your account was created successfully.`
+      );
       setLoadingProgress(85);
       if (onSignup) {
         onSignup(newUser);

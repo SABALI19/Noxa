@@ -130,12 +130,15 @@ const resolveNotificationOriginPath = ({
   if (normalizedItemType === 'reminder') return '/reminders';
   if (normalizedItemType === 'note') return '/notes';
   if (normalizedItemType === 'profile') return '/account';
+  if (normalizedItemType === 'account') return '/account';
 
   if (normalizedNotificationType.startsWith('task_')) return `/tasks${taskAnchor}`;
   if (normalizedNotificationType.startsWith('goal_')) return encodedItemId ? `/goals/${encodedItemId}` : '/goals';
   if (normalizedNotificationType.startsWith('reminder_')) return '/reminders';
   if (normalizedNotificationType.startsWith('note_')) return '/notes';
   if (normalizedNotificationType.startsWith('profile_')) return '/account';
+  if (normalizedNotificationType.startsWith('account_')) return '/account';
+  if (normalizedNotificationType === 'user_logged_in') return '/account';
   if (normalizedNotificationType.startsWith('automation_')) return '/goals';
 
   if (item?.goalId) return `/goals/${encodeURIComponent(String(item.goalId))}`;
@@ -189,6 +192,8 @@ const getNotificationTemplate = (type, item, templateOverride = null) => {
     reminder_deleted: { title: 'Reminder Deleted', message: `Deleted: "${title}"`, type: 'warning' },
     reminder_reopened: { title: 'Reminder Reopened', message: `Marked pending: "${title}"`, type: 'info' },
     reminders_cleared: { title: 'Reminders Cleared', message: `Cleared ${count ?? 0} completed reminders`, type: 'info' },
+    account_created: { title: 'Account Created', message: 'Welcome to Noxa. Your account is ready.', type: 'success' },
+    user_logged_in: { title: 'Login Successful', message: 'You signed in successfully.', type: 'success' },
     profile_updated: { title: 'Profile Updated', message: title, type: 'success' },
     profile_image_uploaded: { title: 'Image Uploaded', message: title, type: 'success' },
     note_created: {

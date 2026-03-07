@@ -105,7 +105,11 @@ export const AuthProvider = ({ children }) => {
     const persistedUser = persistUser(authResponse.user);
     setUser(persistedUser);
     setToken(authResponse.token);
-    return persistedUser;
+    return {
+      user: persistedUser,
+      message: authResponse.message || "Login successful",
+      notification: authResponse.notification || null,
+    };
   };
 
   const signupWithBackend = async (formData) => {
@@ -113,7 +117,11 @@ export const AuthProvider = ({ children }) => {
     const persistedUser = persistUser(authResponse.user);
     setUser(persistedUser);
     setToken(authResponse.token);
-    return persistedUser;
+    return {
+      user: persistedUser,
+      message: authResponse.message || "Signup successful",
+      notification: authResponse.notification || null,
+    };
   };
 
   const logout = async () => {

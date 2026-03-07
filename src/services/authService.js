@@ -56,6 +56,18 @@ const normalizeUser = (candidate = {}) => ({
 const getAccessTokenFromData = (data = {}) => data.accessToken || data.token || data.jwt || null;
 const getRefreshTokenFromData = (data = {}) =>
   data.refreshToken || data?.tokens?.refreshToken || null;
+const normalizeAuthNotification = (candidate) => {
+  if (!candidate || typeof candidate !== "object") return null;
+  return {
+    eventId: candidate.eventId || null,
+    timestamp: candidate.timestamp || null,
+    notificationType: candidate.notificationType || null,
+    itemType: candidate.itemType || null,
+    item: candidate.item && typeof candidate.item === "object" ? candidate.item : null,
+    message: candidate.message || null,
+    title: candidate.title || null,
+  };
+};
 
 const validateAuthResult = (data, contextLabel) => {
   const userCandidate = data.user || data.account || data.profile || data;
@@ -77,6 +89,8 @@ const validateAuthResult = (data, contextLabel) => {
     user,
     token: accessToken,
     refreshToken,
+    message: data.message || null,
+    notification: normalizeAuthNotification(data.notification),
   };
 };
 

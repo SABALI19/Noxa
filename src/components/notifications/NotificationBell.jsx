@@ -44,6 +44,9 @@ const NotificationBell = () => {
     if (itemType === 'profile' || notificationType.startsWith('profile_')) {
       return '/account';
     }
+    if (itemType === 'account' || notificationType.startsWith('account_') || notificationType === 'user_logged_in') {
+      return '/account';
+    }
 
     return '/notifications';
   };
@@ -81,6 +84,9 @@ const NotificationBell = () => {
     }
     if (notificationType?.includes('deadline')) {
       return <FiCalendar className="text-red-500 text-lg" />;
+    }
+    if (notificationType?.includes('account') || notificationType === 'user_logged_in') {
+      return <FiCheckCircle className="text-emerald-500 text-lg" />;
     }
     
     // Fall back to general type
