@@ -36,6 +36,9 @@
       opacity: 0.5;
     }
   }
+
+
+ 
   
   /* Extend animations */
   --animate-ping-3s: ping-3s 3s cubic-bezier(0, 0, 0.2, 1) infinite;
@@ -43,6 +46,10 @@
   --animate-ping-1s: ping-1s 1s cubic-bezier(0, 0, 0.2, 1) infinite;
   --animate-pulse-custom: pulse-custom 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+ /* profile scrollbar  */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* ✅ Enable Dark Mode in Tailwind v4 */
 @variant dark (&:is(.dark *));
