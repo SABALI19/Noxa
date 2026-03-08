@@ -8,7 +8,7 @@ import { IoIosHelpCircleOutline } from "react-icons/io";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { PanelLeftOpen, PanelRightOpen, Menu, NotebookText, ChevronDown, Wrench, AlarmClock, CalendarDays, X } from "lucide-react";
 import ThemeModal from "../modals/ThemeModal";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../hooks/useTheme";
 import { useTasks } from "../../context/TaskContext";
 
 const SIDEBAR_TOOLS = [

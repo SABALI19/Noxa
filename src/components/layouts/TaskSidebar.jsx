@@ -40,7 +40,7 @@ import {
 import Button from "../Button";
 import { useTasks } from "../../context/TaskContext";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../hooks/useTheme";
 
 // MobileOverlay component with blur
 const MobileOverlay = ({ isOpen, onClose }) => (

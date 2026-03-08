@@ -16,7 +16,7 @@ import ProgressChart from '../components/goalsItems/ProgressChart';
 import Button from '../components/Button';
 import { useNotifications } from '../hooks/useNotifications';
 import { useNotificationTracking } from '../hooks/useNotificationTracking';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { getGoals, saveGoals, goalEvents, hydrateGoalsFromBackend } from '../services/goalStorage';
 
 const GoalProgressPage = () => {

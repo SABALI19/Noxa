@@ -1,6 +1,7 @@
 {
   "name": "Noxa",
   "short_name": "Noxa",
+  "id": "/",
   "description": "AI productivity assistant for goals, tasks, reminders, and notes.",
   "start_url": "/",
   "scope": "/",
@@ -10,16 +11,32 @@
   "theme_color": "#3d9b9b",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/logo-favicon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/logo-icon-Copy.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/desktop-screenshot.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Noxa on desktop"
+    },
+    {
+      "src": "/mobile-screenshot-390x844.jpg",
+      "sizes": "390x844",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Noxa on mobile"
     }
   ]
 }

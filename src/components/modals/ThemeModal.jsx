@@ -1,6 +1,6 @@
 import React from 'react';
 import { FiSun, FiMoon, FiMonitor, FiX, FiCheck } from 'react-icons/fi';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../hooks/useTheme';
 
 const ThemeModal = ({ isOpen, onClose }) => {
   const { theme, setTheme } = useTheme();
