@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { MdOutlineWavingHand } from "react-icons/md";
+import { FiActivity, FiBell, FiCheckSquare, FiTarget, FiUser } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 import GoalCard from "../components/cards/GoalCard";
 import TaskCard from "../components/cards/TaskCard";
 import ReminderCard from "../components/cards/ReminderCard";
 import AiCrierCard from "../components/cards/AiCrierCard";
+import AIInsights from "../components/ai/AIInsight";
+import { useTasks } from "../context/TaskContext";
+import { useNotifications } from "../hooks/useNotifications";
+import { getGoals, goalEvents, hydrateGoalsFromBackend } from "../services/goalStorage";
 
 const Dashboard = ({ isSidebarOpen = true }) => {
   const navigate = useNavigate();
@@ -16,27 +21,64 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     onAiAssistantChatNow = () => {}
   } = outletContext;
   const { user } = useAuth();
+  const { tasks } = useTasks();
+  const { notifications } = useNotifications();
   const [isMobile, setIsMobile] = useState(false);
-  
-  // Check screen size
+  const [goals, setGoals] = useState(() => getGoals());
+
   useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    
-    return () => window.removeEventListener('resize', checkScreenSize);
+    window.addEventListener("resize", checkScreenSize);
+
+    return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
-  
+
+  useEffect(() => {
+    let isCancelled = false;
+    const hydrate = async () => {
+      const hydratedGoals = await hydrateGoalsFromBackend();
+      if (!isCancelled && Array.isArray(hydratedGoals)) {
+        setGoals(hydratedGoals);
+      }
+    };
+
+    void hydrate();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncGoals = (event) => {
+      const incomingGoals = event?.detail && Array.isArray(event.detail) ? event.detail : getGoals();
+      setGoals(incomingGoals);
+    };
+
+    const syncFromStorage = (event) => {
+      if (event.key === "noxa_goals") {
+        setGoals(getGoals());
+      }
+    };
+
+    window.addEventListener(goalEvents.updated, syncGoals);
+    window.addEventListener("storage", syncFromStorage);
+    return () => {
+      window.removeEventListener(goalEvents.updated, syncGoals);
+      window.removeEventListener("storage", syncFromStorage);
+    };
+  }, []);
+
   const handleGoalCardClick = () => {
-    navigate('/goals');
+    navigate("/goals");
   };
 
   const getUserName = () => {
     if (!user) return "Guest";
-    const firstName = user.name ? user.name.split(' ')[0] : "User";
+    const firstName = user.name ? user.name.split(" ")[0] : "User";
     return firstName;
   };
 
@@ -47,7 +89,6 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     return "Good evening";
   };
 
-  // Adjust padding based on sidebar state and screen size
   const getContentPadding = () => {
     if (isMobile) {
       return "p-4";
@@ -55,40 +96,102 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     if (!isSidebarOpen) {
       return "p-4 md:p-6 lg:p-8";
     }
-    return "p-4 "; // Adjust ml based on sidebar width
+    return "p-4";
+  };
+
+  const formatRelativeTime = (timestamp) => {
+    const parsed = timestamp ? new Date(timestamp) : null;
+    if (!parsed || Number.isNaN(parsed.getTime())) return "Just now";
+
+    const diffSeconds = Math.floor((Date.now() - parsed.getTime()) / 1000);
+    if (diffSeconds < 60) return "Just now";
+    if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)} min ago`;
+    if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)} hr ago`;
+    return `${Math.floor(diffSeconds / 86400)} day ago`;
+  };
+
+  const resolveActivityType = (notification) => {
+    const itemType = String(notification?.itemType || "").toLowerCase();
+    if (itemType && itemType !== "system") return itemType;
+
+    const notificationType = String(notification?.notificationType || "").toLowerCase();
+    if (notificationType.startsWith("goal_")) return "goal";
+    if (notificationType.startsWith("task_")) return "task";
+    if (notificationType.startsWith("reminder_")) return "reminder";
+    if (notificationType.startsWith("account_") || notificationType === "user_logged_in") return "account";
+    return "activity";
+  };
+
+  const activityTypeMeta = {
+    goal: {
+      icon: FiTarget,
+      badgeClass: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+    },
+    task: {
+      icon: FiCheckSquare,
+      badgeClass: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+    },
+    reminder: {
+      icon: FiBell,
+      badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    },
+    account: {
+      icon: FiUser,
+      badgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+    },
+    activity: {
+      icon: FiActivity,
+      badgeClass: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+    },
+  };
+
+  const recentActivities = useMemo(() => {
+    return (notifications || []).slice(0, 8).map((entry) => {
+      const type = resolveActivityType(entry);
+      const text = entry?.message || entry?.title || "Activity update";
+      return {
+        id: String(entry?.id || `${entry?.timestamp || Date.now()}-${Math.random()}`),
+        type,
+        text,
+        timeLabel: formatRelativeTime(entry?.timestamp),
+        originPath: entry?.originPath || "/notifications",
+      };
+    });
+  }, [notifications]);
+
+  const activeGoals = useMemo(() => goals.filter((goal) => !goal.completed), [goals]);
+
+  const handleActivityClick = (originPath) => {
+    if (!originPath || typeof originPath !== "string") return;
+    navigate(originPath);
   };
 
   return (
-    <div className={`min-h-screen 
-  bg-linear-to-br 
-  from-gray-50 to-blue-50          // Light mode gradient
-  dark:from-gray-800 dark:to-gray-900  // Dark mode gradient
-  ${getContentPadding()} 
-  transition-all duration-300`}>
-      {/* Welcome Section */}
+    <div
+      className={`min-h-screen bg-linear-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 ${getContentPadding()} transition-all duration-300`}
+    >
       <div className="mb-6 mt-8 md:mb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-              <span>{getGreeting()}, {getUserName()}!</span>
+              <span>
+                {getGreeting()}, {getUserName()}!
+              </span>
               <MdOutlineWavingHand className="text-yellow-500" />
             </h1>
-            <p className="text-[#01d5be] dark:text-">
-              Here's your productivity overview for today
-            </p>
-            <div className="mt-4 text-sm text-gray-500 dark:bg-gray-600 dark:text-gray-300 bg-white p-3 rounded-lg inline-block shadow-sm">
-              📅 {new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+            <p className="text-[#01d5be] dark:text-gray-200">Here's your productivity overview for today</p>
+            <div className="mt-4 text-sm text-gray-500 dark:bg-gray-700 dark:text-gray-200 bg-white p-3 rounded-lg inline-block shadow-sm">
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
               })}
             </div>
           </div>
         </div>
       </div>
 
-      {/* AI Crier Card Section */}
       <div className="mb-8">
         <AiCrierCard
           isActive={aiAssistantEnabled}
@@ -97,57 +200,66 @@ const Dashboard = ({ isSidebarOpen = true }) => {
         />
       </div>
 
-      {/* Main Cards Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          <GoalCard 
-            title="Goals"
-            color="#3D9B9B"
-            onClick={handleGoalCardClick}
-          />
+          <GoalCard title="Goals" color="#3D9B9B" onClick={handleGoalCardClick} />
         </div>
-        
+
         <div className="lg:col-span-1">
           <TaskCard />
         </div>
-        
+
         <div className="lg:col-span-1">
           <ReminderCard />
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="mt-8 bg-white dark:bg-gray-800  p-6 rounded-lg shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-300">Recent Activity</h2>
-          {user && (
-            <span className="text-sm text-gray-600 dark:text-gray-300">
-              Last login: {user.lastLogin ? new Date(user.lastLogin).toLocaleTimeString() : "Today"}
-            </span>
-          )}
-        </div>
-        <div className="space-y-3">
-          {[
-            { action: 'Completed "Project Documentation" goal', time: '2 hours ago', type: 'goal' },
-            { action: 'Added new task: "Review Q4 Reports"', time: '3 hours ago', type: 'task' },
-            { action: 'Set reminder for meeting tomorrow', time: '5 hours ago', type: 'reminder' },
-            { action: 'Achieved 75% progress on "Learn Spanish"', time: '1 day ago', type: 'goal' }
-          ].map((activity, index) => (
-            <div key={index} className="flex items-center gap-3 p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-100 transition-colors">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                activity.type === 'goal' ? 'bg-blue-100 text-blue-600' :
-                activity.type === 'task' ? 'bg-green-100 text-green-600' :
-                'bg-yellow-100 text-yellow-600'
-              }`}>
-                {activity.type === 'goal' ? '🎯' : activity.type === 'task' ? '✅' : '⏰'}
+      <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Recent Activity</h2>
+            {user && (
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                Last login: {user.lastLogin ? new Date(user.lastLogin).toLocaleTimeString() : "Today"}
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity) => {
+                const meta = activityTypeMeta[activity.type] || activityTypeMeta.activity;
+                const Icon = meta.icon;
+
+                return (
+                  <button
+                    key={activity.id}
+                    type="button"
+                    onClick={() => handleActivityClick(activity.originPath)}
+                    className="w-full text-left flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/80"
+                  >
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${meta.badgeClass}`}>
+                      <Icon className="text-sm" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-800 dark:text-gray-200 text-sm md:text-base truncate">{activity.text}</p>
+                      <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">{activity.timeLabel}</p>
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="p-6 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-center">
+                <p className="text-gray-600 dark:text-gray-300">No recent activity yet.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  New goal/task/reminder actions will appear here live.
+                </p>
               </div>
-              <div className="flex-1">
-                <p className="text-gray-800">{activity.action}</p>
-                <p className="text-sm text-gray-500">{activity.time}</p>
-              </div>
-            </div>
-          ))}
+            )}
+          </div>
         </div>
+
+        <AIInsights goals={activeGoals} tasks={tasks} onRefresh={() => {}} />
       </div>
     </div>
   );

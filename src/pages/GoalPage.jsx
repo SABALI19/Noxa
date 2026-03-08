@@ -1,6 +1,5 @@
 // src/pages/GoalsPage.jsx - UPDATED WITH AI INTEGRATION
-// This is your original GoalsPage with AI components added
-// The UI structure remains exactly the same - only AI features are added
+
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
@@ -305,12 +304,16 @@ const GoalsPage = () => {
   };
 
   const getSortSubtitle = () => {
-    switch(sortBy) {
-      case "deadline": return "By deadline";
-      case "progress": return "By progress";
-      case "category": return "By category";
-      case "title": return "By title";
-      default: return "By deadline";
+    switch (sortBy) {
+      case "progress":
+        return "Sorted by progress";
+      case "category":
+        return "Sorted by category";
+      case "title":
+        return "Sorted by title";
+      case "deadline":
+      default:
+        return "Sorted by deadline";
     }
   };
 
@@ -526,7 +529,7 @@ const GoalsPage = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-300">Active Goals</h2>
-            {/* <p className="text-sm md:text-base text-gray-600 dark:text-gray-300">{getSortSubtitle()}</p> */}
+            <p className="text-sm md:text-base text-gray-600 dark:text-gray-300">{getSortSubtitle()}</p>
           </div>
 
           <SortDropdown

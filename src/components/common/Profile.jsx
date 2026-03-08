@@ -473,7 +473,7 @@ const Profile = ({
                         className="mt-2 text-sm text-[#3D9B9B] hover:text-[#2d7b7b] font-medium flex items-center gap-1 transition-colors"
                       >
                         <FiUser className="text-base" />
-                        {showAvatarPicker ? 'Hide Avatar Picker' : 'Choose a Generated Avatar'}
+                        {showAvatarPicker ? 'Hide ' : 'Choose Avatar'}
                       </button>
                     )}
                   </div>
@@ -627,7 +627,7 @@ const Profile = ({
                           <Button
                             type="submit" variant="primary"
                             disabled={uploading}
-                            className="flex-1"
+                            className="flex-1 rounded-2xl"
                             icon={<FiSave className="mr-2" />}
                           >
                             {uploading ? 'Saving…' : 'Save Changes'}

@@ -1,4 +1,3 @@
-// src/components/ai/AIInsights.jsx
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   FiAlertTriangle,
@@ -77,7 +76,7 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
   }, [loadInsights]);
 
   const handleDismiss = (index) => {
-    setDismissed(prev => new Set([...prev, index]));
+    setDismissed((prev) => new Set([...prev, index]));
   };
 
   const handleRefresh = () => {
@@ -90,13 +89,13 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
   const getSeverityColor = (severity) => {
     switch (severity) {
       case 'high':
-        return 'bg-red-50 border-red-200 text-red-800';
+        return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200';
       case 'medium':
-        return 'bg-yellow-50 border-yellow-200 text-yellow-800';
+        return 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200';
       case 'low':
-        return 'bg-blue-50 border-blue-200 text-blue-800';
+        return 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200';
       default:
-        return 'bg-gray-50 border-gray-200 text-gray-800';
+        return 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200';
     }
   };
 
@@ -107,9 +106,9 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
       case 'medium':
         return <FiClock className="text-yellow-500" />;
       case 'low':
-        return <FiTarget className="text-blue-500" />;
+        return <FiTarget className="text-[#3D9B9B]" />;
       default:
-        return <FiTrendingUp className="text-gray-500" />;
+        return <FiTrendingUp className="text-gray-500 dark:text-gray-300" />;
     }
   };
 
@@ -125,10 +124,10 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-center gap-3">
-          <FiRefreshCw className="animate-spin text-blue-500 text-xl" />
-          <span className="text-gray-600">Analyzing your productivity patterns...</span>
+          <FiRefreshCw className="animate-spin text-[#3D9B9B] text-xl" />
+          <span className="text-gray-600 dark:text-gray-300">Analyzing your productivity patterns...</span>
         </div>
       </div>
     );
@@ -136,13 +135,13 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FiAlertTriangle className="text-red-500 text-xl" />
             <div>
-              <h3 className="font-semibold text-gray-800">AI Insights Unavailable</h3>
-              <p className="text-sm text-gray-600">{error}</p>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-100">AI Insights Unavailable</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">{error}</p>
             </div>
           </div>
           <Button variant="soft" size="sm" onClick={handleRefresh}>
@@ -155,13 +154,13 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
 
   if (!insights || !insights.predictions || insights.predictions.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FiCheckCircle className="text-green-500 text-xl" />
             <div>
-              <h3 className="font-semibold text-gray-800">All Clear!</h3>
-              <p className="text-sm text-gray-600">No potential issues detected. Keep up the great work!</p>
+              <h3 className="font-semibold text-gray-800 dark:text-gray-100">All Clear!</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">No potential issues detected. Keep up the great work!</p>
             </div>
           </div>
           <Button variant="soft" size="sm" onClick={handleRefresh}>
@@ -180,16 +179,15 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
   }
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl shadow-lg border border-blue-200 p-6">
-      {/* Header */}
+    <div className="bg-gradient-to-br from-[#e6f8f8] to-[#f1fbfb] dark:from-gray-900 dark:to-gray-800 rounded-2xl shadow-lg border border-[#bfe9e9] dark:border-gray-700 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-white rounded-lg shadow-sm">
-            <FiZap className="text-blue-500 text-xl" />
+          <div className="p-2 bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-[#d4eeee] dark:border-gray-700">
+            <FiZap className="text-[#3D9B9B] text-xl" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-800">AI Insights</h3>
-            <p className="text-sm text-gray-600">Preventing problems before they happen</p>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">AI Insights</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300">Preventing problems before they happen</p>
           </div>
         </div>
         <Button variant="soft" size="sm" onClick={handleRefresh}>
@@ -198,7 +196,6 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
         </Button>
       </div>
 
-      {/* Predictions */}
       <div className="space-y-3">
         {visiblePredictions.map((prediction, index) => (
           <div
@@ -212,38 +209,35 @@ const AIInsights = ({ goals = [], tasks = [], onRefresh }) => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-semibold text-gray-800">{getTypeLabel(prediction.type)}</h4>
-                    <span className="text-xs px-2 py-0.5 bg-white rounded-full font-medium">
+                    <h4 className="font-semibold text-gray-800 dark:text-gray-100">{getTypeLabel(prediction.type)}</h4>
+                    <span className="text-xs px-2 py-0.5 bg-white/80 dark:bg-gray-800 rounded-full font-medium">
                       {prediction.severity}
                     </span>
                   </div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">{prediction.item}</p>
-                  <p className="text-sm text-gray-600 mb-3">{prediction.reason}</p>
-                  
-                  {/* Suggestion */}
-                  <div className="bg-white bg-opacity-60 rounded-lg p-3">
-                    <p className="text-sm font-medium text-gray-700 mb-1">💡 Suggestion:</p>
-                    <p className="text-sm text-gray-600">{prediction.suggestion}</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">{prediction.item}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{prediction.reason}</p>
+
+                  <div className="bg-white/75 dark:bg-gray-900/60 rounded-lg p-3 border border-white/50 dark:border-gray-700">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Suggestion:</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{prediction.suggestion}</p>
                   </div>
                 </div>
               </div>
-              
-              {/* Dismiss button */}
+
               <button
                 onClick={() => handleDismiss(index)}
-                className="p-1 hover:bg-white hover:bg-opacity-60 rounded-lg transition-colors"
+                className="p-1 hover:bg-white/70 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
-                <FiX className="text-gray-500" />
+                <FiX className="text-gray-500 dark:text-gray-300" />
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Raw analysis (if JSON parsing failed) */}
       {insights.rawAnalysis && insights.predictions.length === 0 && (
-        <div className="mt-4 p-4 bg-white bg-opacity-60 rounded-xl">
-          <p className="text-sm text-gray-700 whitespace-pre-wrap">{insights.rawAnalysis}</p>
+        <div className="mt-4 p-4 bg-white/75 dark:bg-gray-900/60 rounded-xl border border-white/50 dark:border-gray-700">
+          <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{insights.rawAnalysis}</p>
         </div>
       )}
     </div>
