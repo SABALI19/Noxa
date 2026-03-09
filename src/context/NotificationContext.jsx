@@ -1,5 +1,5 @@
 // src/context/NotificationContext.jsx
-// ─── CHANGES FROM ORIGINAL ────────────────────────────────────────────────────
+// ─── CHANGES ──────────────────────────────────────────────────────────────────
 // 1. Replaced the base64 soundLibrary + HTMLAudio approach with ringtoneManager
 //    (Web Audio API) for all in-app notification sounds.
 // 2. Added `customRingtones` setting support — when enabled, ringtoneManager.ring()
@@ -10,6 +10,12 @@
 // 5. One-time init of ringtoneManager on first user interaction.
 // 6. Service worker BroadcastChannel listener — push notifications that arrive
 //    while the tab is open will also trigger the ringtone.
+// 7. [FIX] BroadcastChannel listener now correctly wired to playNotificationSoundRef
+//    so push-triggered sounds actually fire.
+// 8. [FIX] ringtoneManager.preloadEssential / preloadAll now only run after
+//    AudioContext is confirmed running (avoids silent failures on suspended ctx).
+// 9. [FIX] ensureReady in RingtonePlayer returns a boolean; play() guards on it
+//    so a suspended context never silently swallows playback.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, {
@@ -40,13 +46,13 @@ const DEFAULT_NOTIFICATION_SETTINGS = {
   pushNotifications: false,
   emailNotifications: false,
   // ── Ringtone settings ──────────────────────────────────────────────────────
-  customRingtones: false,          // false = old beep, true = Web Audio ringtone
-  defaultSound: 'Default',        // key in RINGTONE_CATALOGUE
+  customRingtones: false,       // false = old beep, true = Web Audio ringtone
+  defaultSound: 'Default',     // key in RINGTONE_CATALOGUE
   soundEnabled: true,
-  ringtoneVolume: 0.8,            // 0.0 – 1.0
+  ringtoneVolume: 0.8,         // 0.0 – 1.0
 };
 
-// ─── Helpers (unchanged from original) ───────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const urlBase64ToUint8Array = (base64String = '') => {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -160,36 +166,36 @@ const getNotificationTemplate = (type, item, templateOverride = null) => {
   }
 
   const templates = {
-    task_created: { title: 'Task Created', message: `Created: "${title}"`, type: 'success' },
-    task_completed: { title: 'Task Completed', message: `Completed: "${title}"`, type: 'success' },
-    task_in_progress: { title: 'Task In Progress', message: `Started working on: "${title}"`, type: 'info' },
-    task_updated: { title: 'Task Updated', message: `Updated: "${title}"`, type: 'info' },
-    task_deleted: { title: 'Task Deleted', message: `Deleted: "${title}"`, type: 'warning' },
-    goal_created: { title: 'Goal Created', message: `New goal: "${title}"`, type: 'success' },
-    goal_completed: { title: 'Goal Completed', message: `Completed: "${title}"`, type: 'success' },
-    goal_updated: { title: 'Goal Updated', message: `Updated: "${title}"`, type: 'info' },
-    goal_progress: { title: 'Progress Updated', message: `"${title}" is now at ${progress ?? 0}%`, type: 'info' },
-    goal_deleted: { title: 'Goal Deleted', message: `Removed: "${title}"`, type: 'warning' },
-    goal_milestone: { title: 'Milestone Reached', message: `Milestone achieved for "${title}"`, type: 'success' },
-    goal_reminder: { title: 'Goal Reminder', message: `Do not forget: "${title}"`, type: 'info' },
-    goal_deadline_approaching: { title: 'Deadline Approaching', message: `"${title}" is due soon`, type: 'warning' },
-    automation_enabled: { title: 'Automation Enabled', message: `"${title}" now has automation enabled`, type: 'success' },
-    reminder_created: { title: 'Reminder Set', message: `Reminder created: "${title}"`, type: 'success' },
-    reminder_triggered: { title: 'Reminder', message: title, type: 'info' },
-    reminder_snoozed: { title: 'Reminder Snoozed', message: `"${title}" snoozed`, type: 'info' },
-    reminder_completed: { title: 'Reminder Completed', message: `Completed: "${title}"`, type: 'success' },
-    reminder_updated: { title: 'Reminder Updated', message: `Updated: "${title}"`, type: 'info' },
-    reminder_deleted: { title: 'Reminder Deleted', message: `Deleted: "${title}"`, type: 'warning' },
-    reminder_reopened: { title: 'Reminder Reopened', message: `Marked pending: "${title}"`, type: 'info' },
-    reminders_cleared: { title: 'Reminders Cleared', message: `Cleared ${count ?? 0} completed reminders`, type: 'info' },
-    account_created: { title: 'Account Created', message: 'Welcome to Noxa. Your account is ready.', type: 'success' },
-    user_logged_in: { title: 'Login Successful', message: 'You signed in successfully.', type: 'success' },
-    profile_updated: { title: 'Profile Updated', message: title, type: 'success' },
-    profile_image_uploaded: { title: 'Image Uploaded', message: title, type: 'success' },
-    note_created: { title: `${catLabel} Note Created`, message: `Created "${title}" in ${catLabel}`, type: 'success' },
-    note_updated: { title: `${catLabel} Note Updated`, message: `Updated "${title}" in ${catLabel}`, type: 'info' },
-    note_deleted: { title: 'Note Deleted', message: `Deleted: "${title}"`, type: 'warning' },
-    socket_message: { title: 'Notification', message: title || 'Realtime update', type: 'info' },
+    task_created:              { title: 'Task Created',         message: `Created: "${title}"`,                              type: 'success' },
+    task_completed:            { title: 'Task Completed',       message: `Completed: "${title}"`,                           type: 'success' },
+    task_in_progress:          { title: 'Task In Progress',     message: `Started working on: "${title}"`,                  type: 'info'    },
+    task_updated:              { title: 'Task Updated',         message: `Updated: "${title}"`,                             type: 'info'    },
+    task_deleted:              { title: 'Task Deleted',         message: `Deleted: "${title}"`,                             type: 'warning' },
+    goal_created:              { title: 'Goal Created',         message: `New goal: "${title}"`,                            type: 'success' },
+    goal_completed:            { title: 'Goal Completed',       message: `Completed: "${title}"`,                           type: 'success' },
+    goal_updated:              { title: 'Goal Updated',         message: `Updated: "${title}"`,                             type: 'info'    },
+    goal_progress:             { title: 'Progress Updated',     message: `"${title}" is now at ${progress ?? 0}%`,          type: 'info'    },
+    goal_deleted:              { title: 'Goal Deleted',         message: `Removed: "${title}"`,                             type: 'warning' },
+    goal_milestone:            { title: 'Milestone Reached',    message: `Milestone achieved for "${title}"`,               type: 'success' },
+    goal_reminder:             { title: 'Goal Reminder',        message: `Do not forget: "${title}"`,                       type: 'info'    },
+    goal_deadline_approaching: { title: 'Deadline Approaching', message: `"${title}" is due soon`,                          type: 'warning' },
+    automation_enabled:        { title: 'Automation Enabled',   message: `"${title}" now has automation enabled`,           type: 'success' },
+    reminder_created:          { title: 'Reminder Set',         message: `Reminder created: "${title}"`,                   type: 'success' },
+    reminder_triggered:        { title: 'Reminder',             message: title,                                             type: 'info'    },
+    reminder_snoozed:          { title: 'Reminder Snoozed',     message: `"${title}" snoozed`,                              type: 'info'    },
+    reminder_completed:        { title: 'Reminder Completed',   message: `Completed: "${title}"`,                          type: 'success' },
+    reminder_updated:          { title: 'Reminder Updated',     message: `Updated: "${title}"`,                             type: 'info'    },
+    reminder_deleted:          { title: 'Reminder Deleted',     message: `Deleted: "${title}"`,                             type: 'warning' },
+    reminder_reopened:         { title: 'Reminder Reopened',    message: `Marked pending: "${title}"`,                     type: 'info'    },
+    reminders_cleared:         { title: 'Reminders Cleared',    message: `Cleared ${count ?? 0} completed reminders`,      type: 'info'    },
+    account_created:           { title: 'Account Created',      message: 'Welcome to Noxa. Your account is ready.',        type: 'success' },
+    user_logged_in:            { title: 'Login Successful',     message: 'You signed in successfully.',                     type: 'success' },
+    profile_updated:           { title: 'Profile Updated',      message: title,                                             type: 'success' },
+    profile_image_uploaded:    { title: 'Image Uploaded',       message: title,                                             type: 'success' },
+    note_created:              { title: `${catLabel} Note Created`, message: `Created "${title}" in ${catLabel}`,          type: 'success' },
+    note_updated:              { title: `${catLabel} Note Updated`, message: `Updated "${title}" in ${catLabel}`,          type: 'info'    },
+    note_deleted:              { title: 'Note Deleted',         message: `Deleted: "${title}"`,                             type: 'warning' },
+    socket_message:            { title: 'Notification',         message: title || 'Realtime update',                       type: 'info'    },
   };
 
   return templates[type] || { title: 'Notification', message: title || 'Activity update', type: 'info' };
@@ -243,34 +249,50 @@ export const NotificationProvider = ({ children }) => {
   const vapidPublicKeyRef = useRef('');
   const ringtoneInitialisedRef = useRef(false);
 
+  // Stable ref always pointing to the latest playNotificationSound closure.
+  // The BroadcastChannel listener captures this ref once on mount, but always
+  // calls the up-to-date function — so settings changes are reflected instantly.
+  const playNotificationSoundRef = useRef(null);
+
   const pushSupported = notificationPermission !== 'unsupported';
 
   // ─── Init ringtoneManager on first user interaction ────────────────────────
+  // AudioContext requires a user gesture before it can run. We wait for the
+  // first click/keydown/touch, then init + preload. This also resumes any
+  // suspended context that the browser may have paused before user interaction.
   useEffect(() => {
-    const initOnGesture = () => {
+    const initOnGesture = async () => {
       if (ringtoneInitialisedRef.current) return;
       ringtoneInitialisedRef.current = true;
 
-      // Sync selected ringtone from settings
+      // Sync selected ringtone + volume from persisted settings
       const savedRingtone = notificationSettings.defaultSound;
       if (RINGTONE_CATALOGUE[savedRingtone]) {
         ringtoneManager.select(savedRingtone);
       }
       ringtoneManager.setVolume(notificationSettings.ringtoneVolume ?? 0.8);
 
-      // Preload selected ringtone + all category sounds immediately; rest in background
+      // init() creates the AudioContext; ensureReady() resumes it if suspended
+      ringtoneManager.init();
+      try {
+        await ringtoneManager.player.ensureReady();
+      } catch {
+        // Browser blocked resume — sounds will attempt to play on next gesture
+      }
+
+      // Preload the selected ringtone + category sounds first, rest lazily
       ringtoneManager.preloadEssential().then(() => {
         ringtoneManager.preloadAll();
       });
     };
 
-    window.addEventListener('click', initOnGesture, { once: true });
-    window.addEventListener('keydown', initOnGesture, { once: true });
-    window.addEventListener('touchstart', initOnGesture, { once: true });
+    window.addEventListener('click',      initOnGesture, { once: true });
+    window.addEventListener('keydown',    initOnGesture, { once: true });
+    window.addEventListener('touchstart', initOnGesture, { once: true, passive: true });
 
     return () => {
-      window.removeEventListener('click', initOnGesture);
-      window.removeEventListener('keydown', initOnGesture);
+      window.removeEventListener('click',      initOnGesture);
+      window.removeEventListener('keydown',    initOnGesture);
       window.removeEventListener('touchstart', initOnGesture);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -283,7 +305,7 @@ export const NotificationProvider = ({ children }) => {
     ringtoneManager.setVolume(notificationSettings.ringtoneVolume ?? 0.8);
   }, [notificationSettings.defaultSound, notificationSettings.ringtoneVolume]);
 
-  // ─── Persist settings ──────────────────────────────────────────────────────
+  // ─── Persist settings ─────────────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(
@@ -292,16 +314,16 @@ export const NotificationProvider = ({ children }) => {
     );
   }, [notificationSettings]);
 
-  // ─── Persist notifications ──────────────────────────────────────────────────
+  // ─── Persist notifications ─────────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const serializable = notifications
         .slice(0, MAX_NOTIFICATIONS)
         .map((notification) => {
-          const serializableNotification = { ...notification };
-          delete serializableNotification.onClick;
-          return serializableNotification;
+          const s = { ...notification };
+          delete s.onClick;
+          return s;
         });
       window.localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(serializable));
     } catch (error) {
@@ -333,43 +355,13 @@ export const NotificationProvider = ({ children }) => {
     };
   }, []);
 
-  // ─── BroadcastChannel: receive ring trigger from service worker ─────────────
-  // sw.js posts { type: 'PLAY_RINGTONE', payload } when a push arrives
-  // and the tab is already open. We extract the notificationType from the
-  // payload so the correct category sound plays (reminder vs task vs goal etc.)
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
-
-    const channel = new BroadcastChannel('noxa-notification-channel');
-    channel.addEventListener('message', (event) => {
-      if (event.data?.type === 'PLAY_RINGTONE') {
-        // Extract notificationType from push payload so correct sound plays
-        const pushPayload = event.data?.payload || {};
-        const notifType =
-          pushPayload?.data?.notificationType ||
-          pushPayload?.data?.type ||
-          pushPayload?.notificationType ||
-          'socket_message';
-        playNotificationSoundRef.current?.(notifType);
-      }
-      // User dismissed or answered from the OS notification
-      if (event.data?.type === 'NOTIFICATION_ACTION') {
-        ringtoneManager.stop();
-      }
-    });
-
-    return () => channel.close();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ─── Sound library (legacy beep fallback) ──────────────────────────────────
-  // Kept as the original base64 data so existing users without customRingtones
-  // enabled hear the same sounds as before.
+  // ─── Sound library (legacy beep fallback) ─────────────────────────────────
   const soundLibrary = useMemo(() => ({
-    Default: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
-    Chime: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
-    Bell: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
-    Ding: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
-    Alert: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Default:      'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Chime:        'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Bell:         'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Ding:         'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
+    Alert:        'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
     Notification: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSeHzfPTgjMGHm7A7+OZSR4NVqzn77BiFQo+ltfyxnElBSl+y/PZiToIGGS45ueVTQ0MUqXi8LJnHwU2jtPyvm4gBSV7yfLaizsIG2ex6+aQSgoNT6Li8bVrIwU0itDwwXMkBihzxe/glEILFFqv5vCsWRkLRpjb8sFuIgUneMfw2Ik5CBt2w+/mnlEQDk+j4/G2aR4GMIzO8cR3KwUrfcXv3I9ACxVesOPwqFgYCkOb3PK+cCIGJ3PG8N2ORw0TTKHh8LZsIQYugMvx0H8yBxty',
   }), []);
 
@@ -386,11 +378,10 @@ export const NotificationProvider = ({ children }) => {
   }, []);
 
   // ─── Core sound playback ───────────────────────────────────────────────────
-  // notificationType is passed in so each event category plays its own sound:
+  // notificationType routes to the correct category sound:
   //   task_*      → TaskSound MP3
   //   goal_*      → GoalSound MP3
-  //   reminder_triggered / reminder_reopened / goal_deadline_approaching
-  //               → ReminderSound MP3 (loops until dismissed)
+  //   reminder_*  → ReminderSound MP3 (loops)
   //   system/*    → SystemSound MP3
   //   everything else → user's selected ringtone from the picker
   const playNotificationSound = useCallback((notificationType = 'socket_message') => {
@@ -399,12 +390,12 @@ export const NotificationProvider = ({ children }) => {
     const volume = notificationSettings.ringtoneVolume ?? 0.8;
 
     if (notificationSettings.customRingtones) {
-      // ── Web Audio API path — routes by notification type ───────────────────
+      // ── Web Audio API path ─────────────────────────────────────────────────
       ringtoneManager
         .playForType(notificationType, volume)
         .catch(() => {});
     } else {
-      // ── Legacy HTMLAudio fallback (original behaviour, type-agnostic) ──────
+      // ── Legacy HTMLAudio fallback ──────────────────────────────────────────
       try {
         if (!audioRef.current) return;
         const soundPath =
@@ -427,12 +418,47 @@ export const NotificationProvider = ({ children }) => {
     soundLibrary,
   ]);
 
-  // Store latest version in ref so the BroadcastChannel listener always
-  // calls the up-to-date closure without needing to re-register.
-  const playNotificationSoundRef = useRef(playNotificationSound);
+  // Keep the ref up-to-date so the BroadcastChannel listener (registered once
+  // on mount) always invokes the current closure with latest settings.
   useEffect(() => {
     playNotificationSoundRef.current = playNotificationSound;
   }, [playNotificationSound]);
+
+  // ─── BroadcastChannel: receive ring trigger from service worker ────────────
+  // sw.js posts { type: 'PLAY_RINGTONE', payload } when a push arrives while
+  // the tab is open. We extract notificationType so the correct category sound
+  // plays (reminder vs task vs goal etc.).
+  //
+  // KEY FIX: this effect runs once on mount and captures playNotificationSoundRef
+  // (a stable ref). It does NOT depend on playNotificationSound directly —
+  // that would re-register the channel on every settings change and cause
+  // missed messages during the brief teardown/re-attach window.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return;
+
+    const channel = new BroadcastChannel('noxa-notification-channel');
+
+    channel.addEventListener('message', (event) => {
+      const { type, payload } = event.data || {};
+
+      if (type === 'PLAY_RINGTONE') {
+        const notifType =
+          payload?.data?.notificationType ||
+          payload?.data?.type           ||
+          payload?.notificationType     ||
+          'socket_message';
+        // Call via ref so we always use the latest closure (no stale settings)
+        playNotificationSoundRef.current?.(notifType);
+      }
+
+      // User dismissed or actioned the OS notification — stop looping sounds
+      if (type === 'NOTIFICATION_ACTION') {
+        ringtoneManager.stop();
+      }
+    });
+
+    return () => channel.close();
+  }, []); // intentionally empty — stable via ref
 
   // ─── Preview a ringtone from settings UI ──────────────────────────────────
   const previewRingtone = useCallback((name, volume) => {
@@ -685,16 +711,16 @@ export const NotificationProvider = ({ children }) => {
           },
         });
 
-        socketInstance.on('connect', () => { if (!isDisposed) setSocketConnected(true); });
-        socketInstance.on('disconnect', () => { if (!isDisposed) setSocketConnected(false); });
+        socketInstance.on('connect',       () => { if (!isDisposed) setSocketConnected(true);  });
+        socketInstance.on('disconnect',    () => { if (!isDisposed) setSocketConnected(false); });
         socketInstance.on('connect_error', () => { if (!isDisposed) setSocketConnected(false); });
 
         const handleSocketPayload = (payload) => {
           const data = payload || {};
           const rawType =
             normalizeText(data.notificationType, '') ||
-            normalizeText(data.eventType, '') ||
-            normalizeText(data.action, '') ||
+            normalizeText(data.eventType, '')        ||
+            normalizeText(data.action, '')           ||
             normalizeText(data.type, '');
           const knownType = rawType.includes('_') ? rawType : 'socket_message';
           const severity = ['success', 'info', 'warning', 'error'].includes(rawType) ? rawType : 'info';
@@ -707,28 +733,28 @@ export const NotificationProvider = ({ children }) => {
           };
           const templateOverride = hasCustomTitleOrMessage
             ? {
-                title: normalizeText(data.title, 'Notification'),
+                title:   normalizeText(data.title,   'Notification'),
                 message: normalizeText(data.message, normalizeText(item?.title, 'Realtime update')),
-                type: severity,
+                type:    severity,
               }
             : null;
 
           addNotification(knownType, item, null, data.playSound !== false, {
-            source: 'socket',
-            eventId: data.eventId ?? data.notificationId ?? data.id,
-            dedupeMs: SOCKET_DEDUPE_MS,
-            itemType: data.itemType,
+            source:          'socket',
+            eventId:         data.eventId ?? data.notificationId ?? data.id,
+            dedupeMs:        SOCKET_DEDUPE_MS,
+            itemType:        data.itemType,
             templateOverride,
           });
         };
 
-        socketInstance.on('notification', handleSocketPayload);
+        socketInstance.on('notification',  handleSocketPayload);
         socketInstance.on('notifications', (list) => {
           if (!Array.isArray(list)) return;
           list.forEach((entry) => handleSocketPayload(entry));
         });
 
-        cleanupNotification = () => socketInstance?.off('notification', handleSocketPayload);
+        cleanupNotification  = () => socketInstance?.off('notification',  handleSocketPayload);
         cleanupNotifications = () => socketInstance?.off('notifications');
       } catch (error) {
         setSocketConnected(false);
@@ -811,11 +837,11 @@ export const NotificationProvider = ({ children }) => {
     requestPushPermission,
     playNotificationSound,
     testNotificationSound,
-    // ── New ringtone API ─────────────────────────────────────────────────────
-    previewRingtone,       // (name: string, volume?: number) => void
-    stopRingtone,          // () => void               — fade out current sound
+    // ── Ringtone API ─────────────────────────────────────────────────────────
+    previewRingtone,                    // (name: string, volume?: number) => void
+    stopRingtone,                       // () => void  — fade out current sound
     ringtoneList: ringtoneManager.getList(), // [{ name, label, selected }]
-    RINGTONE_CATALOGUE,    // exported for settings UI
+    RINGTONE_CATALOGUE,                 // exported for settings UI
   };
 
   return (

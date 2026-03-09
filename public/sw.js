@@ -44,7 +44,19 @@ self.addEventListener("push", (event) => {
     data: payload?.data || {},
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      try {
+        if ("BroadcastChannel" in self) {
+          const channel = new BroadcastChannel("noxa-notification-channel");
+          channel.postMessage({ type: "PLAY_RINGTONE", payload });
+          channel.close();
+        }
+      } catch {}
+
+      await self.registration.showNotification(title, options);
+    })()
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -52,8 +64,19 @@ self.addEventListener("notificationclick", (event) => {
   const targetUrl = event.notification?.data?.url || "/dashboard";
 
   event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
+    Promise.resolve()
+      .then(() => {
+        try {
+          if ("BroadcastChannel" in self) {
+            const channel = new BroadcastChannel("noxa-notification-channel");
+            channel.postMessage({ type: "NOTIFICATION_ACTION", payload: event.notification?.data || {} });
+            channel.close();
+          }
+        } catch {}
+      })
+      .then(() =>
+        self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      )
       .then((clients) => {
         const matchingClient = clients.find((client) => client.url.includes(targetUrl));
         if (matchingClient) {
@@ -62,5 +85,19 @@ self.addEventListener("notificationclick", (event) => {
 
         return self.clients.openWindow(targetUrl);
       })
+  );
+});
+
+self.addEventListener("notificationclose", (event) => {
+  event.waitUntil(
+    Promise.resolve().then(() => {
+      try {
+        if ("BroadcastChannel" in self) {
+          const channel = new BroadcastChannel("noxa-notification-channel");
+          channel.postMessage({ type: "NOTIFICATION_ACTION", payload: event.notification?.data || {} });
+          channel.close();
+        }
+      } catch {}
+    })
   );
 });

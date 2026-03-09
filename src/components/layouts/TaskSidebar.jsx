@@ -58,6 +58,9 @@ const TOOLS = [
   { id: "alarm", label: "Alarm", path: "/reminders", icon: AlarmClock }
 ];
 
+const tooltipClassName = "absolute left-full ml-2 px-2 py-1 rounded-md text-sm whitespace-nowrap z-50 pointer-events-none shadow-lg border border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100";
+const SIDEBAR_DRAG_THRESHOLD = 56;
+
 const ReminderCalendarPopup = ({ isOpen, onClose, reminders, onOpenCalendarPage }) => {
   const [activeDate, setActiveDate] = useState(new Date());
 
@@ -229,7 +232,12 @@ const ToolsDropdown = ({
   pathname,
   onToolNavigate,
   onCalendarClick,
-  isCalendarPopupOpen
+  isCalendarPopupOpen,
+  activeToolId,
+  hoveredToolId,
+  onToolHover,
+  onToolLeave,
+  onToolActivate,
 }) => (
   <div className="mb-4">
     <button
@@ -255,7 +263,11 @@ const ToolsDropdown = ({
       <div className="mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300">
         {TOOLS.map((tool, index) => {
           const ToolIcon = tool.icon;
-          const isActive = pathname === tool.path || (tool.id === "lists" && isCalendarPopupOpen);
+          const isActive =
+            hoveredToolId === tool.id ||
+            activeToolId === tool.id ||
+            pathname === tool.path ||
+            (tool.id === "lists" && isCalendarPopupOpen);
           const itemBaseClass = "w-full p-3 flex items-center gap-3 text-left transition-colors";
           const activeClass = "bg-[#3D9B9B] text-white";
           const inactiveClass = "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750";
@@ -265,7 +277,12 @@ const ToolsDropdown = ({
             <button
               key={tool.id}
               type="button"
+              onMouseEnter={() => onToolHover(tool.id)}
+              onMouseLeave={onToolLeave}
+              onFocus={() => onToolHover(tool.id)}
+              onBlur={onToolLeave}
               onClick={() => (tool.id === "lists" ? onCalendarClick() : onToolNavigate(tool.path))}
+              onMouseDown={() => onToolActivate(tool.id)}
               className={`${itemBaseClass} ${isActive ? activeClass : inactiveClass} ${borderClass}`}
             >
               <ToolIcon size={18} className={isActive ? "text-white" : "text-[#3D9B9B] dark:text-[#4fb3b3]"} />
@@ -294,7 +311,10 @@ const TaskSidebar = () => {
   const [hasMoved, setHasMoved] = useState(false);
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
   const [showCalendarPopup, setShowCalendarPopup] = useState(false);
+  const [activeToolId, setActiveToolId] = useState(null);
+  const [hoveredToolId, setHoveredToolId] = useState(null);
   const fabRef = useRef(null);
+  const dragGestureRef = useRef({ startX: null });
   const navigate = useNavigate();
   const location = useLocation();
   const { isDarkMode, toggleDarkMode } = useTheme();
@@ -333,6 +353,15 @@ const TaskSidebar = () => {
     
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  useEffect(() => {
+    const matchedTool = TOOLS.find((tool) => tool.path === location.pathname);
+    if (matchedTool) setActiveToolId(matchedTool.id);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (showCalendarPopup) setActiveToolId("lists");
+  }, [showCalendarPopup]);
 
   // FAB drag handlers
   const handleTouchStart = useCallback((e) => {
@@ -427,6 +456,24 @@ const TaskSidebar = () => {
     }
   };
 
+  const startSidebarDrag = useCallback((clientX) => {
+    dragGestureRef.current.startX = clientX;
+  }, []);
+
+  const finishSidebarDrag = useCallback((clientX) => {
+    const startX = dragGestureRef.current.startX;
+    dragGestureRef.current.startX = null;
+    if (typeof startX !== "number") return;
+
+    const deltaX = clientX - startX;
+    if (deltaX > SIDEBAR_DRAG_THRESHOLD && (isMobile ? !isMobileMenuOpen : isCollapsed)) {
+      toggleSidebar();
+    }
+    if (deltaX < -SIDEBAR_DRAG_THRESHOLD && (isMobile ? isMobileMenuOpen : !isCollapsed)) {
+      toggleSidebar();
+    }
+  }, [isCollapsed, isMobile, isMobileMenuOpen]);
+
   const handleHomeClick = () => {
     navigate("/dashboard", { state: { from: "task-sidebar", ts: Date.now() } });
     if (isMobile) {
@@ -436,6 +483,8 @@ const TaskSidebar = () => {
 
   const handleToolNavigate = (path) => {
     setShowCalendarPopup(false);
+    const matchedTool = TOOLS.find((tool) => tool.path === path);
+    if (matchedTool) setActiveToolId(matchedTool.id);
     navigate(path);
     if (isMobile) {
       setIsMobileMenuOpen(false);
@@ -445,6 +494,7 @@ const TaskSidebar = () => {
   const handleCalendarToolClick = () => {
     setShowToolsDropdown(false);
     setShowCalendarPopup(true);
+    setActiveToolId("lists");
   };
 
   const handleOpenCalendarPage = () => {
@@ -474,7 +524,14 @@ const TaskSidebar = () => {
   if (isCollapsed && !isMobile) {
     return (
       <>
-        <div className="w-16 h-full rounded-r-2xl bg-[#f2f5f7] dark:bg-gray-800 shadow-md shadow-black overflow-y-auto transition-all duration-300 hidden md:block">
+        <div className="w-16 h-full rounded-r-2xl bg-[#f2f5f7] dark:bg-gray-800 shadow-md shadow-black overflow-y-auto transition-all duration-300 hidden md:block relative">
+          <div
+            className="absolute -right-2 top-0 h-full w-4 cursor-ew-resize"
+            onTouchStart={(e) => startSidebarDrag(e.touches[0].clientX)}
+            onTouchEnd={(e) => finishSidebarDrag(e.changedTouches[0].clientX)}
+            onMouseDown={(e) => startSidebarDrag(e.clientX)}
+            onMouseUp={(e) => finishSidebarDrag(e.clientX)}
+          />
           <div className="p-4 flex flex-col items-center">
             <Button
               variant="icon"
@@ -488,10 +545,12 @@ const TaskSidebar = () => {
             {/* Home Icon */}
             <button
               onClick={handleHomeClick}
-              className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors mb-6"
-              title="Home"
+              className="group relative p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors mb-6"
             >
               <Home size={20} className="text-[#3D9B9B] dark:text-[#4fb3b3]" />
+              <span className={`${tooltipClassName} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+                Home
+              </span>
             </button>
 
             <div className="flex flex-col items-center gap-2 mb-4">
@@ -502,16 +561,20 @@ const TaskSidebar = () => {
                   <button
                     key={tool.id}
                     type="button"
+                    onMouseEnter={() => setHoveredToolId(tool.id)}
+                    onMouseLeave={() => setHoveredToolId(null)}
                     onClick={() => (tool.id === "lists" ? handleCalendarToolClick() : handleToolNavigate(tool.path))}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isActiveTool ? "bg-[#3D9B9B]" : "hover:bg-gray-200 dark:hover:bg-gray-700"
+                    className={`group relative p-2 rounded-lg transition-colors ${
+                      isActiveTool || hoveredToolId === tool.id || activeToolId === tool.id ? "bg-[#3D9B9B]" : "hover:bg-gray-200 dark:hover:bg-gray-700"
                     }`}
-                    title={tool.label}
                   >
                     <ToolIcon
                       size={20}
-                      className={isActiveTool ? "text-white" : "text-[#3D9B9B] dark:text-[#4fb3b3]"}
+                      className={isActiveTool || hoveredToolId === tool.id || activeToolId === tool.id ? "text-white" : "text-[#3D9B9B] dark:text-[#4fb3b3]"}
                     />
+                    <span className={`${tooltipClassName} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+                      {tool.label}
+                    </span>
                   </button>
                 );
               })}
@@ -520,7 +583,6 @@ const TaskSidebar = () => {
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
                   isDarkMode ? 'bg-[#3D9B9B]' : 'bg-gray-400'
                 }`}
-                title={isDarkMode ? "Disable Dark Mode" : "Enable Dark Mode"}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -551,6 +613,13 @@ const TaskSidebar = () => {
   if (isMobile && !isMobileMenuOpen) {
     return (
       <>
+        <div
+          className="fixed left-0 top-0 bottom-0 w-5 z-40 md:hidden"
+          onTouchStart={(e) => startSidebarDrag(e.touches[0].clientX)}
+          onTouchEnd={(e) => finishSidebarDrag(e.changedTouches[0].clientX)}
+          onMouseDown={(e) => startSidebarDrag(e.clientX)}
+          onMouseUp={(e) => finishSidebarDrag(e.clientX)}
+        />
         <div 
           ref={fabRef}
           className="fixed z-50 md:hidden cursor-move touch-none"
@@ -586,6 +655,13 @@ const TaskSidebar = () => {
         <div className={`fixed left-0 top-0 h-full w-[280px] sm:w-[320px] bg-[#f2f5f7] dark:bg-gray-800 shadow-xl z-50 transition-transform duration-300 ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
+          <div
+            className="absolute right-0 top-0 h-full w-5 cursor-ew-resize"
+            onTouchStart={(e) => startSidebarDrag(e.touches[0].clientX)}
+            onTouchEnd={(e) => finishSidebarDrag(e.changedTouches[0].clientX)}
+            onMouseDown={(e) => startSidebarDrag(e.clientX)}
+            onMouseUp={(e) => finishSidebarDrag(e.clientX)}
+          />
           <div className="p-4 h-full overflow-y-auto">
             {/* Mobile Header - separated action buttons */}
             <div className="flex items-center justify-between mb-4">
@@ -600,7 +676,6 @@ const TaskSidebar = () => {
               <button
                 onClick={handleHomeClick}
                 className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                title="Home"
               >
                 <Home size={20} className="text-[#3D9B9B] dark:text-[#4fb3b3]" />
               </button>
@@ -836,6 +911,11 @@ const TaskSidebar = () => {
               onToolNavigate={handleToolNavigate}
               onCalendarClick={handleCalendarToolClick}
               isCalendarPopupOpen={showCalendarPopup}
+              activeToolId={activeToolId}
+              hoveredToolId={hoveredToolId}
+              onToolHover={setHoveredToolId}
+              onToolLeave={() => setHoveredToolId(null)}
+              onToolActivate={setActiveToolId}
             />
 
             {/* Dark mode below action buttons */}
@@ -905,7 +985,14 @@ const TaskSidebar = () => {
   // Desktop Full Sidebar
   return (
     <>
-      <div className="hidden md:block w-[280px] h-full bg-[#f2f5f7] dark:bg-gray-800 shadow-md shadow-black overflow-y-auto transition-all duration-300">
+      <div className="hidden md:block w-[280px] h-full bg-[#f2f5f7] dark:bg-gray-800 shadow-md shadow-black overflow-y-auto transition-all duration-300 relative">
+        <div
+          className="absolute right-0 top-0 h-full w-4 cursor-ew-resize"
+          onTouchStart={(e) => startSidebarDrag(e.touches[0].clientX)}
+          onTouchEnd={(e) => finishSidebarDrag(e.changedTouches[0].clientX)}
+          onMouseDown={(e) => startSidebarDrag(e.clientX)}
+          onMouseUp={(e) => finishSidebarDrag(e.clientX)}
+        />
         <div className="p-4">
           {/* Header action buttons */}
           <div className="flex items-center justify-between mb-4">
@@ -920,7 +1007,6 @@ const TaskSidebar = () => {
             <button
               onClick={handleHomeClick}
               className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-              title="Home"
             >
               <Home size={20} className="text-[#3D9B9B] dark:text-[#4fb3b3]" />
             </button>
@@ -1144,6 +1230,11 @@ const TaskSidebar = () => {
             onToolNavigate={handleToolNavigate}
             onCalendarClick={handleCalendarToolClick}
             isCalendarPopupOpen={showCalendarPopup}
+            activeToolId={activeToolId}
+            hoveredToolId={hoveredToolId}
+            onToolHover={setHoveredToolId}
+            onToolLeave={() => setHoveredToolId(null)}
+            onToolActivate={setActiveToolId}
           />
 
           {/* Dark mode below action buttons */}

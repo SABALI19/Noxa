@@ -28,15 +28,19 @@ import { useNotifications } from "../../hooks/useNotifications";
 import { ringtoneManager } from "../../services/ringtones/RingtoneManager";
 
 const SIDEBAR_TOOLS = [
-  { id: "notes",  label: "Notes",    path: "/notes",      icon: NotebookText },
-  { id: "lists",  label: "Lists",    path: "/calendar",   icon: CalendarDays },
-  { id: "alarm",  label: "Alarm",    path: "/reminders",  icon: AlarmClock   },
+  { id: "notes",  label: "Notes",                path: "/notes",        icon: NotebookText, type: "route" },
+  { id: "lists",  label: "Lists",                path: "/calendar",     icon: CalendarDays, type: "calendar" },
+  { id: "alarm",  label: "Alarm",                path: "/reminders",    icon: AlarmClock,   type: "route" },
+  { id: "sounds", label: "Notification Sounds",  path: null,            icon: Music2,       type: "sound" },
 ];
+
+const tooltipClassName = "absolute left-full ml-2 px-2 py-1 rounded-md text-sm whitespace-nowrap z-50 pointer-events-none shadow-lg border border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100";
+const SIDEBAR_DRAG_THRESHOLD = 56;
 
 // ─── Ringtone Quick Panel ─────────────────────────────────────────────────────
 // Appears alongside the sidebar when the 🎵 icon is clicked.
 // Fully self-contained — reads from and writes to NotificationContext.
-const RingtoneQuickPanel = ({ isOpen, onClose }) => {
+const RingtoneQuickPanel = ({ isOpen, onClose, isMobile, isCollapsed }) => {
   const {
     notificationSettings,
     updateNotificationSettings,
@@ -97,6 +101,12 @@ const RingtoneQuickPanel = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const panelClassName = isMobile
+    ? "fixed left-4 right-4 top-20 z-50 max-w-sm mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden"
+    : `fixed top-14 z-50 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden ${
+        isCollapsed ? "left-24" : "left-64"
+      }`;
+
   return (
     <>
       {/* Backdrop */}
@@ -106,7 +116,7 @@ const RingtoneQuickPanel = ({ isOpen, onClose }) => {
       />
 
       {/* Panel */}
-      <div className="fixed left-64 top-14 z-50 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className={panelClassName}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-[#3D9B9B]">
@@ -399,7 +409,22 @@ const CalendarPopup = ({ isOpen, onClose, reminders, onOpenCalendarPage }) => {
 };
 
 // ─── ToolsDropdown (unchanged) ────────────────────────────────────────────────
-const ToolsDropdown = ({ isCollapsed, isOpen, onToggle, pathname, onToolNavigate, onCalendarClick, isCalendarPopupOpen }) => (
+const ToolsDropdown = ({
+  isCollapsed,
+  isOpen,
+  onToggle,
+  pathname,
+  onToolNavigate,
+  onCalendarClick,
+  isCalendarPopupOpen,
+  isSoundPanelOpen,
+  activeToolId,
+  hoveredToolId,
+  onToolHover,
+  onToolLeave,
+  onToolActivate,
+  onSoundClick,
+}) => (
   <div className="mb-4 relative">
     <button
       onClick={onToggle}
@@ -416,13 +441,30 @@ const ToolsDropdown = ({ isCollapsed, isOpen, onToggle, pathname, onToolNavigate
       <div className="mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {SIDEBAR_TOOLS.map((tool, index) => {
           const ToolIcon = tool.icon;
-          const isActive = pathname === tool.path || (tool.id === "lists" && isCalendarPopupOpen);
+          const matchesRoute = tool.path ? pathname === tool.path : false;
+          const matchesState =
+            (tool.id === "lists" && isCalendarPopupOpen) ||
+            (tool.id === "sounds" && isSoundPanelOpen);
+          const isActive =
+            hoveredToolId === tool.id ||
+            matchesRoute ||
+            matchesState ||
+            activeToolId === tool.id;
           const borderClass = index === SIDEBAR_TOOLS.length - 1 ? "" : "border-b border-gray-100 dark:border-gray-700";
           return (
             <button
               key={tool.id}
               type="button"
-              onClick={() => (tool.id === "lists" ? onCalendarClick() : onToolNavigate(tool.path))}
+              onMouseEnter={() => onToolHover(tool.id)}
+              onMouseLeave={onToolLeave}
+              onFocus={() => onToolHover(tool.id)}
+              onBlur={onToolLeave}
+              onClick={() => {
+                onToolActivate(tool.id);
+                if (tool.type === "calendar") onCalendarClick();
+                else if (tool.type === "sound") onSoundClick();
+                else onToolNavigate(tool.path);
+              }}
               className={`w-full p-3 flex items-center gap-3 text-left transition-colors ${
                 isActive ? "bg-[#3D9B9B] text-white" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750"
               } ${borderClass}`}
@@ -436,7 +478,7 @@ const ToolsDropdown = ({ isCollapsed, isOpen, onToggle, pathname, onToolNavigate
     )}
 
     {isCollapsed && isOpen && (
-      <div className="absolute left-full ml-2 px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-sm rounded-lg whitespace-nowrap z-50">
+      <div className={tooltipClassName}>
         Tools
       </div>
     )}
@@ -445,6 +487,14 @@ const ToolsDropdown = ({ isCollapsed, isOpen, onToggle, pathname, onToolNavigate
 
 // ─── Main Sidebar ─────────────────────────────────────────────────────────────
 const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
+  const menuItems = [
+    { id: "account",       icon: <FiUser className="text-xl" />,                  label: "Account",       path: "/account"       },
+    { id: "notifications", icon: <FiBell className="text-xl" />,                  label: "Notifications", path: "/notifications"  },
+    { id: "appearance",    icon: <IoColorPaletteOutline className="text-xl" />,    label: "Appearance",    path: null             },
+    { id: "data-privacy",  icon: <MdOutlineShield className="text-xl" />,          label: "Settings",      path: "/data-privacy"  },
+    { id: "help",          icon: <IoIosHelpCircleOutline className="text-xl" />,   label: "Help & Support",path: "/help-support"  },
+  ];
+
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [fabPosition, setFabPosition] = useState({ x: window.innerWidth - 72, y: 80 });
   const [isDragging, setIsDragging] = useState(false);
@@ -452,14 +502,32 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
   const [hasMoved, setHasMoved] = useState(false);
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
   const [showCalendarPopup, setShowCalendarPopup] = useState(false);
-  const [showRingtonePanel, setShowRingtonePanel] = useState(false); // ← NEW
+  const [showRingtonePanel, setShowRingtonePanel] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [hoveredMenuId, setHoveredMenuId] = useState(null);
+  const [activeToolId, setActiveToolId] = useState(null);
+  const [hoveredToolId, setHoveredToolId] = useState(null);
   const fabRef = useRef(null);
+  const dragGestureRef = useRef({ startX: null });
   const location = useLocation();
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const { reminders } = useTasks();
 
   const isCollapsed = isMobile ? true : !isOpen;
+
+  useEffect(() => {
+    const matchedMenu = menuItems.find((item) => item.path && item.path === location.pathname);
+    if (matchedMenu) setActiveMenuId(matchedMenu.id);
+
+    const matchedTool = SIDEBAR_TOOLS.find((tool) => tool.path && tool.path === location.pathname);
+    if (matchedTool) setActiveToolId(matchedTool.id);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (showRingtonePanel) setActiveToolId("sounds");
+    else if (showCalendarPopup) setActiveToolId("lists");
+  }, [showCalendarPopup, showRingtonePanel]);
 
   useEffect(() => {
     const updateFabPosition = () => {
@@ -520,14 +588,23 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
 
   const handleFabClick = () => { if (!hasMoved) toggleSidebar(); };
 
-  // ── Menu items — Notifications item now gets a 🎵 button ─────────────────
-  const menuItems = [
-    { id: "account",       icon: <FiUser className="text-xl" />,                  label: "Account",       path: "/account"       },
-    { id: "notifications", icon: <FiBell className="text-xl" />,                  label: "Notifications", path: "/notifications"  },
-    { id: "appearance",    icon: <IoColorPaletteOutline className="text-xl" />,    label: "Appearance",    path: null             },
-    { id: "data-privacy",  icon: <MdOutlineShield className="text-xl" />,          label: "Settings",      path: "/data-privacy"  },
-    { id: "help",          icon: <IoIosHelpCircleOutline className="text-xl" />,   label: "Help & Support",path: "/help-support"  },
-  ];
+  const startSidebarDrag = useCallback((clientX) => {
+    dragGestureRef.current.startX = clientX;
+  }, []);
+
+  const finishSidebarDrag = useCallback((clientX) => {
+    const startX = dragGestureRef.current.startX;
+    dragGestureRef.current.startX = null;
+    if (typeof startX !== "number") return;
+
+    const deltaX = clientX - startX;
+    if (deltaX > SIDEBAR_DRAG_THRESHOLD && (isMobile ? !isOpen : isCollapsed)) {
+      toggleSidebar();
+    }
+    if (deltaX < -SIDEBAR_DRAG_THRESHOLD && (isMobile ? isOpen : !isCollapsed)) {
+      toggleSidebar();
+    }
+  }, [isCollapsed, isMobile, isOpen]);
 
   const toggleSidebar = () => {
     if (isMobile) { if (onToggle) onToggle(!isOpen); }
@@ -536,7 +613,10 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
 
   const isActive = (path) => location.pathname === path;
 
-  const handleLinkClick = () => { if (isMobile && onToggle) onToggle(false); };
+  const handleLinkClick = (itemId) => {
+    setActiveMenuId(itemId);
+    if (isMobile && onToggle) onToggle(false);
+  };
 
   const handleHomeClick = () => {
     navigate("/dashboard");
@@ -552,6 +632,7 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
   const handleCalendarToolClick = () => {
     setShowToolsDropdown(false);
     setShowCalendarPopup(true);
+    setActiveToolId("lists");
   };
 
   const handleOpenCalendarPage = () => {
@@ -560,12 +641,20 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
     if (isMobile && onToggle) onToggle(false);
   };
 
-  const handleAppearanceClick = () => setShowThemeModal(true);
+  const handleAppearanceClick = () => {
+    setActiveMenuId("appearance");
+    setShowThemeModal(true);
+  };
+
+  const handleSoundToolClick = () => {
+    setShowToolsDropdown(false);
+    setShowRingtonePanel((prev) => !prev);
+    setActiveToolId("sounds");
+  };
 
   // ── Render a single menu item, with the 🎵 button on Notifications ────────
   const renderMenuItem = (item, collapsed) => {
-    const active = isActive(item.path);
-    const isNotifications = item.id === "notifications";
+    const active = hoveredMenuId === item.id || activeMenuId === item.id || isActive(item.path);
 
     if (item.id === "appearance") {
       return (
@@ -575,19 +664,20 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
           variant="secondaryPro"
           className={`group flex items-center hover:text-white hover:bg-[#3D9B9B] gap-4 w-full rounded-2xl mb-2 relative ${
             collapsed ? "justify-center px-0" : ""
-          } dark:hover:bg-[#2d7b7b]`}
-          title={collapsed ? "Appearance" : ""}
+          } ${active ? "bg-[#3D9B9B] text-white dark:bg-[#2d7b7b]" : "dark:hover:bg-[#2d7b7b]"}`}
+          onMouseEnter={() => setHoveredMenuId(item.id)}
+          onMouseLeave={() => setHoveredMenuId(null)}
         >
-          <span className="text-[#3D9B9B] group-hover:text-white dark:text-[#4fb3b3] dark:group-hover:text-white">
+          <span className={active ? "text-white" : "text-[#3D9B9B] group-hover:text-white dark:text-[#4fb3b3] dark:group-hover:text-white"}>
             {item.icon}
           </span>
           {collapsed && (
-            <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none">
+            <span className={`${tooltipClassName} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
               Appearance
             </span>
           )}
           {!collapsed && (
-            <p className="group-hover:text-white text-sm md:text-base lg:text-lg font-medium whitespace-nowrap dark:text-gray-200">
+            <p className={`${active ? "text-white" : "group-hover:text-white dark:text-gray-200"} text-sm md:text-base lg:text-lg font-medium whitespace-nowrap`}>
               Appearance
             </p>
           )}
@@ -599,21 +689,22 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
       <div key={item.id} className="relative mb-2 flex items-center gap-1">
         <Link
           to={item.path}
-          onClick={handleLinkClick}
+          onClick={() => handleLinkClick(item.id)}
           className="flex-1"
-          title={collapsed ? item.label : ""}
         >
           <Button
             variant={active ? "primary" : "secondaryPro"}
             className={`group flex items-center hover:text-white hover:bg-[#3D9B9B] gap-4 w-full rounded-2xl ${
               active ? "bg-[#3D9B9B] text-white dark:bg-[#2d7b7b]" : "dark:hover:bg-[#2d7b7b]"
             } ${collapsed ? "justify-center px-0 relative" : ""}`}
+            onMouseEnter={() => setHoveredMenuId(item.id)}
+            onMouseLeave={() => setHoveredMenuId(null)}
           >
             <span className={active ? "text-white" : "text-[#3D9B9B] group-hover:text-white dark:text-[#4fb3b3] dark:group-hover:text-white"}>
               {item.icon}
             </span>
             {collapsed && (
-              <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 pointer-events-none">
+              <span className={`${tooltipClassName} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
                 {item.label}
               </span>
             )}
@@ -624,23 +715,6 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
             )}
           </Button>
         </Link>
-
-        {/* 🎵 Ringtone quick-access button — only on Notifications, only when expanded */}
-        {isNotifications && !collapsed && (
-          <button
-            type="button"
-            onClick={() => setShowRingtonePanel((prev) => !prev)}
-            title="Quick sound settings"
-            className={`shrink-0 p-2 rounded-xl border transition-all duration-200 ${
-              showRingtonePanel
-                ? "bg-[#3D9B9B] border-[#3D9B9B] text-white"
-                : "border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-[#3D9B9B] hover:text-[#3D9B9B] dark:hover:text-[#4fb3b3]"
-            }`}
-            aria-label="Open sound settings"
-          >
-            <Music2 size={15} />
-          </button>
-        )}
       </div>
     );
   };
@@ -649,6 +723,13 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
   if (isMobile && !isOpen) {
     return (
       <>
+        <div
+          className="fixed left-0 top-14 bottom-0 w-5 z-40 md:hidden"
+          onTouchStart={(e) => startSidebarDrag(e.touches[0].clientX)}
+          onTouchEnd={(e) => finishSidebarDrag(e.changedTouches[0].clientX)}
+          onMouseDown={(e) => startSidebarDrag(e.clientX)}
+          onMouseUp={(e) => finishSidebarDrag(e.clientX)}
+        />
         <div
           ref={fabRef}
           className="fixed z-50 cursor-move touch-none"
@@ -676,6 +757,13 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
       <>
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" onClick={() => onToggle(false)} />
         <div className={`fixed left-0 top-0 h-full w-64 bg-[#f2f5f7] dark:bg-gray-800 shadow-xl rounded-2xl z-50 p-4 transition-transform duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <div
+            className="absolute right-0 top-0 h-full w-5 cursor-ew-resize"
+            onTouchStart={(e) => startSidebarDrag(e.touches[0].clientX)}
+            onTouchEnd={(e) => finishSidebarDrag(e.changedTouches[0].clientX)}
+            onMouseDown={(e) => startSidebarDrag(e.clientX)}
+            onMouseUp={(e) => finishSidebarDrag(e.clientX)}
+          />
           <div className="flex items-center justify-between mb-4">
             <button onClick={() => onToggle(false)} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
               <PanelRightOpen className="text-sm text-[#3D9B9B] dark:text-[#4fb3b3]" />
@@ -697,6 +785,13 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
             onToolNavigate={handleToolNavigate}
             onCalendarClick={handleCalendarToolClick}
             isCalendarPopupOpen={showCalendarPopup}
+            isSoundPanelOpen={showRingtonePanel}
+            activeToolId={activeToolId}
+            hoveredToolId={hoveredToolId}
+            onToolHover={setHoveredToolId}
+            onToolLeave={() => setHoveredToolId(null)}
+            onToolActivate={setActiveToolId}
+            onSoundClick={handleSoundToolClick}
           />
 
           <div className="mb-4 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-between">
@@ -709,7 +804,12 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
 
         <ThemeModal isOpen={showThemeModal} onClose={() => setShowThemeModal(false)} />
         <CalendarPopup isOpen={showCalendarPopup} onClose={() => setShowCalendarPopup(false)} reminders={reminders} onOpenCalendarPage={handleOpenCalendarPage} />
-        <RingtoneQuickPanel isOpen={showRingtonePanel} onClose={() => setShowRingtonePanel(false)} />
+        <RingtoneQuickPanel
+          isOpen={showRingtonePanel}
+          onClose={() => setShowRingtonePanel(false)}
+          isMobile
+          isCollapsed={false}
+        />
       </>
     );
   }
@@ -718,6 +818,13 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
   return (
     <>
       <div className={`${isCollapsed ? "w-20" : "w-64"} h-[calc(100vh-3.5rem)] bg-[#f2f5f7] dark:bg-gray-800 p-4 transition-all duration-300 fixed left-0 top-14 z-30`}>
+        <div
+          className={`absolute top-0 h-full cursor-ew-resize ${isCollapsed ? "-right-2 w-4" : "right-0 w-4"}`}
+          onTouchStart={(e) => startSidebarDrag(e.touches[0].clientX)}
+          onTouchEnd={(e) => finishSidebarDrag(e.changedTouches[0].clientX)}
+          onMouseDown={(e) => startSidebarDrag(e.clientX)}
+          onMouseUp={(e) => finishSidebarDrag(e.clientX)}
+        />
 
         <div className={`${isCollapsed ? "flex flex-wrap justify-center gap-2" : "flex items-center justify-between"} mb-4`}>
           {!isCollapsed && (
@@ -733,7 +840,7 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
           <button onClick={handleHomeClick} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 relative group">
             <FiHome className="text-2xl text-[#3D9B9B] group-hover:text-[#2d7b7b] dark:text-[#4fb3b3]" />
             {isCollapsed && (
-              <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 dark:bg-gray-700 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 whitespace-nowrap z-50 pointer-events-none">
+              <span className={`${tooltipClassName} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
                 Home
               </span>
             )}
@@ -753,6 +860,13 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
             onToolNavigate={handleToolNavigate}
             onCalendarClick={handleCalendarToolClick}
             isCalendarPopupOpen={showCalendarPopup}
+            isSoundPanelOpen={showRingtonePanel}
+            activeToolId={activeToolId}
+            hoveredToolId={hoveredToolId}
+            onToolHover={setHoveredToolId}
+            onToolLeave={() => setHoveredToolId(null)}
+            onToolActivate={setActiveToolId}
+            onSoundClick={handleSoundToolClick}
           />
         )}
 
@@ -760,16 +874,30 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
           <div className="flex flex-col items-center gap-2 mb-4">
             {SIDEBAR_TOOLS.map((tool) => {
               const ToolIcon = tool.icon;
-              const isActiveTool = location.pathname === tool.path || (tool.id === "lists" && showCalendarPopup);
+              const isActiveTool =
+                hoveredToolId === tool.id ||
+                activeToolId === tool.id ||
+                (tool.path && location.pathname === tool.path) ||
+                (tool.id === "lists" && showCalendarPopup) ||
+                (tool.id === "sounds" && showRingtonePanel);
               return (
                 <button
                   key={tool.id}
                   type="button"
-                  onClick={() => (tool.id === "lists" ? handleCalendarToolClick() : handleToolNavigate(tool.path))}
-                  className={`p-2 rounded-lg transition-colors ${isActiveTool ? "bg-[#3D9B9B]" : "hover:bg-gray-200 dark:hover:bg-gray-700"}`}
-                  title={tool.label}
+                  onMouseEnter={() => setHoveredToolId(tool.id)}
+                  onMouseLeave={() => setHoveredToolId(null)}
+                  onClick={() => {
+                    setActiveToolId(tool.id);
+                    if (tool.type === "calendar") handleCalendarToolClick();
+                    else if (tool.type === "sound") handleSoundToolClick();
+                    else handleToolNavigate(tool.path);
+                  }}
+                  className={`group relative p-2 rounded-lg transition-colors ${isActiveTool ? "bg-[#3D9B9B]" : "hover:bg-gray-200 dark:hover:bg-gray-700"}`}
                 >
                   <ToolIcon size={20} className={isActiveTool ? "text-white" : "text-[#3D9B9B] dark:text-[#4fb3b3]"} />
+                  <span className={`${tooltipClassName} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+                    {tool.label}
+                  </span>
                 </button>
               );
             })}
@@ -798,7 +926,12 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
       <CalendarPopup isOpen={showCalendarPopup} onClose={() => setShowCalendarPopup(false)} reminders={reminders} onOpenCalendarPage={handleOpenCalendarPage} />
 
       {/* Ringtone quick panel — sits outside the sidebar div so it overlays content */}
-      <RingtoneQuickPanel isOpen={showRingtonePanel} onClose={() => setShowRingtonePanel(false)} />
+      <RingtoneQuickPanel
+        isOpen={showRingtonePanel}
+        onClose={() => setShowRingtonePanel(false)}
+        isMobile={false}
+        isCollapsed={isCollapsed}
+      />
     </>
   );
 };

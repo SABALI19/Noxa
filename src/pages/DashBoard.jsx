@@ -1,7 +1,20 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { MdOutlineWavingHand } from "react-icons/md";
-import { FiActivity, FiBell, FiCheckSquare, FiChevronDown, FiChevronUp, FiTarget, FiUser } from "react-icons/fi";
+import {
+  FiActivity,
+  FiBell,
+  FiBookOpen,
+  FiCalendar,
+  FiCheckSquare,
+  FiChevronRight,
+  FiChevronDown,
+  FiChevronUp,
+  FiEdit3,
+  FiX,
+  FiTarget,
+  FiUser,
+} from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 import GoalCard from "../components/cards/GoalCard";
 import TaskCard from "../components/cards/TaskCard";
@@ -11,6 +24,168 @@ import AIInsights from "../components/ai/AIInsight";
 import { useTasks } from "../context/TaskContext";
 import { useNotifications } from "../hooks/useNotifications";
 import { getGoals, goalEvents, hydrateGoalsFromBackend } from "../services/goalStorage";
+import {
+  getCachedCommunityWords,
+  getCachedWordOfDay,
+  getCommunityWords,
+  getWordOfDay,
+  submitCommunityWord,
+} from "../services/wordOfDayService";
+
+const WordOfDayModal = ({
+  isOpen,
+  onClose,
+  wordOfDay,
+  communityWordsCount,
+  formState,
+  onFormChange,
+  onSubmit,
+  submitStatus,
+  user,
+}) => {
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4 py-6 dark:bg-black/60">
+      <div
+        className="absolute inset-0"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
+        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5 dark:border-gray-800">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#3D9B9B] dark:text-[#4fb3b3]">
+              Word Of The Day
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">{wordOfDay.word}</h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{wordOfDay.meaning}</p>
+            {wordOfDay.example ? (
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Example: {wordOfDay.example}</p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+            aria-label="Close word of the day modal"
+          >
+            <FiX className="text-lg" />
+          </button>
+        </div>
+
+        <div className="grid max-h-[calc(100vh-8rem)] gap-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 md:grid-cols-[0.95fr_1.05fr] md:px-6 md:py-6">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10 sm:p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-amber-600 shadow-sm dark:bg-gray-900 dark:text-amber-300">
+                <FiBookOpen className="text-lg" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-700 dark:text-amber-300">
+                  Community Pool
+                </p>
+                <p className="text-sm text-amber-800 dark:text-amber-100">
+                  {communityWordsCount} submitted {communityWordsCount === 1 ? "word" : "words"}
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm leading-6 text-amber-900 dark:text-amber-100">
+              The featured word rotates from community submissions. Until the real backend is connected,
+              this uses the local shared fallback on this device.
+            </p>
+          </div>
+
+          <form onSubmit={onSubmit} className="rounded-2xl border border-gray-200 p-4 dark:border-gray-800 sm:p-5">
+            <div className="flex items-center gap-2">
+              <FiEdit3 className="text-[#3D9B9B] dark:text-[#4fb3b3]" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Submit A Word</h3>
+            </div>
+
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              {user ? "Add a word for the community rotation." : "Sign in to contribute to the community rotation."}
+            </p>
+
+            <div className="mt-4 space-y-4">
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">Word</span>
+                <input
+                  type="text"
+                  name="word"
+                  value={formState.word}
+                  onChange={onFormChange}
+                  placeholder="Clarity"
+                  disabled={!user || submitStatus.loading}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-[#3D9B9B] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-[#4fb3b3] sm:px-2.5 sm:py-1.5"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">Meaning</span>
+                <textarea
+                  name="meaning"
+                  value={formState.meaning}
+                  onChange={onFormChange}
+                  rows={3}
+                  placeholder="A clear understanding that helps you act with confidence."
+                  disabled={!user || submitStatus.loading}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-[#3D9B9B] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-[#4fb3b3] sm:px-2.5 sm:py-1.5"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">Example</span>
+                <input
+                  type="text"
+                  name="example"
+                  value={formState.example}
+                  onChange={onFormChange}
+                  placeholder="Clarity turns a long list into one next step."
+                  disabled={!user || submitStatus.loading}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-[#3D9B9B] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-[#4fb3b3] sm:px-2.5 sm:py-1.5"
+                />
+              </label>
+            </div>
+
+            {submitStatus.message ? (
+              <p
+                className={`mt-4 text-sm ${
+                  submitStatus.error ? "text-red-600 dark:text-red-400" : "text-[#3D9B9B] dark:text-[#4fb3b3]"
+                }`}
+              >
+                {submitStatus.message}
+              </p>
+            ) : null}
+
+            <div className="mt-5 flex items-center justify-between">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Featured words are rotated daily.</span>
+              <button
+                type="submit"
+                disabled={!user || submitStatus.loading}
+                className="rounded-xl bg-[#3D9B9B] px-3 py-1.5 text-sm font-medium text-white transition hover:bg-[#2f7878] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-[#2d7b7b] dark:hover:bg-[#3D9B9B]"
+              >
+                {submitStatus.loading ? "Submitting..." : "Submit Word"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Dashboard = ({ isSidebarOpen = true }) => {
   const navigate = useNavigate();
@@ -27,6 +202,13 @@ const Dashboard = ({ isSidebarOpen = true }) => {
   const [goals, setGoals] = useState(() => getGoals());
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [showAiInsights, setShowAiInsights] = useState(false);
+  const [wordOfDay, setWordOfDay] = useState(() => getCachedWordOfDay());
+  const [communityWords, setCommunityWords] = useState(() => getCachedCommunityWords());
+  const [showDateMenu, setShowDateMenu] = useState(false);
+  const [showWordModal, setShowWordModal] = useState(false);
+  const [wordForm, setWordForm] = useState({ word: "", meaning: "", example: "" });
+  const [submitStatus, setSubmitStatus] = useState({ loading: false, error: false, message: "" });
+  const dateMenuRef = useRef(null);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -74,8 +256,53 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     };
   }, []);
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadWordOfDay = async () => {
+      const [nextWord, nextCommunityWords] = await Promise.all([getWordOfDay(), getCommunityWords()]);
+      if (!isCancelled) {
+        setWordOfDay(nextWord);
+        setCommunityWords(nextCommunityWords);
+      }
+    };
+
+    void loadWordOfDay();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showDateMenu) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (dateMenuRef.current && !dateMenuRef.current.contains(event.target)) {
+        setShowDateMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [showDateMenu]);
+
   const handleGoalCardClick = () => {
     navigate("/goals");
+  };
+
+  const handleCalendarClick = () => {
+    setShowDateMenu((prev) => !prev);
+  };
+
+  const handleOpenCalendarPage = () => {
+    setShowDateMenu(false);
+    navigate("/calendar");
+  };
+
+  const handleOpenWordModal = () => {
+    setShowDateMenu(false);
+    setShowWordModal(true);
   };
 
   const getUserName = () => {
@@ -178,6 +405,69 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     navigate(originPath);
   };
 
+  const handleWordFormChange = (event) => {
+    const { name, value } = event.target;
+    setWordForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleWordSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!user) {
+      setSubmitStatus({
+        loading: false,
+        error: true,
+        message: "You need to sign in before submitting a community word.",
+      });
+      return;
+    }
+
+    if (!wordForm.word.trim() || !wordForm.meaning.trim()) {
+      setSubmitStatus({
+        loading: false,
+        error: true,
+        message: "Word and meaning are required.",
+      });
+      return;
+    }
+
+    setSubmitStatus({ loading: true, error: false, message: "" });
+
+    try {
+      await submitCommunityWord({
+        ...wordForm,
+        submittedBy: user.id || user.name || "community-user",
+      });
+
+      const [nextWord, nextCommunityWords] = await Promise.all([getWordOfDay(), getCommunityWords()]);
+      setWordOfDay(nextWord);
+      setCommunityWords(nextCommunityWords);
+      setWordForm({ word: "", meaning: "", example: "" });
+      setSubmitStatus({
+        loading: false,
+        error: false,
+        message: "Your word has been added to the community rotation.",
+      });
+    } catch (error) {
+      setSubmitStatus({
+        loading: false,
+        error: true,
+        message: error?.message || "Failed to submit word of the day.",
+      });
+    }
+  };
+
+  const formattedDate = useMemo(
+    () =>
+      new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    []
+  );
+
   return (
     <div
       className={`min-h-screen bg-linear-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 ${getContentPadding()} transition-all duration-300`}
@@ -192,13 +482,56 @@ const Dashboard = ({ isSidebarOpen = true }) => {
               <MdOutlineWavingHand className="text-yellow-500" />
             </h1>
             <p className="text-[#01d5be] dark:text-gray-200">Here's your productivity overview for today</p>
-            <div className="mt-4 text-sm text-gray-500 dark:bg-gray-700 dark:text-gray-200 bg-white p-3 rounded-lg inline-block shadow-sm">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
+            <div className="mt-4">
+              <div className="relative" ref={dateMenuRef}>
+                <button
+                  type="button"
+                  onClick={handleCalendarClick}
+                  className="group flex w-full items-center gap-2.5 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition-all hover:border-[#3D9B9B] hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#4fb3b3]"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3D9B9B]/10 text-[#3D9B9B] dark:bg-[#4fb3b3]/15 dark:text-[#4fb3b3]">
+                    <FiCalendar className="text-[17px]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+                      Calendar
+                    </p>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{formattedDate}</p>
+                  </div>
+                  <FiChevronDown
+                    className={`text-base text-gray-400 transition-transform dark:text-gray-500 ${
+                      showDateMenu ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {showDateMenu ? (
+                  <div className="absolute left-0 top-[calc(100%+0.5rem)] z-20 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-900">
+                    <button
+                      type="button"
+                      onClick={handleOpenWordModal}
+                      className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      <span className="flex items-center gap-3">
+                        <FiBookOpen className="text-[#3D9B9B] dark:text-[#4fb3b3]" />
+                        Word of the Day
+                      </span>
+                      <FiChevronRight className="text-gray-400 dark:text-gray-500" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleOpenCalendarPage}
+                      className="flex w-full items-center justify-between border-t border-gray-100 px-4 py-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      <span className="flex items-center gap-3">
+                        <FiCalendar className="text-[#3D9B9B] dark:text-[#4fb3b3]" />
+                        Open Calendar
+                      </span>
+                      <FiChevronRight className="text-gray-400 dark:text-gray-500" />
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -324,6 +657,18 @@ const Dashboard = ({ isSidebarOpen = true }) => {
           )}
         </div>
       </div>
+
+      <WordOfDayModal
+        isOpen={showWordModal}
+        onClose={() => setShowWordModal(false)}
+        wordOfDay={wordOfDay}
+        communityWordsCount={communityWords.length}
+        formState={wordForm}
+        onFormChange={handleWordFormChange}
+        onSubmit={handleWordSubmit}
+        submitStatus={submitStatus}
+        user={user}
+      />
     </div>
   );
 };
