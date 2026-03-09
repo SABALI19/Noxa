@@ -154,12 +154,14 @@ const resolveCatalogueKey = (category, selectedName) => {
 
 const STORAGE_KEY = 'noxa_selected_ringtone';
 const DEFAULT_RINGTONE = 'Default';
+const CUSTOM_UPLOAD_KEY = 'CustomUpload';
 
 class RingtoneManager {
   constructor() {
     this.player = new RingtonePlayer();
     this.selectedName = this._loadPreference();
     this._initiated = false;
+    this.customUpload = null;
   }
 
   init() {
@@ -188,8 +190,9 @@ class RingtoneManager {
     ];
     await Promise.allSettled(
       essential
-        .filter((name) => RINGTONE_CATALOGUE[name])
-        .map((name) => this.player.load(name, RINGTONE_CATALOGUE[name].url))
+        .map((name) => this._resolveTone(name))
+        .filter(Boolean)
+        .map(({ key, url }) => this.player.load(key, url))
     );
   }
 
@@ -198,10 +201,11 @@ class RingtoneManager {
     this.init();
     const category = resolveSoundCategory(notificationType);
     if (category === 'silent') return false;
-    const catalogueKey = resolveCatalogueKey(category, this.selectedName);
-    const tone = RINGTONE_CATALOGUE[catalogueKey] || RINGTONE_CATALOGUE[DEFAULT_RINGTONE];
-    return this.player.play(catalogueKey, tone.url, {
-      loop: tone.loop,
+    const baseKey = resolveCatalogueKey(category, this.selectedName);
+    const resolved = this._resolveTone(baseKey) || this._resolveTone(DEFAULT_RINGTONE);
+    if (!resolved) return false;
+    return this.player.play(resolved.key, resolved.url, {
+      loop: resolved.loop,
       volume,
     });
   }
@@ -209,18 +213,44 @@ class RingtoneManager {
   // Play user's selected ringtone (test / generic)
   async ring(volume = 1.0) {
     this.init();
-    const tone = RINGTONE_CATALOGUE[this.selectedName] || RINGTONE_CATALOGUE[DEFAULT_RINGTONE];
-    return this.player.play(this.selectedName, tone.url, {
-      loop: tone.loop,
+    const resolved = this._resolveTone(this.selectedName) || this._resolveTone(DEFAULT_RINGTONE);
+    if (!resolved) return false;
+    return this.player.play(resolved.key, resolved.url, {
+      loop: resolved.loop,
       volume,
     });
   }
 
   async preview(name, volume = 0.8) {
     this.init();
-    const tone = RINGTONE_CATALOGUE[name];
-    if (!tone) return;
-    return this.player.play(name, tone.url, { loop: false, volume });
+    const resolved = this._resolveTone(name);
+    if (!resolved) return false;
+    return this.player.play(resolved.key, resolved.url, {
+      loop: false,
+      volume,
+    });
+  }
+
+  // Allows runtime uploads from settings page.
+  async load(name, url, options = {}) {
+    this.init();
+    const key = String(name || '').trim() || CUSTOM_UPLOAD_KEY;
+    if (!url) return false;
+
+    if (RINGTONE_CATALOGUE[key]) {
+      await this.player.load(key, url);
+      return true;
+    }
+
+    this.customUpload = {
+      key,
+      label: options.label || 'Custom Upload',
+      url,
+      loop: Boolean(options.loop),
+      userSelectable: true,
+    };
+    await this.player.load(key, url);
+    return true;
   }
 
   stop(fade = true) {
@@ -233,20 +263,32 @@ class RingtoneManager {
   }
 
   select(name) {
-    if (!RINGTONE_CATALOGUE[name]) return;
+    if (!RINGTONE_CATALOGUE[name] && this.customUpload?.key !== name) return;
     this.selectedName = name;
-    this._savePreference(name);
+    if (name !== CUSTOM_UPLOAD_KEY) {
+      this._savePreference(name);
+    }
   }
 
   // Only returns user-selectable entries for the settings picker
   getList() {
-    return Object.entries(RINGTONE_CATALOGUE)
+    const list = Object.entries(RINGTONE_CATALOGUE)
       .filter(([, { userSelectable }]) => userSelectable)
       .map(([name, { label }]) => ({
         name,
         label,
         selected: name === this.selectedName,
       }));
+
+    if (this.customUpload) {
+      list.push({
+        name: this.customUpload.key,
+        label: this.customUpload.label,
+        selected: this.customUpload.key === this.selectedName,
+      });
+    }
+
+    return list;
   }
 
   getSoundCategory(notificationType) {
@@ -270,6 +312,27 @@ class RingtoneManager {
     try {
       localStorage.setItem(STORAGE_KEY, name);
     } catch { }
+  }
+
+  _resolveTone(name) {
+    if (name && RINGTONE_CATALOGUE[name]) {
+      return {
+        key: name,
+        ...RINGTONE_CATALOGUE[name],
+      };
+    }
+
+    if (name && this.customUpload?.key === name) {
+      return {
+        key: this.customUpload.key,
+        label: this.customUpload.label,
+        url: this.customUpload.url,
+        loop: this.customUpload.loop,
+        userSelectable: true,
+      };
+    }
+
+    return null;
   }
 }
 

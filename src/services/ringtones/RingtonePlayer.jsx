@@ -11,6 +11,7 @@ export class RingtonePlayer {
     this.currentSource = null;
     this.bufferCache = {};   // name → AudioBuffer
     this.isPlaying = false;
+    this.playToken = 0;
   }
 
   // ─── Must be called after a user gesture ────────────────────────────────────
@@ -20,13 +21,22 @@ export class RingtonePlayer {
       this.gainNode = this.audioContext.createGain();
       this.gainNode.connect(this.audioContext.destination);
     }
-    if (this.audioContext.state === 'suspended') {
-      this.audioContext.resume();
+  }
+
+  async ensureReady() {
+    this.init();
+    if (this.audioContext?.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+      } catch {
+        // ignore resume failures from restricted browser autoplay policies
+      }
     }
   }
 
   // ─── Load and cache an audio file by name + URL ──────────────────────────────
   async load(name, url) {
+    await this.ensureReady();
     if (this.bufferCache[name]) return this.bufferCache[name];
 
     try {
@@ -44,15 +54,16 @@ export class RingtonePlayer {
 
   // ─── Play a named ringtone (must be loaded first) ────────────────────────────
   async play(name, url, { loop = false, volume = 1.0 } = {}) {
+    const token = ++this.playToken;
     this.stop();
-    this.init();
+    await this.ensureReady();
 
     const buffer = await this.load(name, url);
-    if (!buffer) return false;
+    if (!buffer || token !== this.playToken) return false;
 
-    this.currentSource = this.audioContext.createBufferSource();
-    this.currentSource.buffer = buffer;
-    this.currentSource.loop = loop;
+    const source = this.audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.loop = loop;
 
     this.gainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
     this.gainNode.gain.setValueAtTime(
@@ -60,12 +71,16 @@ export class RingtonePlayer {
       this.audioContext.currentTime
     );
 
-    this.currentSource.connect(this.gainNode);
-    this.currentSource.start(0);
+    source.connect(this.gainNode);
+    source.start(0);
+    this.currentSource = source;
     this.isPlaying = true;
 
-    this.currentSource.onended = () => {
-      this.isPlaying = false;
+    source.onended = () => {
+      if (this.currentSource === source) {
+        this.currentSource = null;
+        this.isPlaying = false;
+      }
     };
 
     return true;
@@ -73,7 +88,8 @@ export class RingtonePlayer {
 
   // ─── Stop immediately ────────────────────────────────────────────────────────
   stop() {
-    if (this.currentSource && this.isPlaying) {
+    this.playToken += 1;
+    if (this.currentSource) {
       try {
         this.currentSource.stop();
         this.currentSource.disconnect();
@@ -85,8 +101,9 @@ export class RingtonePlayer {
 
   // ─── Smooth fade-out then stop ───────────────────────────────────────────────
   fadeOut(durationSeconds = 0.6) {
-    if (!this.gainNode || !this.isPlaying) return;
+    if (!this.gainNode || !this.isPlaying || !this.audioContext) return;
     const now = this.audioContext.currentTime;
+    this.gainNode.gain.cancelScheduledValues(now);
     this.gainNode.gain.linearRampToValueAtTime(0, now + durationSeconds);
     setTimeout(() => this.stop(), durationSeconds * 1000);
   }
