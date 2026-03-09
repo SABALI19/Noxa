@@ -31,6 +31,7 @@ const normalizeWordOfDay = (payload) => {
   }
 
   return {
+    id: source.id || source._id || null,
     word: typeof source.word === "string" && source.word.trim() ? source.word.trim() : DEFAULT_WORD_OF_DAY.word,
     meaning:
       typeof source.meaning === "string" && source.meaning.trim()
@@ -44,6 +45,12 @@ const normalizeWordOfDay = (payload) => {
       typeof source.updatedAt === "string" && source.updatedAt.trim()
         ? source.updatedAt
         : DEFAULT_WORD_OF_DAY.updatedAt,
+    createdAt: source.createdAt || source.updatedAt || DEFAULT_WORD_OF_DAY.updatedAt,
+    submittedBy: source.submittedBy || null,
+    status: source.status || "approved",
+    moderatedBy: source.moderatedBy || null,
+    moderatedAt: source.moderatedAt || null,
+    moderationNote: source.moderationNote || "",
   };
 };
 
@@ -140,46 +147,36 @@ export const submitCommunityWord = async (payload) => {
   const normalizedPayload = normalizeWordOfDay({
     ...payload,
     updatedAt: new Date().toISOString(),
+    status: "pending",
   });
 
+  let response;
+
   try {
-    const response = await authFetch(COMMUNITY_WORDS_PATH, {
+    response = await authFetch(COMMUNITY_WORDS_PATH, {
       method: "POST",
       body: JSON.stringify(payload),
     });
-    const json = await parseJsonSafe(response);
-
-    if (!response.ok) {
-      throw new Error(json?.message || "Failed to submit word of the day.");
-    }
-
-    const nextEntries = Array.isArray(json?.data) ? json.data : [...readStoredCommunityWords(), normalizedPayload];
-    persistCommunityWords(nextEntries);
-    persistWordOfDay(getDeterministicFeaturedWord(nextEntries));
-    return normalizedPayload;
   } catch {
-    const nextEntries = [...readStoredCommunityWords(), normalizedPayload];
+    const nextEntries = [normalizedPayload, ...readStoredCommunityWords()];
     persistCommunityWords(nextEntries);
     persistWordOfDay(getDeterministicFeaturedWord(nextEntries));
     return normalizedPayload;
   }
-};
 
-export const updateWordOfDay = async (payload) => {
-  const response = await authFetch(COMMUNITY_WORDS_PATH, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
   const json = await parseJsonSafe(response);
 
   if (!response.ok) {
     throw new Error(json?.message || "Failed to submit word of the day.");
   }
 
-  const nextEntries = Array.isArray(json?.data) ? json.data : [...readStoredCommunityWords(), payload];
+  const createdEntry = normalizeWordOfDay(json);
+  const nextEntries = [createdEntry, ...readStoredCommunityWords().filter((entry) => entry.id !== createdEntry.id)];
   persistCommunityWords(nextEntries);
-  return persistWordOfDay(getDeterministicFeaturedWord(nextEntries));
+  return createdEntry;
 };
+
+export const updateWordOfDay = async (payload) => submitCommunityWord(payload);
 
 export const getCachedWordOfDay = () => readStoredWordOfDay();
 export const getCachedCommunityWords = () => readStoredCommunityWords();

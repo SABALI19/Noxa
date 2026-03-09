@@ -446,7 +446,7 @@ const Dashboard = ({ isSidebarOpen = true }) => {
       setSubmitStatus({
         loading: false,
         error: false,
-        message: "Your word has been added to the community rotation.",
+        message: "Your word was submitted for moderation.",
       });
     } catch (error) {
       setSubmitStatus({
