@@ -99,6 +99,7 @@ const Profile = ({
   const [successMessage, setSuccessMessage]       = useState("");
   const [cropMode, setCropMode]                   = useState(false);
   const [showAvatarPicker, setShowAvatarPicker]   = useState(false);
+  const [showAvatarViewer, setShowAvatarViewer]   = useState(false);
   const [selectedAvatarStyle, setSelectedAvatarStyle] = useState('avataaars');
   const [selectedAvatarSeed, setSelectedAvatarSeed]   = useState(null);
   const [crop, setCrop]                           = useState({ unit: '%', width: 100, height: 100, x: 0, y: 0 });
@@ -185,6 +186,10 @@ const Profile = ({
 
   const handleAvatarClick = () => {
     if (editMode && fileInputRef.current && !cropMode) fileInputRef.current.click();
+  };
+
+  const handleOpenAvatarViewer = () => {
+    setShowAvatarViewer(true);
   };
 
   // ── Avatar picker ──────────────────────────────────────────────────────────
@@ -387,7 +392,7 @@ const Profile = ({
                   <p className="text-gray-600 dark:text-gray-400 mt-1 text-base">View and edit your profile information</p>
                 </div>
                 <button
-                  onClick={() => { setShowProfileModal(false); setEditMode(false); setCropMode(false); setShowAvatarPicker(false); setUploadError(""); }}
+                  onClick={() => { setShowProfileModal(false); setEditMode(false); setCropMode(false); setShowAvatarPicker(false); setShowAvatarViewer(false); setUploadError(""); }}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   <FiX className="text-xl text-gray-600 dark:text-gray-300" />
@@ -427,8 +432,14 @@ const Profile = ({
                     <div className="relative mb-4 group">
                       <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
                       <div
-                        className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg relative ${editMode ? 'cursor-pointer' : ''}`}
-                        onClick={handleAvatarClick}
+                        className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg relative ${editMode ? 'cursor-pointer' : 'cursor-zoom-in'}`}
+                        onClick={() => {
+                          if (editMode) {
+                            handleAvatarClick();
+                            return;
+                          }
+                          handleOpenAvatarViewer();
+                        }}
                       >
                         {(avatarPreview || currentUser.avatar) ? (
                           <img
@@ -475,6 +486,9 @@ const Profile = ({
                         <FiUser className="text-base" />
                         {showAvatarPicker ? 'Hide ' : 'Choose Avatar'}
                       </button>
+                    )}
+                    {!editMode && (
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">Click avatar to view full image</p>
                     )}
                   </div>
 
@@ -647,6 +661,34 @@ const Profile = ({
                   </form>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAvatarViewer && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[1200] flex items-center justify-center p-4"
+          onClick={() => setShowAvatarViewer(false)}
+        >
+          <div
+            className="relative max-w-lg w-full bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700 p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setShowAvatarViewer(false)}
+              className="absolute top-3 right-3 p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Close avatar viewer"
+            >
+              <FiX className="text-gray-700 dark:text-gray-200" />
+            </button>
+            <div className="pt-6">
+              <img
+                src={avatarPreview || currentUser?.avatar || displayImage}
+                alt="Profile avatar preview"
+                className="w-full h-auto max-h-[70vh] object-contain rounded-xl"
+              />
             </div>
           </div>
         </div>

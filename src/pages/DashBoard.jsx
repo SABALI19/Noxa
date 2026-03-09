@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { MdOutlineWavingHand } from "react-icons/md";
-import { FiActivity, FiBell, FiCheckSquare, FiTarget, FiUser } from "react-icons/fi";
+import { FiActivity, FiBell, FiCheckSquare, FiChevronDown, FiChevronUp, FiTarget, FiUser } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 import GoalCard from "../components/cards/GoalCard";
 import TaskCard from "../components/cards/TaskCard";
@@ -25,6 +25,8 @@ const Dashboard = ({ isSidebarOpen = true }) => {
   const { notifications } = useNotifications();
   const [isMobile, setIsMobile] = useState(false);
   const [goals, setGoals] = useState(() => getGoals());
+  const [showAllActivities, setShowAllActivities] = useState(false);
+  const [showAiInsights, setShowAiInsights] = useState(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -126,22 +128,27 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     goal: {
       icon: FiTarget,
       badgeClass: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+      rowClass: "hover:border-teal-300 dark:hover:border-teal-700/60",
     },
     task: {
       icon: FiCheckSquare,
       badgeClass: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+      rowClass: "hover:border-green-300 dark:hover:border-green-700/60",
     },
     reminder: {
       icon: FiBell,
       badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+      rowClass: "hover:border-amber-300 dark:hover:border-amber-700/60",
     },
     account: {
       icon: FiUser,
       badgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+      rowClass: "hover:border-blue-300 dark:hover:border-blue-700/60",
     },
     activity: {
       icon: FiActivity,
       badgeClass: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+      rowClass: "hover:border-gray-300 dark:hover:border-gray-600",
     },
   };
 
@@ -158,6 +165,11 @@ const Dashboard = ({ isSidebarOpen = true }) => {
       };
     });
   }, [notifications]);
+
+  const visibleActivities = useMemo(() => {
+    if (showAllActivities) return recentActivities;
+    return recentActivities.slice(0, 1);
+  }, [recentActivities, showAllActivities]);
 
   const activeGoals = useMemo(() => goals.filter((goal) => !goal.completed), [goals]);
 
@@ -215,7 +227,7 @@ const Dashboard = ({ isSidebarOpen = true }) => {
       </div>
 
       <div className="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Recent Activity</h2>
             {user && (
@@ -227,7 +239,7 @@ const Dashboard = ({ isSidebarOpen = true }) => {
 
           <div className="space-y-3">
             {recentActivities.length > 0 ? (
-              recentActivities.map((activity) => {
+              visibleActivities.map((activity) => {
                 const meta = activityTypeMeta[activity.type] || activityTypeMeta.activity;
                 const Icon = meta.icon;
 
@@ -236,7 +248,7 @@ const Dashboard = ({ isSidebarOpen = true }) => {
                     key={activity.id}
                     type="button"
                     onClick={() => handleActivityClick(activity.originPath)}
-                    className="w-full text-left flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/80"
+                    className={`w-full text-left flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-100 dark:border-gray-700 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/90 ${meta.rowClass}`}
                   >
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center ${meta.badgeClass}`}>
                       <Icon className="text-sm" />
@@ -257,9 +269,60 @@ const Dashboard = ({ isSidebarOpen = true }) => {
               </div>
             )}
           </div>
+
+          {recentActivities.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setShowAllActivities((prev) => !prev)}
+              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-[#3D9B9B] dark:text-teal-300 hover:text-[#2f7878] dark:hover:text-teal-200 transition-colors"
+            >
+              {showAllActivities ? (
+                <>
+                  <FiChevronUp />
+                  Show fewer activities
+                </>
+              ) : (
+                <>
+                  <FiChevronDown />
+                  Show {recentActivities.length - 1} more activities
+                </>
+              )}
+            </button>
+          )}
         </div>
 
-        <AIInsights goals={activeGoals} tasks={tasks} onRefresh={() => {}} />
+        <div>
+          <div className="mb-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowAiInsights((prev) => !prev)}
+              className="inline-flex items-center gap-2 text-sm font-medium text-[#3D9B9B] dark:text-teal-300 hover:text-[#2f7878] dark:hover:text-teal-200 transition-colors"
+            >
+              {showAiInsights ? (
+                <>
+                  <FiChevronUp />
+                  Hide AI Insights
+                </>
+              ) : (
+                <>
+                  <FiChevronDown />
+                  Show AI Insights
+                </>
+              )}
+            </button>
+          </div>
+
+          {showAiInsights ? (
+            <AIInsights goals={activeGoals} tasks={tasks} onRefresh={() => {}} />
+          ) : (
+            <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">AI Insights</h2>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                Insights are collapsed. Expand to run analysis and view recommendations.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

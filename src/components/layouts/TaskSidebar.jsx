@@ -474,7 +474,7 @@ const TaskSidebar = () => {
   if (isCollapsed && !isMobile) {
     return (
       <>
-        <div className="w-16 h-full bg-[#f2f5f7] dark:bg-gray-800 shadow-md shadow-black overflow-y-auto transition-all duration-300 hidden md:block">
+        <div className="w-16 h-full rounded-r-2xl bg-[#f2f5f7] dark:bg-gray-800 shadow-md shadow-black overflow-y-auto transition-all duration-300 hidden md:block">
           <div className="p-4 flex flex-col items-center">
             <Button
               variant="icon"

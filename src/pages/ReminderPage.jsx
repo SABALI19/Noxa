@@ -133,7 +133,7 @@ const ReminderPage = () => {
       case 'upcoming': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'completed': return 'bg-green-100 text-green-800 border-green-200';
       case 'missed': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700';
     }
   };
 
@@ -158,7 +158,7 @@ const ReminderPage = () => {
           <FiMail className="w-3 h-3 text-purple-500" />
         </div>
       );
-      default: return <FiBell className="w-4 h-4 text-gray-500" />;
+      default: return <FiBell className="w-4 h-4 text-gray-500 dark:text-gray-400" />;
     }
   };
 
@@ -379,14 +379,14 @@ const ReminderPage = () => {
   const activeReminderTracking = getActiveReminderTracking();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <button 
               onClick={() => navigate(getBackDestination())}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors group"
             >
               <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
               <span className="font-medium">
@@ -401,10 +401,10 @@ const ReminderPage = () => {
                 <FiBell className="text-2xl text-teal-600" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
                    Reminders
                 </h1>
-                <p className="text-gray-600 text-sm mt-1">
+                <p className="text-gray-600 dark:text-gray-300 text-sm mt-1">
                   Automated reminders with tracking analytics
                 </p>
               </div>
@@ -425,55 +425,55 @@ const ReminderPage = () => {
 
         {/* Enhanced Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-8">
-          <div className="bg-white border border-gray-200 rounded-xl p-4 hover:border-teal-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 hover:border-teal-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Reminders</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Reminders</p>
                 <p className="text-2xl font-bold text-teal-600">{stats.total}</p>
               </div>
               <div className="w-3 h-3 rounded-full bg-teal-500"></div>
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 hover:border-blue-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Due Today</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Due Today</p>
                 <p className="text-2xl font-bold text-blue-600">{stats.today}</p>
               </div>
               <FiBell className="text-blue-500" />
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 hover:border-purple-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 hover:border-purple-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Upcoming</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Upcoming</p>
                 <p className="text-2xl font-bold text-purple-600">{stats.upcoming}</p>
               </div>
               <FiCalendar className="text-purple-500" />
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 hover:border-yellow-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 hover:border-yellow-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Completed</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Completed</p>
                 <p className="text-2xl font-bold text-yellow-600">{stats.completed}</p>
               </div>
               <FiCheckCircle className="text-yellow-500" />
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 hover:border-green-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 hover:border-green-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Active Tasks</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Active Tasks</p>
                 <p className="text-2xl font-bold text-green-600">{stats.total - stats.completed}</p>
               </div>
               <FiAlertCircle className="text-green-500" />
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4 hover:border-red-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 hover:border-red-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Missed</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Missed</p>
                 <p className="text-2xl font-bold text-red-600">{stats.missed}</p>
               </div>
               <FiAlertCircle className="text-red-500" />
@@ -482,7 +482,7 @@ const ReminderPage = () => {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 mb-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex-1 min-w-[280px] w-full">
               <div className="relative">
@@ -491,16 +491,16 @@ const ReminderPage = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search reminders..."
-                  className="w-full px-4 py-3 pl-11 border border-gray-300 rounded-xl focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 pl-11 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-teal-400 dark:focus:ring-teal-500/30 focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 />
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
               </div>
             </div>
             
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <div className="flex items-center gap-2">
-                <FiFilter className="text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">Filter:</span>
+                <FiFilter className="text-gray-400 dark:text-gray-500" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Filter:</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {['all', 'today', 'upcoming', 'completed', 'missed'].map((filterType) => (
@@ -510,7 +510,7 @@ const ReminderPage = () => {
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                       filter === filterType
                         ? 'bg-teal-400 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
@@ -540,8 +540,8 @@ const ReminderPage = () => {
                     return (
                       <div 
                         key={reminder.id}
-                        className={`bg-white border border-gray-200 rounded-xl p-4 mb-4 hover:border-teal-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer ${
-                          activeReminder?.id === reminder.id ? 'border-teal-400 shadow-md bg-teal-50/30' : ''
+                        className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 mb-4 hover:border-teal-400 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer ${
+                          activeReminder?.id === reminder.id ? 'border-teal-400 shadow-md bg-teal-50/30 dark:bg-teal-900/20' : ''
                         }`}
                         onClick={() => handleReminderClick(reminder)}
                       >
@@ -558,7 +558,7 @@ const ReminderPage = () => {
                                   className={`mt-1 shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                                     reminder.status === 'completed' 
                                       ? 'bg-green-500 border-green-500' 
-                                      : 'border-gray-300 hover:border-green-500 hover:bg-green-50'
+                                      : 'border-gray-300 dark:border-gray-700 hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
                                   }`}
                                 >
                                   {reminder.status === 'completed' && (
@@ -573,13 +573,13 @@ const ReminderPage = () => {
                                         type="text"
                                         value={editForm.title}
                                         onChange={(e) => setEditForm({...editForm, title: e.target.value})}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-400 dark:focus:ring-teal-500/30 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                         placeholder="Title"
                                       />
                                       <textarea
                                         value={editForm.description}
                                         onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-400 dark:focus:ring-teal-500/30 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                         placeholder="Description"
                                         rows="2"
                                       />
@@ -587,7 +587,7 @@ const ReminderPage = () => {
                                         <select
                                           value={editForm.priority}
                                           onChange={(e) => setEditForm({...editForm, priority: e.target.value})}
-                                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent flex-1"
+                                          className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-400 dark:focus:ring-teal-500/30 focus:border-transparent flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                         >
                                           <option value="high">High</option>
                                           <option value="medium">Medium</option>
@@ -596,7 +596,7 @@ const ReminderPage = () => {
                                         <select
                                           value={editForm.status}
                                           onChange={(e) => setEditForm({...editForm, status: e.target.value})}
-                                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent flex-1"
+                                          className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-400 dark:focus:ring-teal-500/30 focus:border-transparent flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                                         >
                                           <option value="today">Today</option>
                                           <option value="upcoming">Upcoming</option>
@@ -612,7 +612,7 @@ const ReminderPage = () => {
                                         </button>
                                         <button
                                           onClick={handleCancelEdit}
-                                          className="flex items-center gap-2 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm rounded-lg transition-colors"
+                                          className="flex items-center gap-2 px-3 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-sm rounded-lg transition-colors"
                                         >
                                           <FiXCircle className="w-3 h-3" /> Cancel
                                         </button>
@@ -623,7 +623,7 @@ const ReminderPage = () => {
                                       <div>
                                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
                                           <h3 className={`font-medium ${
-                                            reminder.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-900'
+                                            reminder.status === 'completed' ? 'text-gray-500 dark:text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'
                                           }`}>
                                             {reminder.title}
                                           </h3>
@@ -633,18 +633,18 @@ const ReminderPage = () => {
                                         </div>
                                       </div>
                                       
-                                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-2">
+                                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-300 mt-2">
                                         {/* Time */}
                                         <div className="flex items-center gap-1.5">
-                                          <FiClock className="text-gray-400" size={14} />
+                                          <FiClock className="text-gray-400 dark:text-gray-500" size={14} />
                                           <span>{formatDateTime(reminder.reminderTime)}</span>
-                                          <span className="text-xs text-gray-500">({formatRelativeTime(reminder.reminderTime)})</span>
+                                          <span className="text-xs text-gray-500 dark:text-gray-400">({formatRelativeTime(reminder.reminderTime)})</span>
                                         </div>
                                         
                                         {/* Frequency */}
                                         {reminder.frequency !== 'once' && (
                                           <div className="flex items-center gap-1.5">
-                                            <FiRepeat className="text-gray-400" size={14} />
+                                            <FiRepeat className="text-gray-400 dark:text-gray-500" size={14} />
                                             <span className="capitalize">{reminder.frequency}</span>
                                           </div>
                                         )}
@@ -681,7 +681,7 @@ const ReminderPage = () => {
                                         )}
                                       </div>
                                       
-                                      <p className="text-sm text-gray-500 mt-2">{reminder.note}</p>
+                                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{reminder.note}</p>
                                     </>
                                   )}
                                 </div>
@@ -716,14 +716,14 @@ const ReminderPage = () => {
                                   <div className="flex gap-1">
                                     <button
                                       onClick={(e) => handleEditClick(reminder, e)}
-                                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                                     >
                                       <FiEdit2 className="text-lg" />
                                     </button>
                                     
                                     <button
                                       onClick={(e) => handleDismiss(reminder.id, e)}
-                                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                                     >
                                       <FiTrash2 className="text-lg" />
                                     </button>
@@ -738,10 +738,10 @@ const ReminderPage = () => {
                   })}
                 </div>
               ) : (
-                <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-                  <FiBell className="text-4xl text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No reminders found</h3>
-                  <p className="text-gray-600 mb-6">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-8 text-center">
+                  <FiBell className="text-4xl text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No reminders found</h3>
+                  <p className="text-gray-600 dark:text-gray-300 mb-6">
                     {searchQuery 
                       ? `No reminders match "${searchQuery}"`
                       : filter === 'all' 
@@ -765,7 +765,7 @@ const ReminderPage = () => {
               <div className="mt-4 flex justify-end">
                 <button
                   onClick={handleClearCompleted}
-                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   Clear completed reminders
                 </button>
@@ -777,12 +777,12 @@ const ReminderPage = () => {
           <div className="space-y-6">
             {/* Selected Reminder Details */}
             {activeReminder ? (
-              <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Reminder Details</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Reminder Details</h3>
                   <button
                     onClick={() => setActiveReminder(null)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                   >
                     <FiX className="text-lg" />
                   </button>
@@ -790,46 +790,46 @@ const ReminderPage = () => {
                 
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-semibold text-gray-900 text-lg mb-2">{activeReminder.title}</h4>
-                    <p className="text-gray-600">{activeReminder.note}</p>
+                    <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-lg mb-2">{activeReminder.title}</h4>
+                    <p className="text-gray-600 dark:text-gray-300">{activeReminder.note}</p>
                   </div>
                   
                   {/* Tracking Stats */}
                   {activeReminderTracking && activeReminderTracking.totalNotifications > 0 && (
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <h5 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                      <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
                         <FiBarChart2 className="text-blue-500" />
                         Task Tracking Stats
                       </h5>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="text-center">
-                          <p className="text-xs text-gray-500">Total Notifications</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Total Notifications</p>
                           <p className="text-xl font-bold text-blue-600">
                             {activeReminderTracking.totalNotifications || 0}
                           </p>
                         </div>
                         <div className="text-center">
-                          <p className="text-xs text-gray-500">Snoozes</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Snoozes</p>
                           <p className="text-xl font-bold text-amber-600">
                             {activeReminderTracking.snoozedCount || 0}
                           </p>
                         </div>
                         <div className="text-center">
-                          <p className="text-xs text-gray-500">Last Viewed</p>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Last Viewed</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {activeReminderTracking.viewedAt ? 
                               new Date(activeReminderTracking.viewedAt).toLocaleDateString() : 
                               'Never'}
                           </p>
                         </div>
                         <div className="text-center">
-                          <p className="text-xs text-gray-500">Completed</p>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Completed</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {activeReminderTracking.completedAt ? 'Yes' : 'No'}
                           </p>
                         </div>
                       </div>
-                      <div className="mt-3 pt-3 border-t border-blue-100">
+                      <div className="mt-3 pt-3 border-t border-blue-100 dark:border-blue-900/40">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -846,8 +846,8 @@ const ReminderPage = () => {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Due Date</p>
-                      <p className="font-medium text-gray-900">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Due Date</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
                         {new Date(activeReminder.dueDate).toLocaleDateString('en-US', {
                           weekday: 'long',
                           year: 'numeric',
@@ -857,8 +857,8 @@ const ReminderPage = () => {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Reminder Time</p>
-                      <p className="font-medium text-gray-900">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Reminder Time</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">
                         {formatDateTime(activeReminder.reminderTime)}
                       </p>
                     </div>
@@ -866,37 +866,37 @@ const ReminderPage = () => {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Priority</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Priority</p>
                       <div className="flex items-center gap-2">
                         <div className={`w-3 h-3 rounded-full ${getPriorityColor(activeReminder.priority)}`}></div>
-                        <span className="font-medium text-gray-900 capitalize">
+                        <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
                           {activeReminder.priority} Priority
                         </span>
                       </div>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Category</p>
-                      <span className="font-medium text-gray-900 capitalize">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Category</p>
+                      <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
                         {activeReminder.category}
                       </span>
                     </div>
                   </div>
                   
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Frequency</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Frequency</p>
                     <div className="flex items-center gap-2">
-                      <FiRepeat className="text-gray-400" />
-                      <span className="font-medium text-gray-900 capitalize">
+                      <FiRepeat className="text-gray-400 dark:text-gray-500" />
+                      <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
                         {activeReminder.frequency === 'once' ? 'One-time reminder' : `${activeReminder.frequency} reminders`}
                       </span>
                     </div>
                   </div>
                   
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Notification Method</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Notification Method</p>
                     <div className="flex items-center gap-2">
                       {getNotificationIcon(activeReminder.notificationMethod)}
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
                         {activeReminder.notificationMethod === 'app' && 'App Notification'}
                         {activeReminder.notificationMethod === 'email' && 'Email'}
                         {activeReminder.notificationMethod === 'both' && 'App & Email'}
@@ -904,7 +904,7 @@ const ReminderPage = () => {
                     </div>
                   </div>
                   
-                  <div className="pt-4 border-t border-gray-200">
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button
                         variant="primary"
@@ -927,11 +927,11 @@ const ReminderPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
                 <div className="text-center p-4">
-                  <FiBell className="text-3xl text-gray-300 mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No reminder selected</h3>
-                  <p className="text-gray-600 mb-4">
+                  <FiBell className="text-3xl text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No reminder selected</h3>
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
                     Click on a reminder from the list to view its details here
                   </p>
                 </div>
@@ -939,102 +939,102 @@ const ReminderPage = () => {
             )}
 
             {/* Quick Actions */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <button
                   onClick={handleSetReminder}
-                  className="w-full flex items-center justify-between p-3 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors group"
+                  className="w-full flex items-center justify-between p-3 bg-teal-50 dark:bg-teal-900/20 hover:bg-teal-100 dark:hover:bg-teal-900/35 rounded-lg transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-teal-100 rounded-lg group-hover:scale-110 transition-transform">
+                    <div className="p-2 bg-teal-100 dark:bg-teal-900/35 rounded-lg group-hover:scale-110 transition-transform">
                       <FiPlus className="text-teal-600" />
                     </div>
                     <div className="text-left">
-                      <p className="font-medium text-gray-900">Set a Reminder</p>
-                      <p className="text-sm text-gray-600">Create a new reminder for your tasks</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">Set a Reminder</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Create a new reminder for your tasks</p>
                     </div>
                   </div>
-                  <FiChevronRight className="text-gray-400" />
+                  <FiChevronRight className="text-gray-400 dark:text-gray-500" />
                 </button>
                 
                 <button
                   onClick={() => navigate('/tasks')}
-                  className="w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group"
+                  className="w-full flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/35 rounded-lg transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg group-hover:scale-110 transition-transform">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/35 rounded-lg group-hover:scale-110 transition-transform">
                       <FiBell className="text-blue-600" />
                     </div>
                     <div className="text-left">
-                      <p className="font-medium text-gray-900">Manage Tasks</p>
-                      <p className="text-sm text-gray-600">View and edit all your tasks</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">Manage Tasks</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">View and edit all your tasks</p>
                     </div>
                   </div>
-                  <FiChevronRight className="text-gray-400" />
+                  <FiChevronRight className="text-gray-400 dark:text-gray-500" />
                 </button>
                 
                 <button
                   onClick={() => navigate('/analytics')}
-                  className="w-full flex items-center justify-between p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors group"
+                  className="w-full flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/35 rounded-lg transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-100 rounded-lg group-hover:scale-110 transition-transform">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/35 rounded-lg group-hover:scale-110 transition-transform">
                       <FiBarChart2 className="text-purple-600" />
                     </div>
                     <div className="text-left">
-                      <p className="font-medium text-gray-900">View Analytics</p>
-                      <p className="text-sm text-gray-600">See tracking statistics</p>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">View Analytics</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">See tracking statistics</p>
                     </div>
                   </div>
-                  <FiChevronRight className="text-gray-400" />
+                  <FiChevronRight className="text-gray-400 dark:text-gray-500" />
                 </button>
               </div>
             </div>
 
             {/* Reminder Settings */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Notification Settings</h3>
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Notification Settings</h3>
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                   <div>
-                    <p className="font-medium text-gray-900">Push Notifications</p>
-                    <p className="text-sm text-gray-500">Receive app notifications</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">Push Notifications</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Receive app notifications</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-400/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
+                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-400/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-100 after:border-gray-300 dark:after:border-gray-500 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
                   </label>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                   <div>
-                    <p className="font-medium text-gray-900">Email Notifications</p>
-                    <p className="text-sm text-gray-500">Receive email reminders</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">Email Notifications</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Receive email reminders</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-400/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
+                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-400/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-100 after:border-gray-300 dark:after:border-gray-500 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
                   </label>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                   <div>
-                    <p className="font-medium text-gray-900">Track Views</p>
-                    <p className="text-sm text-gray-500">Monitor when users view tasks</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">Track Views</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Monitor when users view tasks</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-400/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
+                    <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-400/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-100 after:border-gray-300 dark:after:border-gray-500 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
                   </label>
                 </div>
                 
                 <div className="flex flex-col sm:flexRow items-start sm:items-center justify-between gap-2">
                   <div>
-                    <p className="font-medium text-gray-900">Default Snooze Time</p>
-                    <p className="text-sm text-gray-500">When you snooze a reminder</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">Default Snooze Time</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">When you snooze a reminder</p>
                   </div>
-                  <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-400 focus:border-transparent outline-none w-full sm:w-auto">
+                  <select className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-400 dark:focus:ring-teal-500/30 focus:border-transparent outline-none w-full sm:w-auto bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                     <option value="30">30 minutes</option>
                     <option value="60">1 hour</option>
                     <option value="120">2 hours</option>
@@ -1047,14 +1047,14 @@ const ReminderPage = () => {
         </div>
 
         {/* How Automated Reminders Work Section */}
-        <div className="mt-8 bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">How Automated Reminders Work</h3>
+        <div className="mt-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">How Automated Reminders Work</h3>
           <div className="space-y-3">
             <div className="flex items-start gap-3">
               <div className="w-6 h-6 rounded-full bg-[#3D9B9B] text-white flex items-center justify-center text-sm font-medium">
                 1
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 Create tasks with "Automate Reminders" enabled in the Task Manager
               </p>
             </div>
@@ -1062,7 +1062,7 @@ const ReminderPage = () => {
               <div className="w-6 h-6 rounded-full bg-[#3D9B9B] text-white flex items-center justify-center text-sm font-medium">
                 2
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 Reminders will appear here based on your frequency and timing settings
               </p>
             </div>
@@ -1070,7 +1070,7 @@ const ReminderPage = () => {
               <div className="w-6 h-6 rounded-full bg-[#3D9B9B] text-white flex items-center justify-center text-sm font-medium">
                 3
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 Manage reminders: snooze, complete, or view the associated task
               </p>
             </div>
@@ -1078,11 +1078,11 @@ const ReminderPage = () => {
         </div>
 
         {/* Bottom Back Button */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-800">
           <div className="flex justify-center">
             <button 
               onClick={() => navigate(getBackDestination())}
-              className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors group"
+              className="flex items-center gap-2 px-6 py-3 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors group"
             >
               <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
               <span className="font-medium">

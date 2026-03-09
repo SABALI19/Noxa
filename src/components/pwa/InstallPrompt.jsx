@@ -83,7 +83,7 @@ const InstallPrompt = () => {
   };
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm z-[120]">
+    <div className="fixed bottom-4 left-4 right-4 md:left-4 md:right-4 md:max-w-sm z-[120]">
       <div className="rounded-xl border border-teal-200 bg-white shadow-lg p-4">
         <div className="flex items-start justify-between gap-3">
           <div>

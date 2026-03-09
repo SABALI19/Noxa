@@ -28,7 +28,7 @@ const ReminderCard = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm h-full cursor-pointer hover:shadow-md transition-shadow border border-gray-200 dark:border-gray-700">
+    <div className="bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm h-full cursor-pointer hover:shadow-md transition-all border border-gray-200 dark:border-gray-800 hover:border-yellow-300 dark:hover:border-yellow-700/60">
       <div 
         className="flex items-center justify-between mb-3"
         onClick={handleViewAllClick}
@@ -38,12 +38,12 @@ const ReminderCard = ({
             <FiBell className="text-xl text-yellow-600 dark:text-yellow-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-800 dark:text-gray-300">Reminders</h3>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-100">Reminders</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">Stay on track</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-500">
+          <span className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
             {totalReminders}
           </span>
           <FiChevronRight className="text-gray-400 dark:text-gray-500" />
@@ -66,7 +66,7 @@ const ReminderCard = ({
           <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Reminders for today</p>
         </div>
 
-        <div className="px-1 py-1">
+        <div className="px-1 py-1 rounded-lg bg-gray-50 dark:bg-gray-800/70 border border-transparent dark:border-gray-700/70">
           <div className="flex justify-between items-center text-xs">
             <span className="text-gray-500 dark:text-gray-400">Upcoming</span>
             <span className="font-medium text-gray-700 dark:text-gray-300">{upcomingCount}</span>
