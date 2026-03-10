@@ -230,7 +230,13 @@ const loadSocketScript = (scriptUrl) => {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export const NotificationProvider = ({ children }) => {
-  const { token: authTokenFromContext, isAuthenticated, loading: authLoading } = useAuth();
+  const {
+    token: authTokenFromContext,
+    isAuthenticated,
+    loading: authLoading,
+    user,
+    updateProfile,
+  } = useAuth();
 
   const [notifications, setNotifications] = useState(getInitialNotifications);
   const [socketConnected, setSocketConnected] = useState(false);
@@ -248,6 +254,7 @@ export const NotificationProvider = ({ children }) => {
   const pushEndpointRef = useRef('');
   const vapidPublicKeyRef = useRef('');
   const ringtoneInitialisedRef = useRef(false);
+  const syncedRingtoneRef = useRef('');
 
   // Stable ref always pointing to the latest playNotificationSound closure.
   // The BroadcastChannel listener captures this ref once on mount, but always
@@ -304,6 +311,41 @@ export const NotificationProvider = ({ children }) => {
     }
     ringtoneManager.setVolume(notificationSettings.ringtoneVolume ?? 0.8);
   }, [notificationSettings.defaultSound, notificationSettings.ringtoneVolume]);
+
+  useEffect(() => {
+    const serverSelectedRingtone = normalizeText(user?.selectedRingtone, '');
+    if (!serverSelectedRingtone || !RINGTONE_CATALOGUE[serverSelectedRingtone]) return;
+
+    syncedRingtoneRef.current = serverSelectedRingtone;
+    setNotificationSettings((prev) => {
+      if (prev.defaultSound === serverSelectedRingtone) {
+        return prev;
+      }
+      return { ...prev, defaultSound: serverSelectedRingtone };
+    });
+    ringtoneManager.select(serverSelectedRingtone);
+  }, [user?.selectedRingtone]);
+
+  useEffect(() => {
+    if (!isAuthenticated || authLoading) return;
+    if (!RINGTONE_CATALOGUE[notificationSettings.defaultSound]) return;
+    if (user?.selectedRingtone === notificationSettings.defaultSound) {
+      syncedRingtoneRef.current = notificationSettings.defaultSound;
+      return;
+    }
+    if (syncedRingtoneRef.current === notificationSettings.defaultSound) return;
+
+    syncedRingtoneRef.current = notificationSettings.defaultSound;
+    updateProfile({ selectedRingtone: notificationSettings.defaultSound }).catch(() => {
+      syncedRingtoneRef.current = normalizeText(user?.selectedRingtone, '');
+    });
+  }, [
+    authLoading,
+    isAuthenticated,
+    notificationSettings.defaultSound,
+    updateProfile,
+    user?.selectedRingtone,
+  ]);
 
   // ─── Persist settings ─────────────────────────────────────────────────────
   useEffect(() => {

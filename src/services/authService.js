@@ -51,6 +51,7 @@ const normalizeUser = (candidate = {}) => ({
   email: candidate.email || "",
   role: candidate.role || "Member",
   avatar: candidate.avatar || candidate.profileImage || null,
+  selectedRingtone: candidate.selectedRingtone || "Default",
   createdAt: candidate.createdAt || new Date().toISOString(),
   lastLogin: new Date().toISOString(),
 });

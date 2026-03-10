@@ -20,6 +20,7 @@ const enrichUser = (userData = {}) => ({
   id: userData.id || userData._id || "",
   username: userData.username || "",
   role: userData.role || "Member",
+  selectedRingtone: userData.selectedRingtone || "Default",
   createdAt: userData.createdAt || new Date().toISOString(),
   lastLogin: userData.lastLogin || new Date().toISOString(),
 });
