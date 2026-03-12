@@ -11,16 +11,16 @@
   "theme_color": "#3d9b9b",
   "icons": [
     {
-      "src": "/logo-favicon-192.png",
-      "sizes": "192x192",
+      "src": "/logo-icon-dark-transparent.png",
+      "sizes": "2048x2048",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/logo-icon-Copy.png",
-      "sizes": "512x512",
+      "sizes": "2048x2048",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ],
   "screenshots": [
