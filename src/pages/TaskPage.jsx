@@ -1,6 +1,6 @@
 // src/pages/TaskPage.jsx - UPDATED BACK BUTTON
 import { Grid3x3, List } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   FiPlus,
   FiCheckSquare,
@@ -12,7 +12,7 @@ import {
   FiCheckCircle,
   FiBarChart2
 } from "react-icons/fi";
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import TaskFormModal from '../forms/TaskFormModal.jsx';
 import { useNotificationTracking } from '../hooks/useNotificationTracking.jsx';
@@ -21,6 +21,7 @@ import { useTasks } from '../context/TaskContext.jsx';
 
 const TaskPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { trackView, trackCompletion, getNotificationStats } = useNotificationTracking();
   
   // Get tasks and operations from context - including filtered tasks
@@ -102,6 +103,25 @@ const TaskPage = () => {
   const sortedCompleted = sortTaskList(filteredCompletedTasks);
   const sortedOverdue = sortTaskList(filteredOverdueTasks);
   const sortedInProgress = sortTaskList(filteredInProgressTasks);
+
+  useEffect(() => {
+    if (!location.hash?.startsWith('#task-')) return;
+
+    const targetId = decodeURIComponent(location.hash.slice(1));
+    const scrollToTask = () => {
+      const targetElement = document.getElementById(targetId);
+      if (!targetElement) return;
+
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      targetElement.classList.add('ring-2', 'ring-teal-400', 'ring-offset-2');
+      window.setTimeout(() => {
+        targetElement.classList.remove('ring-2', 'ring-teal-400', 'ring-offset-2');
+      }, 2000);
+    };
+
+    const timerId = window.setTimeout(scrollToTask, 150);
+    return () => window.clearTimeout(timerId);
+  }, [location.hash, filteredTasks]);
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -223,6 +243,12 @@ const TaskPage = () => {
     trackView(task.id, 'task');
   };
 
+  const handleTaskTrackingShortcut = (task, event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    handleViewTracking(task, event);
+  };
+
   // Handle reset filters
   const handleResetFilters = () => {
     resetFilters();
@@ -282,12 +308,19 @@ const TaskPage = () => {
   const TaskItem = ({ task }) => (
     <div 
       id={`task-${task.id}`}
-      className={`p-4 mb-3 last:mb-0 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors border-l-4 ${getCategoryBorderColor(task.category)}`}
+      role="button"
+      tabIndex={0}
+      onClick={(e) => handleViewTracking(task, e)}
+      onKeyDown={(e) => handleTaskTrackingShortcut(task, e)}
+      className={`p-4 mb-3 last:mb-0 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors border-l-4 cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 ${getCategoryBorderColor(task.category)}`}
     >
       <div className="flex items-start">
         {/* Checkbox */}
         <button
-          onClick={() => toggleTaskCompletion(task.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleTaskCompletion(task.id);
+          }}
           className={`mt-1 shrink-0 w-5 h-5 rounded border flex items-center justify-center mr-4 ${
             task.completed 
               ? 'bg-green-500 border-green-500' 
@@ -357,7 +390,10 @@ const TaskPage = () => {
               
               {task.status !== 'in_progress' && !task.completed && (
                 <button 
-                  onClick={() => updateTaskStatus(task.id, 'in_progress')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateTaskStatus(task.id, 'in_progress');
+                  }}
                   className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                   title="Mark as in progress"
                 >
@@ -368,14 +404,20 @@ const TaskPage = () => {
               )}
               {/* Edit Button - Now Functional */}
               <button 
-                onClick={() => openEditTaskModal(task)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEditTaskModal(task);
+                }}
                 className="p-2 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
                 title="Edit task"
               >
                 <FiEdit className="text-lg" />
               </button>
               <button 
-                onClick={() => deleteTaskFromContext(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteTaskFromContext(task.id);
+                }}
                 className="p-2 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
               >
                 <FiTrash2 className="text-lg" />
@@ -391,11 +433,18 @@ const TaskPage = () => {
   const TaskCard = ({ task }) => (
     <div 
       id={`task-${task.id}`}
-      className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors border border-gray-200 dark:border-gray-700 border-l-4 ${getCategoryBorderColor(task.category)}`}
+      role="button"
+      tabIndex={0}
+      onClick={(e) => handleViewTracking(task, e)}
+      onKeyDown={(e) => handleTaskTrackingShortcut(task, e)}
+      className={`bg-gray-50 dark:bg-gray-800 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors border border-gray-200 dark:border-gray-700 border-l-4 cursor-pointer focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 ${getCategoryBorderColor(task.category)}`}
     >
       <div className="flex justify-between items-start mb-3">
         <button
-          onClick={() => toggleTaskCompletion(task.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleTaskCompletion(task.id);
+          }}
           className={`shrink-0 w-2 h-2 rounded border flex items-center justify-center ${
             task.completed 
               ? 'bg-green-500 border-green-500' 
@@ -418,7 +467,10 @@ const TaskPage = () => {
           
           {task.status !== 'in_progress' && !task.completed && (
             <button 
-              onClick={() => updateTaskStatus(task.id, 'in_progress')}
+              onClick={(e) => {
+                e.stopPropagation();
+                updateTaskStatus(task.id, 'in_progress');
+              }}
               className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20"
               title="Mark as in progress"
             >
@@ -429,14 +481,20 @@ const TaskPage = () => {
           )}
           {/* Edit Button - Now Functional */}
           <button 
-            onClick={() => openEditTaskModal(task)}
+            onClick={(e) => {
+              e.stopPropagation();
+              openEditTaskModal(task);
+            }}
             className="p-1 text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded hover:bg-blue-100 dark:hover:bg-blue-900/20"
             title="Edit task"
           >
             <FiEdit className="text-sm" />
           </button>
           <button 
-            onClick={() => deleteTaskFromContext(task.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteTaskFromContext(task.id);
+            }}
             className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 rounded hover:bg-red-100 dark:hover:bg-red-900/20"
           >
             <FiTrash2 className="text-sm" />

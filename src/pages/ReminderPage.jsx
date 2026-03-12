@@ -370,6 +370,15 @@ const ReminderPage = () => {
     }
   };
 
+  const handleViewTask = (reminder, e) => {
+    e?.stopPropagation();
+    if (!reminder?.taskId) return;
+
+    navigate(`/tasks#task-${encodeURIComponent(String(reminder.taskId))}`, {
+      state: { from: location.pathname }
+    });
+  };
+
   // Get tracking stats for active reminder
   const getActiveReminderTracking = () => {
     if (!activeReminder) return null;
@@ -692,13 +701,21 @@ const ReminderPage = () => {
                             <div className="flex items-start gap-2 shrink-0 self-start">
                               {editingReminder?.id !== reminder.id && (
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                                  {/* View Tracking Button - Shows tracking details in modal */}
+                                  {/* View task in the task manager */}
                                   <button
-                                    onClick={(e) => handleViewTaskTracking(reminder, e)}
+                                    onClick={(e) => handleViewTask(reminder, e)}
                                     className="px-3 py-1 text-sm text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5"
                                   >
-                                    <FiBarChart2 className="text-purple-600" size={14} />
+                                    <FiChevronRight className="text-purple-600" size={14} />
                                     View Task
+                                  </button>
+
+                                  <button
+                                    onClick={(e) => handleViewTaskTracking(reminder, e)}
+                                    className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5"
+                                  >
+                                    <FiBarChart2 className="text-blue-600" size={14} />
+                                    Tracking
                                   </button>
                                   
                                   {reminder.status === 'today' && (
