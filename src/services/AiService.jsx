@@ -9,6 +9,234 @@
 import { AI_CONFIG } from '../config/aiConfig';
 import { authFetch } from './authService';
 
+const NUMBER_WORDS = {
+  a: 1,
+  an: 1,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  thirty: 30,
+  forty: 40,
+  fortyfive: 45,
+  sixty: 60
+};
+
+const RELATIVE_TIME_PATTERN =
+  /\b(?:in|after)\s+(an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|thirty|forty(?:\s+five)?|sixty|\d+)\s+(minute|minutes|min|mins|hour|hours|hr|hrs|day|days|week|weeks)\b/i;
+const TODAY_TOMORROW_TIME_PATTERN =
+  /\b(today|tomorrow)\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i;
+const AT_TIME_DAY_PATTERN =
+  /\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s+(today|tomorrow)\b/i;
+const DATE_TIME_PATTERN =
+  /\b(?:on\s+)?(\d{4}-\d{2}-\d{2})(?:\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?\b/i;
+const REMINDER_COMMAND_PATTERN =
+  /^(?:please\s+)?(?:can you\s+|could you\s+|would you\s+)?(?:set\s+(?:me\s+)?a\s+reminder|remind me)\b/i;
+const TASK_CREATE_PATTERN =
+  /^(?:please\s+)?(?:can you\s+|could you\s+|would you\s+)?(?:add|create|make)\s+(?:a\s+)?task\b/i;
+const TASK_COMPLETE_PATTERN =
+  /^(?:please\s+)?(?:can you\s+|could you\s+|would you\s+)?(?:(?:mark|set)\s+.+\s+as\s+done|complete)\b/i;
+
+const isIsoDateTime = (value) =>
+  typeof value === 'string' &&
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(?:\.\d{3})?)?(Z|[+-]\d{2}:\d{2})?$/.test(value.trim());
+
+const toTitleCase = (value = '') =>
+  String(value)
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+
+const normalizeWhitespace = (value = '') => String(value).replace(/\s+/g, ' ').trim();
+
+const parseNumberToken = (rawValue = '') => {
+  const normalized = String(rawValue || '').trim().toLowerCase().replace(/\s+/g, '');
+  if (/^\d+$/.test(normalized)) {
+    return Number.parseInt(normalized, 10);
+  }
+  return NUMBER_WORDS[normalized] ?? null;
+};
+
+const addDuration = (date, amount, unit) => {
+  const next = new Date(date);
+  const normalizedUnit = String(unit || '').toLowerCase();
+  if (normalizedUnit.startsWith('min')) {
+    next.setMinutes(next.getMinutes() + amount);
+    return next;
+  }
+  if (normalizedUnit.startsWith('hour') || normalizedUnit.startsWith('hr')) {
+    next.setHours(next.getHours() + amount);
+    return next;
+  }
+  if (normalizedUnit.startsWith('day')) {
+    next.setDate(next.getDate() + amount);
+    return next;
+  }
+  if (normalizedUnit.startsWith('week')) {
+    next.setDate(next.getDate() + amount * 7);
+    return next;
+  }
+  return null;
+};
+
+const setTimeOnDate = (date, hourValue, minuteValue = '0', meridiem = '') => {
+  const next = new Date(date);
+  let hours = Number.parseInt(hourValue, 10);
+  const minutes = Number.parseInt(minuteValue || '0', 10);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+
+  const normalizedMeridiem = String(meridiem || '').toLowerCase();
+  if (normalizedMeridiem === 'pm' && hours < 12) {
+    hours += 12;
+  } else if (normalizedMeridiem === 'am' && hours === 12) {
+    hours = 0;
+  }
+
+  if (!normalizedMeridiem && (hours < 0 || hours > 23)) return null;
+  if (normalizedMeridiem && (hours < 0 || hours > 23)) return null;
+
+  next.setHours(hours, minutes, 0, 0);
+  return next;
+};
+
+const formatReminderTime = (date) =>
+  new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(date);
+
+const findTaskByTitle = (tasks = [], rawTitle = '') => {
+  const normalizedTitle = normalizeWhitespace(rawTitle).toLowerCase();
+  if (!normalizedTitle) return null;
+  return tasks.find((task) => normalizeWhitespace(task?.title).toLowerCase() === normalizedTitle) || null;
+};
+
+const findGoalByTitle = (goals = [], rawTitle = '') => {
+  const normalizedTitle = normalizeWhitespace(rawTitle).toLowerCase();
+  if (!normalizedTitle) return null;
+  return goals.find((goal) => normalizeWhitespace(goal?.title).toLowerCase() === normalizedTitle) || null;
+};
+
+const parseDateTimeExpression = (text, now = new Date()) => {
+  const source = String(text || '');
+  const relativeMatch = source.match(RELATIVE_TIME_PATTERN);
+  if (relativeMatch) {
+    const amount = parseNumberToken(relativeMatch[1]);
+    if (amount !== null) {
+      const resolved = addDuration(now, amount, relativeMatch[2]);
+      if (resolved) {
+        return { date: resolved, matchedText: relativeMatch[0], kind: 'relative' };
+      }
+    }
+  }
+
+  const todayTomorrowMatch = source.match(TODAY_TOMORROW_TIME_PATTERN);
+  if (todayTomorrowMatch) {
+    const base = new Date(now);
+    base.setHours(0, 0, 0, 0);
+    if (todayTomorrowMatch[1].toLowerCase() === 'tomorrow') {
+      base.setDate(base.getDate() + 1);
+    }
+    const resolved = setTimeOnDate(base, todayTomorrowMatch[2], todayTomorrowMatch[3], todayTomorrowMatch[4]);
+    if (resolved) {
+      return { date: resolved, matchedText: todayTomorrowMatch[0], kind: todayTomorrowMatch[1].toLowerCase() };
+    }
+  }
+
+  const atTimeDayMatch = source.match(AT_TIME_DAY_PATTERN);
+  if (atTimeDayMatch) {
+    const base = new Date(now);
+    base.setHours(0, 0, 0, 0);
+    if (atTimeDayMatch[4].toLowerCase() === 'tomorrow') {
+      base.setDate(base.getDate() + 1);
+    }
+    const resolved = setTimeOnDate(base, atTimeDayMatch[1], atTimeDayMatch[2], atTimeDayMatch[3]);
+    if (resolved) {
+      return { date: resolved, matchedText: atTimeDayMatch[0], kind: atTimeDayMatch[4].toLowerCase() };
+    }
+  }
+
+  const explicitDateMatch = source.match(DATE_TIME_PATTERN);
+  if (explicitDateMatch) {
+    const [year, month, day] = explicitDateMatch[1].split('-').map((part) => Number.parseInt(part, 10));
+    const base = new Date(now);
+    base.setFullYear(year, month - 1, day);
+    base.setHours(9, 0, 0, 0);
+    const resolved =
+      explicitDateMatch[2] !== undefined
+        ? setTimeOnDate(base, explicitDateMatch[2], explicitDateMatch[3], explicitDateMatch[4])
+        : base;
+    if (resolved) {
+      return { date: resolved, matchedText: explicitDateMatch[0], kind: 'absolute' };
+    }
+  }
+
+  if (isIsoDateTime(source)) {
+    const parsed = new Date(source);
+    if (!Number.isNaN(parsed.getTime())) {
+      return { date: parsed, matchedText: source, kind: 'iso' };
+    }
+  }
+
+  return null;
+};
+
+const stripDateTimePhrase = (text, matchedText) => normalizeWhitespace(String(text || '').replace(matchedText, ' '));
+
+const extractReminderTitle = (message, matchedTimeText = '') => {
+  let cleaned = normalizeWhitespace(message)
+    .replace(REMINDER_COMMAND_PATTERN, '')
+    .replace(/^to\s+/i, '');
+
+  if (matchedTimeText) {
+    cleaned = stripDateTimePhrase(cleaned, matchedTimeText);
+  }
+
+  cleaned = cleaned
+    .replace(/\b(?:please|for me)\b/gi, ' ')
+    .replace(/\b(?:time|from now|later)\b/gi, ' ')
+    .replace(/^to\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (/^(?:time|from now|later)?$/i.test(cleaned)) {
+    return '';
+  }
+
+  return cleaned;
+};
+
+const extractTaskTitle = (message, matchedTimeText = '') => {
+  let cleaned = normalizeWhitespace(message)
+    .replace(TASK_CREATE_PATTERN, '')
+    .replace(/^to\s+/i, '');
+
+  if (matchedTimeText) {
+    cleaned = stripDateTimePhrase(cleaned, matchedTimeText);
+  }
+
+  return normalizeWhitespace(cleaned.replace(/^called\s+/i, ''));
+};
+
+const buildTimeContext = (now = new Date()) => ({
+  currentDateTimeIso: now.toISOString(),
+  currentDate: now.toISOString().split('T')[0],
+  currentTime: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+});
+
 class AiService {
   constructor() {
     this.apiKey = null; // Kept for backward compatibility
@@ -682,6 +910,13 @@ Generate smart reminders for the next 7 days.`;
    * Returns a user-facing message plus optional actions.
    */
   async chatWithActions(message, context = {}) {
+    const now = new Date();
+    const directActionResult = this.resolveDirectActionCommand(message, context, now);
+    if (directActionResult) {
+      return directActionResult;
+    }
+
+    const timeContext = buildTimeContext(now);
     const systemPrompt = `You are Noxa, an AI productivity assistant integrated with a task/goal/reminder/note app.
 
 You must return STRICT JSON with this schema:
@@ -698,6 +933,10 @@ You must return STRICT JSON with this schema:
 Rules:
 - Include actions only when the user clearly requests app changes (create/update/complete/set reminder).
 - Keep actions minimal and safe.
+- Use the exact current datetime and timezone provided to you. Do not guess time.
+- Convert relative time requests like "in an hour" into concrete ISO datetimes.
+- If timing or target is unclear, ask one short follow-up question only.
+- Keep clarification questions under 12 words.
 - If user asks to write down/save/jot something, use "create_note".
 - For notes use payload: { "title": string, "content": string, "category": "work" | "personal" | "ideas" | "study" | "general" | "other", "isPinned": boolean }.
 - For reminders include a concrete ISO datetime in payload.reminderTime and payload.dueDate.
@@ -705,7 +944,11 @@ Rules:
 - If details are missing, ask follow-up questions in "message" and return empty actions.
 - Output valid JSON only.`;
 
-    const userMessage = `Context: ${JSON.stringify(context, null, 2)}\n\nUser: ${message}`;
+    const userMessage = `Current time context: ${JSON.stringify(timeContext, null, 2)}
+
+Context: ${JSON.stringify(context, null, 2)}
+
+User: ${message}`;
     const response = await this.makeRequest(
       [{ role: 'user', content: userMessage }],
       systemPrompt
@@ -713,7 +956,7 @@ Rules:
 
     try {
       const parsed = this.parseActionPayload(response.text);
-      return parsed;
+      return this.normalizeActionPlan(parsed, context, now);
     } catch {
       return {
         message: response.text,
@@ -736,6 +979,212 @@ Rules:
     return {
       message: parsed.message || 'Done.',
       actions: Array.isArray(parsed.actions) ? parsed.actions : []
+    };
+  }
+
+  resolveDirectActionCommand(message, context = {}, now = new Date()) {
+    const trimmed = normalizeWhitespace(message);
+    if (!trimmed) return null;
+
+    if (REMINDER_COMMAND_PATTERN.test(trimmed)) {
+      return this.buildDirectReminderPlan(trimmed, context, now);
+    }
+
+    if (TASK_CREATE_PATTERN.test(trimmed)) {
+      return this.buildDirectTaskPlan(trimmed, context, now);
+    }
+
+    if (TASK_COMPLETE_PATTERN.test(trimmed)) {
+      return this.buildDirectTaskCompletionPlan(trimmed, context);
+    }
+
+    return null;
+  }
+
+  buildDirectReminderPlan(message, context = {}, now = new Date()) {
+    const parsedDateTime = parseDateTimeExpression(message, now);
+    const title = extractReminderTitle(message, parsedDateTime?.matchedText || '');
+    const linkedTask = findTaskByTitle(context.tasks || [], title);
+    const linkedGoal = findGoalByTitle(context.goals || [], title);
+
+    if (!parsedDateTime) {
+      return {
+        message: 'When should I remind you?',
+        actions: []
+      };
+    }
+
+    const reminderTime = parsedDateTime.date;
+    const titleText = title
+      ? title.startsWith('Reminder')
+        ? title
+        : toTitleCase(title)
+      : 'Reminder';
+    return {
+      message: `I’ll remind you ${formatReminderTime(reminderTime)}.`,
+      actions: [
+        {
+          type: 'create_reminder',
+          payload: {
+            title: titleText,
+            dueDate: reminderTime.toISOString(),
+            reminderTime: reminderTime.toISOString(),
+            priority: linkedTask?.priority || 'medium',
+            category: linkedTask?.category || linkedGoal?.category || 'general',
+            frequency: 'once',
+            notificationMethod: 'app',
+            taskId: linkedTask?.id || null,
+            linkedGoalId: linkedGoal?.id || null,
+            note: ''
+          }
+        }
+      ]
+    };
+  }
+
+  buildDirectTaskPlan(message, context = {}, now = new Date()) {
+    const parsedDateTime = parseDateTimeExpression(message, now);
+    const title = extractTaskTitle(message, parsedDateTime?.matchedText || '');
+
+    if (!title) {
+      return {
+        message: 'What task should I create?',
+        actions: []
+      };
+    }
+
+    const dueDate = parsedDateTime?.date || new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    return {
+      message: `I’ll create that task for ${formatReminderTime(dueDate)}.`,
+      actions: [
+        {
+          type: 'create_task',
+          payload: {
+            title: toTitleCase(title),
+            description: '',
+            dueDate: dueDate.toISOString(),
+            priority: 'medium',
+            category: 'personal',
+            status: 'pending'
+          }
+        }
+      ]
+    };
+  }
+
+  buildDirectTaskCompletionPlan(message, context = {}) {
+    const normalizedMessage = normalizeWhitespace(message)
+      .replace(/^(?:please\s+)?(?:can you\s+|could you\s+|would you\s+)?/i, '')
+      .replace(/^complete\s+/i, '')
+      .replace(/^(?:mark|set)\s+/i, '')
+      .replace(/\s+as\s+done$/i, '')
+      .replace(/^task\s+/i, '')
+      .trim();
+
+    const task = findTaskByTitle(context.tasks || [], normalizedMessage);
+    if (!task) {
+      return {
+        message: 'Which task should I complete?',
+        actions: []
+      };
+    }
+
+    return {
+      message: `I’ll mark "${task.title}" as done.`,
+      actions: [
+        {
+          type: 'complete_task',
+          payload: {
+            taskId: task.id,
+            title: task.title
+          }
+        }
+      ]
+    };
+  }
+
+  normalizeActionPlan(plan, context = {}, now = new Date()) {
+    return {
+      message: String(plan?.message || 'Done.').trim() || 'Done.',
+      actions: Array.isArray(plan?.actions)
+        ? plan.actions
+            .map((action) => this.normalizeAction(action, context, now))
+            .filter(Boolean)
+        : []
+    };
+  }
+
+  normalizeAction(action, context = {}, now = new Date()) {
+    if (!action || typeof action !== 'object') return null;
+    const type = String(action.type || '').trim();
+    const payload = action.payload && typeof action.payload === 'object' ? action.payload : {};
+
+    if (type === 'create_reminder') {
+      return {
+        type,
+        payload: this.normalizeReminderPayload(payload, context, now)
+      };
+    }
+
+    if (type === 'create_task') {
+      return {
+        type,
+        payload: this.normalizeTaskPayload(payload, now)
+      };
+    }
+
+    return {
+      type,
+      payload
+    };
+  }
+
+  normalizeReminderPayload(payload = {}, context = {}, now = new Date()) {
+    const reminderCandidate =
+      payload.reminderTime || payload.when || payload.time || payload.suggestedTime || payload.dueDate || '';
+    const parsedReminderTime = parseDateTimeExpression(reminderCandidate, now);
+    const reminderTime = parsedReminderTime?.date || (isIsoDateTime(payload.reminderTime) ? new Date(payload.reminderTime) : null);
+    const dueDate = reminderTime || new Date(now.getTime() + 60 * 60 * 1000);
+    const title = normalizeWhitespace(payload.title || payload.message || payload.taskTitle || 'Reminder');
+    const linkedTask =
+      payload.taskId
+        ? (context.tasks || []).find((task) => String(task?.id) === String(payload.taskId))
+        : findTaskByTitle(context.tasks || [], payload.taskTitle || title);
+    const linkedGoal =
+      payload.linkedGoalId
+        ? (context.goals || []).find((goal) => String(goal?.id) === String(payload.linkedGoalId))
+        : findGoalByTitle(context.goals || [], payload.goalTitle || title);
+
+    return {
+      ...payload,
+      title: title || 'Reminder',
+      dueDate: dueDate.toISOString(),
+      reminderTime: dueDate.toISOString(),
+      frequency: payload.frequency || 'once',
+      category: String(payload.category || linkedTask?.category || linkedGoal?.category || 'general').toLowerCase(),
+      priority: String(payload.priority || linkedTask?.priority || 'medium').toLowerCase(),
+      notificationMethod: ['app', 'email', 'both'].includes(String(payload.notificationMethod || '').toLowerCase())
+        ? String(payload.notificationMethod).toLowerCase()
+        : 'app',
+      taskId: linkedTask?.id || payload.taskId || null,
+      linkedGoalId: linkedGoal?.id || payload.linkedGoalId || null,
+      note: payload.note || ''
+    };
+  }
+
+  normalizeTaskPayload(payload = {}, now = new Date()) {
+    const dueDateCandidate = payload.dueDate || payload.when || payload.time || '';
+    const parsedDueDate = parseDateTimeExpression(dueDateCandidate, now);
+    const dueDate = parsedDueDate?.date || (isIsoDateTime(payload.dueDate) ? new Date(payload.dueDate) : null);
+    return {
+      ...payload,
+      title: normalizeWhitespace(payload.title || 'New Task'),
+      dueDate: (dueDate || new Date(now.getTime() + 24 * 60 * 60 * 1000)).toISOString(),
+      priority: ['high', 'medium', 'low'].includes(String(payload.priority || '').toLowerCase())
+        ? String(payload.priority).toLowerCase()
+        : 'medium',
+      category: String(payload.category || 'personal').toLowerCase(),
+      status: payload.status || 'pending'
     };
   }
 }

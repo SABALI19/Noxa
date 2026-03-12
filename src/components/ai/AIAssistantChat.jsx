@@ -431,6 +431,7 @@ const AIAssistantChat = ({
 
         const reminder = addReminder({
           taskId: linkedTask?.id || payload.taskId || null,
+          linkedGoalId: payload.linkedGoalId || null,
           title: payload.title || `Reminder: ${linkedTask?.title || 'Task'}`,
           dueDate,
           reminderTime,
