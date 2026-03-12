@@ -187,6 +187,58 @@ const WordOfDayModal = ({
   );
 };
 
+const formatRelativeTime = (timestamp, currentTimestamp) => {
+  const parsed = timestamp ? new Date(timestamp) : null;
+  if (!parsed || Number.isNaN(parsed.getTime())) return "Just now";
+  if (typeof currentTimestamp !== "number") return "Just now";
+
+  const diffSeconds = Math.max(0, Math.floor((currentTimestamp - parsed.getTime()) / 1000));
+  if (diffSeconds < 60) return "Just now";
+  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)} min ago`;
+  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)} hr ago`;
+  return `${Math.floor(diffSeconds / 86400)} day ago`;
+};
+
+const resolveActivityType = (notification) => {
+  const itemType = String(notification?.itemType || "").toLowerCase();
+  if (itemType && itemType !== "system") return itemType;
+
+  const notificationType = String(notification?.notificationType || "").toLowerCase();
+  if (notificationType.startsWith("goal_")) return "goal";
+  if (notificationType.startsWith("task_")) return "task";
+  if (notificationType.startsWith("reminder_")) return "reminder";
+  if (notificationType.startsWith("account_") || notificationType === "user_logged_in") return "account";
+  return "activity";
+};
+
+const activityTypeMeta = {
+  goal: {
+    icon: FiTarget,
+    badgeClass: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+    rowClass: "hover:border-teal-300 dark:hover:border-teal-700/60",
+  },
+  task: {
+    icon: FiCheckSquare,
+    badgeClass: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+    rowClass: "hover:border-green-300 dark:hover:border-green-700/60",
+  },
+  reminder: {
+    icon: FiBell,
+    badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    rowClass: "hover:border-amber-300 dark:hover:border-amber-700/60",
+  },
+  account: {
+    icon: FiUser,
+    badgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+    rowClass: "hover:border-blue-300 dark:hover:border-blue-700/60",
+  },
+  activity: {
+    icon: FiActivity,
+    badgeClass: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+    rowClass: "hover:border-gray-300 dark:hover:border-gray-600",
+  },
+};
+
 const Dashboard = ({ isSidebarOpen = true }) => {
   const navigate = useNavigate();
   const outletContext = useOutletContext() || {};
@@ -208,6 +260,7 @@ const Dashboard = ({ isSidebarOpen = true }) => {
   const [showWordModal, setShowWordModal] = useState(false);
   const [wordForm, setWordForm] = useState({ word: "", meaning: "", example: "" });
   const [submitStatus, setSubmitStatus] = useState({ loading: false, error: false, message: "" });
+  const [currentTimestamp, setCurrentTimestamp] = useState(null);
   const dateMenuRef = useRef(null);
 
   useEffect(() => {
@@ -287,6 +340,17 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [showDateMenu]);
 
+  useEffect(() => {
+    const syncCurrentTimestamp = () => {
+      setCurrentTimestamp(Date.now());
+    };
+
+    syncCurrentTimestamp();
+    const intervalId = window.setInterval(syncCurrentTimestamp, 60000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   const handleGoalCardClick = () => {
     navigate("/goals");
   };
@@ -312,7 +376,9 @@ const Dashboard = ({ isSidebarOpen = true }) => {
   };
 
   const getGreeting = () => {
-    const hour = new Date().getHours();
+    if (typeof currentTimestamp !== "number") return "Hello";
+
+    const hour = new Date(currentTimestamp).getHours();
     if (hour < 12) return "Good morning";
     if (hour < 18) return "Good afternoon";
     return "Good evening";
@@ -328,70 +394,30 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     return "p-4";
   };
 
-  const formatRelativeTime = (timestamp) => {
-    const parsed = timestamp ? new Date(timestamp) : null;
-    if (!parsed || Number.isNaN(parsed.getTime())) return "Just now";
-
-    const diffSeconds = Math.floor((Date.now() - parsed.getTime()) / 1000);
-    if (diffSeconds < 60) return "Just now";
-    if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)} min ago`;
-    if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)} hr ago`;
-    return `${Math.floor(diffSeconds / 86400)} day ago`;
-  };
-
-  const resolveActivityType = (notification) => {
-    const itemType = String(notification?.itemType || "").toLowerCase();
-    if (itemType && itemType !== "system") return itemType;
-
-    const notificationType = String(notification?.notificationType || "").toLowerCase();
-    if (notificationType.startsWith("goal_")) return "goal";
-    if (notificationType.startsWith("task_")) return "task";
-    if (notificationType.startsWith("reminder_")) return "reminder";
-    if (notificationType.startsWith("account_") || notificationType === "user_logged_in") return "account";
-    return "activity";
-  };
-
-  const activityTypeMeta = {
-    goal: {
-      icon: FiTarget,
-      badgeClass: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
-      rowClass: "hover:border-teal-300 dark:hover:border-teal-700/60",
-    },
-    task: {
-      icon: FiCheckSquare,
-      badgeClass: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
-      rowClass: "hover:border-green-300 dark:hover:border-green-700/60",
-    },
-    reminder: {
-      icon: FiBell,
-      badgeClass: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-      rowClass: "hover:border-amber-300 dark:hover:border-amber-700/60",
-    },
-    account: {
-      icon: FiUser,
-      badgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-      rowClass: "hover:border-blue-300 dark:hover:border-blue-700/60",
-    },
-    activity: {
-      icon: FiActivity,
-      badgeClass: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-      rowClass: "hover:border-gray-300 dark:hover:border-gray-600",
-    },
-  };
-
   const recentActivities = useMemo(() => {
-    return (notifications || []).slice(0, 8).map((entry) => {
+    return (notifications || []).slice(0, 8).map((entry, index) => {
       const type = resolveActivityType(entry);
       const text = entry?.message || entry?.title || "Activity update";
+      const fallbackId = [
+        entry?.timestamp,
+        entry?.notificationType,
+        entry?.itemType,
+        entry?.originPath,
+        text,
+        index,
+      ]
+        .filter((value) => value !== null && value !== undefined && value !== "")
+        .join("-");
+
       return {
-        id: String(entry?.id || `${entry?.timestamp || Date.now()}-${Math.random()}`),
+        id: String(entry?.id ?? fallbackId),
         type,
         text,
-        timeLabel: formatRelativeTime(entry?.timestamp),
+        timeLabel: formatRelativeTime(entry?.timestamp, currentTimestamp),
         originPath: entry?.originPath || "/notifications",
       };
     });
-  }, [notifications]);
+  }, [currentTimestamp, notifications]);
 
   const visibleActivities = useMemo(() => {
     if (showAllActivities) return recentActivities;
@@ -458,14 +484,17 @@ const Dashboard = ({ isSidebarOpen = true }) => {
   };
 
   const formattedDate = useMemo(
-    () =>
-      new Date().toLocaleDateString("en-US", {
+    () => {
+      if (typeof currentTimestamp !== "number") return "Today";
+
+      return new Date(currentTimestamp).toLocaleDateString("en-US", {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
-      }),
-    []
+      });
+    },
+    [currentTimestamp]
   );
 
   return (
@@ -487,16 +516,16 @@ const Dashboard = ({ isSidebarOpen = true }) => {
                 <button
                   type="button"
                   onClick={handleCalendarClick}
-                  className="group flex w-full items-center gap-2.5 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition-all hover:border-[#3D9B9B] hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#4fb3b3]"
+                  className="group flex w-full items-center gap-2.5 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left shadow-sm transition-all hover:border-[#3D9B9B] hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-[#4fb3b3]"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3D9B9B]/10 text-[#3D9B9B] dark:bg-[#4fb3b3]/15 dark:text-[#4fb3b3]">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#3D9B9B]/10 text-[#3D9B9B] dark:bg-[#4fb3b3]/15 dark:text-[#4fb3b3]">
                     <FiCalendar className="text-[17px]" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
                       Calendar
                     </p>
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{formattedDate}</p>
+                    <p className="text-sm font-normal text-gray-700 dark:text-gray-200">{formattedDate}</p>
                   </div>
                   <FiChevronDown
                     className={`text-base text-gray-400 transition-transform dark:text-gray-500 ${

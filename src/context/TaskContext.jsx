@@ -7,9 +7,30 @@ const TaskContext = createContext();
 
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i;
 const PRIORITY_VALUES = ['low', 'medium', 'high'];
-const CATEGORY_VALUES = ['work', 'personal', 'health', 'finance', 'education', 'other'];
+const CATEGORY_VALUES = ['work', 'personal', 'shopping', 'health', 'finance', 'education', 'general', 'other'];
 const TASK_STATUS_VALUES = ['pending', 'in_progress', 'completed', 'cancelled'];
 const REMINDER_FREQ_VALUES = ['once', 'daily', 'weekly', 'monthly'];
+const TASK_REMINDER_FREQ_VALUES = ['once', 'multiple', 'daily'];
+const TASK_REMINDER_TIMING_VALUES = [
+  '1_hour_before',
+  '2_hours_before',
+  '1_day_before',
+  '2_days_before',
+  '1_week_before',
+  'on_due_date',
+  'custom',
+];
+const TASK_STORAGE_KEY = 'noxa_tasks';
+const REMINDER_STORAGE_KEY = 'noxa_reminders';
+const FILTER_STORAGE_KEY = 'noxa_filters';
+const TASK_REMINDER_TIMING_TO_MINUTES = {
+  '1_hour_before': 60,
+  '2_hours_before': 120,
+  '1_day_before': 1440,
+  '2_days_before': 2880,
+  '1_week_before': 10080,
+  on_due_date: 0,
+};
 
 const isObjectId = (value) => OBJECT_ID_RE.test(String(value ?? ''));
 const normalizePriority = (value) => {
@@ -35,8 +56,22 @@ const toIso = (value) => {
   return parsed.toISOString();
 };
 
-const toUiReminderMethod = (method) => (String(method || '').toLowerCase() === 'email' ? 'email' : 'app');
-const toApiReminderMethod = (method) => (String(method || '').toLowerCase() === 'email' ? 'email' : 'in_app');
+const normalizeReminderMethod = (method, fallback = 'app') => {
+  const value = String(method || '').toLowerCase();
+  if (value === 'push') return 'app';
+  if (value === 'email') return 'email';
+  if (value === 'both') return 'both';
+  if (value === 'in_app' || value === 'app') return 'app';
+  return fallback;
+};
+
+const toUiReminderMethod = (method) => normalizeReminderMethod(method);
+const toApiReminderMethod = (method) => {
+  const value = normalizeReminderMethod(method);
+  if (value === 'email') return 'email';
+  if (value === 'both') return 'both';
+  return 'in_app';
+};
 
 const toUiReminderStatus = (status) => {
   const value = String(status || '').toLowerCase();
@@ -61,7 +96,82 @@ const normalizeReminderFrequency = (value) => {
   return REMINDER_FREQ_VALUES.includes(candidate) ? candidate : 'once';
 };
 
-const normalizeTaskFromApi = (task = {}) => {
+const loadStoredCollection = (storageKey) => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const inferTaskReminderTiming = (settings = {}, dueDateValue = null) => {
+  const explicitTiming = String(settings.timing || '').toLowerCase();
+  if (TASK_REMINDER_TIMING_VALUES.includes(explicitTiming)) {
+    return {
+      timing: explicitTiming,
+      customTime: toIso(settings.customTime) || '',
+    };
+  }
+
+  const minutes = Number(settings.timeBeforeMinutes);
+  if (Number.isFinite(minutes)) {
+    const match = Object.entries(TASK_REMINDER_TIMING_TO_MINUTES).find(([, value]) => value === minutes);
+    if (match) {
+      return { timing: match[0], customTime: '' };
+    }
+
+    const dueDate = dueDateValue ? new Date(dueDateValue) : null;
+    if (dueDate && !Number.isNaN(dueDate.getTime())) {
+      return {
+        timing: 'custom',
+        customTime: new Date(dueDate.getTime() - minutes * 60 * 1000).toISOString(),
+      };
+    }
+  }
+
+  return {
+    timing: settings.customTime ? 'custom' : '1_day_before',
+    customTime: toIso(settings.customTime) || '',
+  };
+};
+
+const normalizeTaskReminderSettings = (settings = null, fallback = null, dueDateValue = null) => {
+  const source =
+    settings && typeof settings === 'object'
+      ? settings
+      : fallback && typeof fallback === 'object'
+      ? fallback
+      : null;
+
+  if (!source || source.enabled === false) return null;
+
+  const frequency = String(source.frequency || '').toLowerCase();
+  const { timing, customTime } = inferTaskReminderTiming(source, dueDateValue);
+
+  return {
+    enabled: true,
+    frequency: TASK_REMINDER_FREQ_VALUES.includes(frequency) ? frequency : 'once',
+    timing,
+    customTime,
+    notificationMethod: normalizeReminderMethod(source.notificationMethod ?? source.method),
+    lastTriggeredAt: toIso(source.lastTriggeredAt) || null,
+    lastTriggeredScheduleKey: source.lastTriggeredScheduleKey
+      ? String(source.lastTriggeredScheduleKey)
+      : null,
+  };
+};
+
+const normalizeTaskFromApi = (task = {}, fallbackTask = null) => {
+  const dueDateValue = task?.dueDate || fallbackTask?.dueDate || null;
+  const fallbackReminderSettings = normalizeTaskReminderSettings(
+    fallbackTask?.reminderSettings,
+    null,
+    dueDateValue
+  );
   const completed = Boolean(task.completed || task.status === 'completed');
   return {
     id: String(task._id || task.id),
@@ -74,19 +184,23 @@ const normalizeTaskFromApi = (task = {}) => {
     overdue: false,
     status: normalizeTaskStatus(task.status, completed),
     createdAt: task.createdAt ? new Date(task.createdAt).toISOString() : new Date().toISOString(),
+    reminderSettings: normalizeTaskReminderSettings(task.reminderSettings, fallbackReminderSettings, dueDateValue),
   };
 };
 
-const normalizeReminderFromApi = (reminder = {}, tasks = []) => {
-  const taskId = reminder.taskId?._id || reminder.taskId || null;
+const normalizeReminderFromApi = (reminder = {}, tasks = [], fallbackReminder = null) => {
+  const taskId = reminder.taskId?._id || reminder.taskId || reminder.linkedTaskId || fallbackReminder?.taskId || null;
   const normalizedTaskId = taskId ? String(taskId) : null;
   const linkedTask = normalizedTaskId
     ? tasks.find((task) => String(task.id) === normalizedTaskId)
     : null;
+  const linkedGoalId = reminder.linkedGoalId || reminder.goalId || fallbackReminder?.linkedGoalId || null;
 
   return {
     id: String(reminder._id || reminder.id),
     taskId: normalizedTaskId,
+    linkedTaskId: normalizedTaskId,
+    linkedGoalId: linkedGoalId ? String(linkedGoalId) : null,
     title: reminder.title || 'Reminder',
     dueDate: reminder.dueDate ? new Date(reminder.dueDate).toISOString() : new Date().toISOString(),
     reminderTime: reminder.reminderTime
@@ -99,6 +213,7 @@ const normalizeReminderFromApi = (reminder = {}, tasks = []) => {
     notificationMethod: toUiReminderMethod(reminder.notificationMethod),
     taskCompleted: Boolean(linkedTask?.completed),
     note: reminder.note || '',
+    lastTriggeredAt: toIso(reminder.lastTriggeredAt || fallbackReminder?.lastTriggeredAt) || null,
   };
 };
 
@@ -124,7 +239,7 @@ export const TaskProvider = ({ children }) => {
       sortBy: 'dueDate'
     };
 
-    const savedFilters = localStorage.getItem('noxa_filters');
+    const savedFilters = localStorage.getItem(FILTER_STORAGE_KEY);
     if (savedFilters) {
       try {
         const parsed = JSON.parse(savedFilters);
@@ -140,14 +255,10 @@ export const TaskProvider = ({ children }) => {
 
   // Initial tasks data
   const [tasks, setTasks] = useState(() => {
-    // Try to load from localStorage
-    const savedTasks = localStorage.getItem('noxa_tasks');
-    if (savedTasks) {
+    const parsed = loadStoredCollection(TASK_STORAGE_KEY);
+    if (parsed.length > 0) {
       try {
-        const parsed = JSON.parse(savedTasks);
-        if (Array.isArray(parsed)) {
-          return parsed.map((task) => normalizeTaskFromApi(task));
-        }
+        return parsed.map((task) => normalizeTaskFromApi(task, task));
       } catch (e) {
         console.error('Error parsing saved tasks:', e);
       }
@@ -159,13 +270,10 @@ export const TaskProvider = ({ children }) => {
 
   // Initial reminders data (linked to tasks)
   const [reminders, setReminders] = useState(() => {
-    const savedReminders = localStorage.getItem('noxa_reminders');
-    if (savedReminders) {
+    const parsed = loadStoredCollection(REMINDER_STORAGE_KEY);
+    if (parsed.length > 0) {
       try {
-        const parsed = JSON.parse(savedReminders);
-        if (Array.isArray(parsed)) {
-          return parsed.map((reminder) => normalizeReminderFromApi(reminder));
-        }
+        return parsed.map((reminder) => normalizeReminderFromApi(reminder, [], reminder));
       } catch (e) {
         console.error('Error parsing saved reminders:', e);
       }
@@ -176,32 +284,45 @@ export const TaskProvider = ({ children }) => {
 
   // Save to localStorage whenever tasks or reminders change
   useEffect(() => {
-    localStorage.setItem('noxa_tasks', JSON.stringify(tasks));
+    localStorage.setItem(TASK_STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks]);
 
   useEffect(() => {
-    localStorage.setItem('noxa_reminders', JSON.stringify(reminders));
+    localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(reminders));
   }, [reminders]);
 
   useEffect(() => {
-    localStorage.setItem('noxa_filters', JSON.stringify(filters));
+    localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(filters));
   }, [filters]);
 
   const refreshFromBackend = useCallback(async () => {
     if (!isAuthenticated) return;
 
     try {
+      const storedTasks = loadStoredCollection(TASK_STORAGE_KEY);
+      const storedReminders = loadStoredCollection(REMINDER_STORAGE_KEY);
       const [taskPayload, reminderPayload] = await Promise.all([
         backendService.getTasks(),
         backendService.getReminders(),
       ]);
 
       const normalizedTasks = Array.isArray(taskPayload)
-        ? taskPayload.map((task) => normalizeTaskFromApi(task))
+        ? taskPayload.map((task) => {
+            const fallbackTask = storedTasks.find(
+              (storedTask) => String(storedTask._id || storedTask.id) === String(task._id || task.id)
+            );
+            return normalizeTaskFromApi(task, fallbackTask || null);
+          })
         : [];
 
       const normalizedReminders = Array.isArray(reminderPayload)
-        ? reminderPayload.map((reminder) => normalizeReminderFromApi(reminder, normalizedTasks))
+        ? reminderPayload.map((reminder) => {
+            const fallbackReminder = storedReminders.find(
+              (storedReminder) =>
+                String(storedReminder._id || storedReminder.id) === String(reminder._id || reminder.id)
+            );
+            return normalizeReminderFromApi(reminder, normalizedTasks, fallbackReminder || null);
+          })
         : [];
 
       setTasks(normalizedTasks);
@@ -377,6 +498,7 @@ export const TaskProvider = ({ children }) => {
         category: normalizeCategory(newTask.category),
         status: normalizeTaskStatus(newTask.status, Boolean(newTask.completed)),
         overdue: false,
+        reminderSettings: normalizeTaskReminderSettings(newTask.reminderSettings),
       };
 
       setTasks((prev) => [...prev, taskWithId]);
@@ -400,7 +522,7 @@ export const TaskProvider = ({ children }) => {
         void backendService
           .createTask(payload)
           .then((created) => {
-            const normalized = normalizeTaskFromApi(created);
+            const normalized = normalizeTaskFromApi(created, taskWithId);
             setTasks((prev) =>
               prev.map((task) => (String(task.id) === optimisticId ? normalized : task))
             );
@@ -461,10 +583,15 @@ export const TaskProvider = ({ children }) => {
             : 'none',
         };
 
+        const normalizedReminderSettings = normalizeTaskReminderSettings(merged.reminderSettings);
+        if (normalizedReminderSettings) {
+          payload.reminderSettings = normalizedReminderSettings;
+        }
+
         void backendService
           .updateTask(normalizedId, payload)
           .then((updated) => {
-            const normalized = normalizeTaskFromApi(updated);
+            const normalized = normalizeTaskFromApi(updated, merged);
             setTasks((prev) =>
               prev.map((task) => (String(task.id) === normalizedId ? normalized : task))
             );
@@ -513,14 +640,19 @@ export const TaskProvider = ({ children }) => {
   const addReminder = useCallback(
     (newReminder) => {
       const optimisticId = `tmp-reminder-${Date.now()}`;
+      const normalizedTaskId = newReminder.taskId || newReminder.linkedTaskId || null;
       const reminderWithId = {
         ...newReminder,
         id: optimisticId,
+        taskId: normalizedTaskId ? String(normalizedTaskId) : null,
+        linkedTaskId: normalizedTaskId ? String(normalizedTaskId) : null,
+        linkedGoalId: newReminder.linkedGoalId ? String(newReminder.linkedGoalId) : null,
         status: toUiReminderStatus(newReminder.status),
         notificationMethod: toUiReminderMethod(newReminder.notificationMethod),
         frequency: normalizeReminderFrequency(newReminder.frequency),
         category: normalizeCategory(newReminder.category),
         priority: normalizePriority(newReminder.priority),
+        lastTriggeredAt: toIso(newReminder.lastTriggeredAt) || null,
       };
 
       setReminders((prev) => [...prev, reminderWithId]);
@@ -538,14 +670,18 @@ export const TaskProvider = ({ children }) => {
           note: newReminder.note || '',
         };
 
-        if (newReminder.taskId && isObjectId(newReminder.taskId)) {
-          payload.taskId = String(newReminder.taskId);
+        if (normalizedTaskId && isObjectId(normalizedTaskId)) {
+          payload.taskId = String(normalizedTaskId);
+        }
+
+        if (newReminder.linkedGoalId) {
+          payload.linkedGoalId = String(newReminder.linkedGoalId);
         }
 
         void backendService
           .createReminder(payload)
           .then((created) => {
-            const normalized = normalizeReminderFromApi(created, tasks);
+            const normalized = normalizeReminderFromApi(created, tasks, reminderWithId);
             setReminders((prev) =>
               prev.map((reminder) => (String(reminder.id) === optimisticId ? normalized : reminder))
             );
@@ -591,10 +727,14 @@ export const TaskProvider = ({ children }) => {
           payload.taskId = String(merged.taskId);
         }
 
+        if (merged.linkedGoalId) {
+          payload.linkedGoalId = String(merged.linkedGoalId);
+        }
+
         void backendService
           .updateReminder(normalizedId, payload)
           .then((updated) => {
-            const normalized = normalizeReminderFromApi(updated, tasks);
+            const normalized = normalizeReminderFromApi(updated, tasks, merged);
             setReminders((prev) =>
               prev.map((reminder) => (String(reminder.id) === normalizedId ? normalized : reminder))
             );

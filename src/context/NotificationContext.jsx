@@ -30,6 +30,7 @@ import { getAuthTokens } from '../services/authService';
 import { useAuth } from '../hooks/UseAuth';
 import backendService from '../services/backendService';
 import { ringtoneManager, RINGTONE_CATALOGUE } from '../services/ringtones/RingtoneManager';
+import { useTasks } from './TaskContext';
 
 const NotificationContext = createContext(null);
 
@@ -40,6 +41,17 @@ const RECENT_CACHE_TTL_MS = 60000;
 const NOTIFICATION_SETTINGS_STORAGE_KEY = 'noxa_notification_settings';
 const NOTIFICATIONS_STORAGE_KEY = 'noxa_notifications';
 const NOTIFICATION_RETENTION_MS = 1000 * 60 * 60 * 24 * 30;
+const SCHEDULED_TRIGGER_CACHE_STORAGE_KEY = 'noxa_scheduled_trigger_cache';
+const SCHEDULED_TRIGGER_RETENTION_MS = 1000 * 60 * 60 * 24 * 90;
+const REMINDER_SCHEDULER_INTERVAL_MS = 30000;
+const TASK_REMINDER_OFFSET_MS = {
+  '1_hour_before': 60 * 60 * 1000,
+  '2_hours_before': 2 * 60 * 60 * 1000,
+  '1_day_before': 24 * 60 * 60 * 1000,
+  '2_days_before': 2 * 24 * 60 * 60 * 1000,
+  '1_week_before': 7 * 24 * 60 * 60 * 1000,
+  on_due_date: 0,
+};
 
 const DEFAULT_NOTIFICATION_SETTINGS = {
   enableNotifications: true,
@@ -82,6 +94,150 @@ const normalizeText = (value, fallback = '') => {
   if (value === null || value === undefined) return fallback;
   const text = String(value).trim();
   return text.length > 0 ? text : fallback;
+};
+
+const readTimestamp = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+};
+
+const normalizeReminderMethod = (method, fallback = 'app') => {
+  const value = String(method || '').toLowerCase();
+  if (value === 'email') return 'email';
+  if (value === 'both') return 'both';
+  if (value === 'app' || value === 'in_app') return 'app';
+  return fallback;
+};
+
+const shouldPlayReminderSound = (method) => normalizeReminderMethod(method) !== 'email';
+
+const getInitialScheduledTriggerCache = () => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(SCHEDULED_TRIGGER_CACHE_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const persistScheduledTriggerCache = (cache) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(SCHEDULED_TRIGGER_CACHE_STORAGE_KEY, JSON.stringify(cache));
+  } catch {}
+};
+
+const pruneScheduledTriggerCache = (cache, now = Date.now()) => {
+  const next = {};
+  Object.entries(cache || {}).forEach(([key, value]) => {
+    if (!Number.isFinite(Number(value))) return;
+    if (now - Number(value) > SCHEDULED_TRIGGER_RETENTION_MS) return;
+    next[key] = Number(value);
+  });
+  return next;
+};
+
+const addMonths = (timestamp, months) => {
+  const next = new Date(timestamp);
+  next.setMonth(next.getMonth() + months);
+  return next.getTime();
+};
+
+const advanceReminderTime = (timestamp, frequency) => {
+  switch (String(frequency || '').toLowerCase()) {
+    case 'daily':
+      return timestamp + 24 * 60 * 60 * 1000;
+    case 'weekly':
+      return timestamp + 7 * 24 * 60 * 60 * 1000;
+    case 'monthly':
+      return addMonths(timestamp, 1);
+    default:
+      return null;
+  }
+};
+
+const getNextReminderTimestamp = (timestamp, frequency, now = Date.now()) => {
+  let next = advanceReminderTime(timestamp, frequency);
+  while (next && next <= now) {
+    next = advanceReminderTime(next, frequency);
+  }
+  return next;
+};
+
+const resolveScheduledReminderType = (reminder) => {
+  if (reminder?.linkedGoalId) return 'goal_reminder';
+  if (reminder?.taskId || reminder?.linkedTaskId) return 'task_reminder';
+  return 'reminder_triggered';
+};
+
+const getReminderOriginPath = (reminder) => {
+  if (reminder?.linkedGoalId) {
+    return `/goals/${encodeURIComponent(String(reminder.linkedGoalId))}`;
+  }
+  if (reminder?.taskId || reminder?.linkedTaskId) {
+    const taskId = reminder.taskId || reminder.linkedTaskId;
+    return `/tasks#task-${encodeURIComponent(String(taskId))}`;
+  }
+  return '/reminders';
+};
+
+const buildReminderScheduleKey = (reminder) =>
+  `reminder:${String(reminder?.id || 'unknown')}:${normalizeText(reminder?.reminderTime, 'none')}`;
+
+const buildTaskReminderScheduleKey = (taskId, scheduleTime, timing, frequency) =>
+  `task:${String(taskId)}:${String(scheduleTime)}:${normalizeText(timing, 'none')}:${normalizeText(frequency, 'once')}`;
+
+const getTaskReminderBaseTime = (task) => {
+  const dueTimestamp = readTimestamp(task?.dueDate);
+  if (dueTimestamp === null) return null;
+
+  const settings = task?.reminderSettings || {};
+  if (settings.timing === 'custom') {
+    return readTimestamp(settings.customTime);
+  }
+
+  const offset = TASK_REMINDER_OFFSET_MS[settings.timing] ?? TASK_REMINDER_OFFSET_MS['1_day_before'];
+  return dueTimestamp - offset;
+};
+
+const getTaskReminderScheduleTimes = (task) => {
+  const dueTimestamp = readTimestamp(task?.dueDate);
+  const baseTimestamp = getTaskReminderBaseTime(task);
+  const settings = task?.reminderSettings || {};
+  const frequency = String(settings.frequency || 'once').toLowerCase();
+
+  if (dueTimestamp === null || baseTimestamp === null) return [];
+
+  if (frequency === 'multiple') {
+    return [
+      dueTimestamp - TASK_REMINDER_OFFSET_MS['1_week_before'],
+      dueTimestamp - TASK_REMINDER_OFFSET_MS['2_days_before'],
+      dueTimestamp - TASK_REMINDER_OFFSET_MS['1_day_before'],
+      dueTimestamp - TASK_REMINDER_OFFSET_MS['2_hours_before'],
+      dueTimestamp - TASK_REMINDER_OFFSET_MS['1_hour_before'],
+      dueTimestamp,
+    ]
+      .filter((value) => Number.isFinite(value))
+      .filter((value, index, list) => list.indexOf(value) === index)
+      .sort((left, right) => left - right);
+  }
+
+  if (frequency === 'daily') {
+    const times = [];
+    let cursor = baseTimestamp;
+    const ceiling = Math.max(dueTimestamp, baseTimestamp);
+    while (cursor <= ceiling) {
+      times.push(cursor);
+      cursor += 24 * 60 * 60 * 1000;
+    }
+    return times;
+  }
+
+  return [baseTimestamp];
 };
 
 const getInitialNotifications = () => {
@@ -180,6 +336,7 @@ const getNotificationTemplate = (type, item, templateOverride = null) => {
     goal_reminder:             { title: 'Goal Reminder',        message: `Do not forget: "${title}"`,                       type: 'info'    },
     goal_deadline_approaching: { title: 'Deadline Approaching', message: `"${title}" is due soon`,                          type: 'warning' },
     automation_enabled:        { title: 'Automation Enabled',   message: `"${title}" now has automation enabled`,           type: 'success' },
+    task_reminder:             { title: 'Task Reminder',        message: `Time to work on "${title}"`,                     type: 'info'    },
     reminder_created:          { title: 'Reminder Set',         message: `Reminder created: "${title}"`,                   type: 'success' },
     reminder_triggered:        { title: 'Reminder',             message: title,                                             type: 'info'    },
     reminder_snoozed:          { title: 'Reminder Snoozed',     message: `"${title}" snoozed`,                              type: 'info'    },
@@ -237,6 +394,7 @@ export const NotificationProvider = ({ children }) => {
     user,
     updateProfile,
   } = useAuth();
+  const { tasks, reminders, updateReminder } = useTasks();
 
   const [notifications, setNotifications] = useState(getInitialNotifications);
   const [socketConnected, setSocketConnected] = useState(false);
@@ -255,6 +413,9 @@ export const NotificationProvider = ({ children }) => {
   const vapidPublicKeyRef = useRef('');
   const ringtoneInitialisedRef = useRef(false);
   const syncedRingtoneRef = useRef('');
+  const scheduledTriggerCacheRef = useRef(
+    pruneScheduledTriggerCache(getInitialScheduledTriggerCache())
+  );
 
   // Stable ref always pointing to the latest playNotificationSound closure.
   // The BroadcastChannel listener captures this ref once on mount, but always
@@ -710,9 +871,142 @@ export const NotificationProvider = ({ children }) => {
 
     setNotifications((prev) => [newNotification, ...prev].slice(0, MAX_NOTIFICATIONS));
     if (playSound) playNotificationSound(normalizedType);
-    if (source === 'socket') showBrowserNotification(newNotification);
+    if (source === 'socket' || source === 'scheduler') showBrowserNotification(newNotification);
     return newNotification;
   }, [playNotificationSound, shouldSuppressDuplicate, showBrowserNotification]);
+
+  const markScheduledTrigger = useCallback((scheduleKey, firedAt = Date.now()) => {
+    const next = pruneScheduledTriggerCache(scheduledTriggerCacheRef.current, firedAt);
+    next[scheduleKey] = firedAt;
+    scheduledTriggerCacheRef.current = next;
+    persistScheduledTriggerCache(next);
+  }, []);
+
+  useEffect(() => {
+    scheduledTriggerCacheRef.current = pruneScheduledTriggerCache(scheduledTriggerCacheRef.current);
+    persistScheduledTriggerCache(scheduledTriggerCacheRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading || isAuthenticated) {
+      return undefined;
+    }
+
+    const runReminderScheduler = () => {
+      const now = Date.now();
+
+      const manualReminders = Array.isArray(reminders) ? reminders : [];
+      manualReminders.forEach((reminder) => {
+        if (!reminder || reminder.status === 'completed') return;
+
+        const reminderTimestamp = readTimestamp(reminder.reminderTime);
+        if (reminderTimestamp === null || reminderTimestamp > now) return;
+
+        const scheduleKey = buildReminderScheduleKey(reminder);
+        if (scheduledTriggerCacheRef.current[scheduleKey]) return;
+
+        const notificationType = resolveScheduledReminderType(reminder);
+        const itemType = reminder.linkedGoalId
+          ? 'goal'
+          : reminder.taskId || reminder.linkedTaskId
+          ? 'task'
+          : 'reminder';
+
+        addNotification(
+          notificationType,
+          {
+            ...reminder,
+            id: reminder.id,
+            itemType,
+            taskId: reminder.taskId || reminder.linkedTaskId || null,
+            goalId: reminder.linkedGoalId || null,
+          },
+          null,
+          shouldPlayReminderSound(reminder.notificationMethod),
+          {
+            source: 'scheduler',
+            dedupeKey: scheduleKey,
+            eventId: scheduleKey,
+            itemType,
+            originPath: getReminderOriginPath(reminder),
+            timestamp: new Date(reminderTimestamp).toISOString(),
+          }
+        );
+
+        markScheduledTrigger(scheduleKey, now);
+
+        const nextReminderTimestamp = getNextReminderTimestamp(reminderTimestamp, reminder.frequency, now);
+        if (nextReminderTimestamp) {
+          updateReminder(reminder.id, {
+            reminderTime: new Date(nextReminderTimestamp).toISOString(),
+            status: 'upcoming',
+            lastTriggeredAt: new Date(now).toISOString(),
+          });
+        } else if (reminder.status !== 'today') {
+          updateReminder(reminder.id, {
+            status: 'today',
+            lastTriggeredAt: new Date(now).toISOString(),
+          });
+        }
+      });
+
+      const automatedTasks = Array.isArray(tasks) ? tasks : [];
+      automatedTasks.forEach((task) => {
+        if (!task || task.completed || !task.reminderSettings?.enabled) return;
+
+        const scheduleTimes = getTaskReminderScheduleTimes(task);
+        if (scheduleTimes.length === 0) return;
+
+        const latestDueScheduleTime = [...scheduleTimes]
+          .filter((scheduleTime) => Number.isFinite(scheduleTime) && scheduleTime <= now)
+          .sort((left, right) => right - left)
+          .find((scheduleTime) => {
+            const scheduleKey = buildTaskReminderScheduleKey(
+              task.id,
+              scheduleTime,
+              task.reminderSettings?.timing,
+              task.reminderSettings?.frequency
+            );
+            return !scheduledTriggerCacheRef.current[scheduleKey];
+          });
+
+        if (!Number.isFinite(latestDueScheduleTime)) return;
+
+        const scheduleKey = buildTaskReminderScheduleKey(
+          task.id,
+          latestDueScheduleTime,
+          task.reminderSettings?.timing,
+          task.reminderSettings?.frequency
+        );
+
+        addNotification(
+          'task_reminder',
+          {
+            ...task,
+            itemType: 'task',
+            reminderTime: new Date(latestDueScheduleTime).toISOString(),
+            taskId: task.id,
+          },
+          null,
+          shouldPlayReminderSound(task.reminderSettings?.notificationMethod),
+          {
+            source: 'scheduler',
+            dedupeKey: scheduleKey,
+            eventId: scheduleKey,
+            itemType: 'task',
+            originPath: `/tasks#task-${encodeURIComponent(String(task.id))}`,
+            timestamp: new Date(latestDueScheduleTime).toISOString(),
+          }
+        );
+
+        markScheduledTrigger(scheduleKey, now);
+      });
+    };
+
+    runReminderScheduler();
+    const intervalId = window.setInterval(runReminderScheduler, REMINDER_SCHEDULER_INTERVAL_MS);
+    return () => window.clearInterval(intervalId);
+  }, [addNotification, authLoading, isAuthenticated, markScheduledTrigger, reminders, tasks, updateReminder]);
 
   // ─── Socket.io ─────────────────────────────────────────────────────────────
   useEffect(() => {

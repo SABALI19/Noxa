@@ -442,7 +442,9 @@ const AIAssistantChat = ({
           taskCompleted: Boolean(linkedTask?.completed),
           note: payload.note || ''
         });
-        addNotification('reminder_created', reminder);
+        if (!isAuthenticated) {
+          addNotification('reminder_created', reminder);
+        }
         trackNotification(reminder.id, 'reminder', 'sent', 'reminder_created');
         created.push(`Reminder set: ${reminder.title}`);
         continue;

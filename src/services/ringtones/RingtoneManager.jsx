@@ -94,6 +94,7 @@ const NOTIFICATION_SOUND_MAP = {
   task_in_progress:          'task',
   task_updated:              'task',
   task_deleted:              'task',
+  task_reminder:             'reminder',
   // Goal events
   goal_created:              'goal',
   goal_completed:            'goal',

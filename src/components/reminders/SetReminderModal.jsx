@@ -4,10 +4,12 @@ import { FiX, FiCalendar, FiClock, FiRepeat, FiBell, FiMail, FiSmartphone, FiAle
 import Button from '../Button';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useNotificationTracking } from '../../hooks/useNotificationTracking';
+import { useAuth } from '../../hooks/UseAuth';
 
 const SetReminderModal = ({ isOpen, onClose, onSubmit, linkedGoal = null, linkedTask = null }) => {
   const { addNotification } = useNotifications();
   const { trackNotification } = useNotificationTracking();
+  const { isAuthenticated } = useAuth();
   
   const [formData, setFormData] = useState({
     title: '',
@@ -163,31 +165,13 @@ const SetReminderModal = ({ isOpen, onClose, onSubmit, linkedGoal = null, linked
       const createdReminder = await onSubmit(reminderData);
       const reminderEventId = createdReminder?.id || `reminder-${Date.now()}`;
       
-      // Send reminder creation notification
-      addNotification('reminder_created', { ...reminderData, id: reminderEventId });
+      if (!isAuthenticated) {
+        addNotification('reminder_created', { ...reminderData, id: reminderEventId });
+      }
       
       // Track notification
       trackNotification(reminderEventId, 'reminder', 'sent', 'reminder_created');
-      
-      // If linked to a goal, send goal reminder notification
-      if (formData.linkedGoalId && linkedGoal) {
-        addNotification('goal_reminder', {
-          id: formData.linkedGoalId,
-          title: linkedGoal.title,
-          reminder: formData.title
-        });
-        trackNotification(formData.linkedGoalId, 'goal', 'sent', 'goal_reminder_set');
-      }
-      
-      // If linked to a task, send task reminder notification
-      if (formData.linkedTaskId && linkedTask) {
-        addNotification('task_updated', {
-          id: formData.linkedTaskId,
-          title: `Reminder set for: ${linkedTask.title}`
-        });
-        trackNotification(formData.linkedTaskId, 'task', 'sent', 'task_reminder_set');
-      }
-      
+
       resetForm();
       onClose();
     } catch (error) {
