@@ -9,6 +9,7 @@ import {
   logoutRequest,
   registerRequest,
   updateProfileRequest,
+  verifyLoginOtpRequest,
 } from "../services/authService";
 
 export const AuthContext = createContext(null);
@@ -104,6 +105,27 @@ export const AuthProvider = ({ children }) => {
 
   const loginWithBackend = async (credentials) => {
     const authResponse = await loginRequest(credentials);
+    if (authResponse?.requiresOtp) {
+      return {
+        requiresOtp: true,
+        loginOtpToken: authResponse.loginOtpToken,
+        expiresAt: authResponse.expiresAt || null,
+        message: authResponse.message || "Login OTP sent. Verify it to complete sign in.",
+      };
+    }
+
+    const persistedUser = persistUser(authResponse.user);
+    setUser(persistedUser);
+    setToken(authResponse.token);
+    return {
+      user: persistedUser,
+      message: authResponse.message || "Login successful",
+      notification: authResponse.notification || null,
+    };
+  };
+
+  const verifyLoginOtpWithBackend = async ({ loginOtpToken, otp }) => {
+    const authResponse = await verifyLoginOtpRequest({ loginOtpToken, otp });
     const persistedUser = persistUser(authResponse.user);
     setUser(persistedUser);
     setToken(authResponse.token);
@@ -167,6 +189,7 @@ export const AuthProvider = ({ children }) => {
     user,
     token,
     loginWithBackend,
+    verifyLoginOtpWithBackend,
     signupWithBackend,
     forgotPassword,
     resetPassword,

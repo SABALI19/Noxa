@@ -1,5 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const LOGIN_PATH = import.meta.env.VITE_AUTH_LOGIN_PATH || "/api/v1/users/login";
+const LOGIN_VERIFY_OTP_PATH =
+  import.meta.env.VITE_AUTH_LOGIN_VERIFY_OTP_PATH || "/api/v1/users/login/verify-otp";
 const SIGNUP_PATH =
   import.meta.env.VITE_AUTH_SIGNUP_PATH ||
   import.meta.env.VITE_AUTH_REGISTER_PATH ||
@@ -94,6 +96,21 @@ const validateAuthResult = (data, contextLabel) => {
     refreshToken,
     message: data.message || null,
     notification: normalizeAuthNotification(data.notification),
+  };
+};
+
+const normalizeLoginOtpChallenge = (data = {}) => {
+  const loginOtpToken = data.loginOtpToken || data.token || null;
+
+  if (!loginOtpToken) {
+    throw new Error("Login failed: missing login OTP token in response.");
+  }
+
+  return {
+    requiresOtp: true,
+    loginOtpToken,
+    expiresAt: data.expiresAt || null,
+    message: data.message || "Login OTP sent. Verify it to complete sign in.",
   };
 };
 
@@ -224,7 +241,33 @@ export const loginRequest = async ({ email, password }) => {
   });
 
   const data = extractData(payload);
+  if (data.requiresOtp) {
+    return {
+      ...normalizeLoginOtpChallenge(data),
+      raw: payload,
+    };
+  }
+
   const normalized = validateAuthResult(data, "Login");
+  storeTokens({
+    accessToken: normalized.token,
+    refreshToken: normalized.refreshToken,
+  });
+
+  return {
+    ...normalized,
+    raw: payload,
+  };
+};
+
+export const verifyLoginOtpRequest = async ({ loginOtpToken, otp }) => {
+  const payload = await request(LOGIN_VERIFY_OTP_PATH, {
+    method: "POST",
+    body: { loginOtpToken, otp },
+  });
+
+  const data = extractData(payload);
+  const normalized = validateAuthResult(data, "Login OTP verification");
   storeTokens({
     accessToken: normalized.token,
     refreshToken: normalized.refreshToken,
@@ -411,6 +454,7 @@ export const getAuthTokens = () => getStoredTokens();
 export const authConfig = {
   API_BASE_URL,
   LOGIN_PATH,
+  LOGIN_VERIFY_OTP_PATH,
   SIGNUP_PATH,
   REFRESH_PATH,
   LOGOUT_PATH,

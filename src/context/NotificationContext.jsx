@@ -40,6 +40,7 @@ const SOCKET_DEDUPE_MS = 5000;
 const RECENT_CACHE_TTL_MS = 60000;
 const NOTIFICATION_SETTINGS_STORAGE_KEY = 'noxa_notification_settings';
 const NOTIFICATIONS_STORAGE_KEY = 'noxa_notifications';
+const LEGACY_NOTIFICATIONS_MIGRATION_KEY = 'noxa_notifications_migrated_v2';
 const NOTIFICATION_RETENTION_MS = 1000 * 60 * 60 * 24 * 30;
 const SCHEDULED_TRIGGER_CACHE_STORAGE_KEY = 'noxa_scheduled_trigger_cache';
 const SCHEDULED_TRIGGER_RETENTION_MS = 1000 * 60 * 60 * 24 * 90;
@@ -62,6 +63,13 @@ const DEFAULT_NOTIFICATION_SETTINGS = {
   defaultSound: 'Default',     // key in RINGTONE_CATALOGUE
   soundEnabled: true,
   ringtoneVolume: 0.8,         // 0.0 – 1.0
+};
+
+const buildNotificationsStorageKey = (userId = '') => {
+  const normalizedUserId = normalizeText(userId, '');
+  return normalizedUserId
+    ? `${NOTIFICATIONS_STORAGE_KEY}:${normalizedUserId}`
+    : NOTIFICATIONS_STORAGE_KEY;
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -240,10 +248,10 @@ const getTaskReminderScheduleTimes = (task) => {
   return [baseTimestamp];
 };
 
-const getInitialNotifications = () => {
+const readStoredNotifications = (storageKey = NOTIFICATIONS_STORAGE_KEY) => {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = window.localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -396,7 +404,7 @@ export const NotificationProvider = ({ children }) => {
   } = useAuth();
   const { tasks, reminders, updateReminder } = useTasks();
 
-  const [notifications, setNotifications] = useState(getInitialNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState(getInitialNotificationSettings);
   const [notificationPermission, setNotificationPermission] = useState(() => {
@@ -423,6 +431,37 @@ export const NotificationProvider = ({ children }) => {
   const playNotificationSoundRef = useRef(null);
 
   const pushSupported = notificationPermission !== 'unsupported';
+  const notificationStorageKey = isAuthenticated
+    ? buildNotificationsStorageKey(user?.id || user?._id)
+    : null;
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const hasMigrated = window.localStorage.getItem(LEGACY_NOTIFICATIONS_MIGRATION_KEY);
+      if (hasMigrated) return;
+
+      // Remove the old shared notification bucket so one user's feed cannot bleed into another's.
+      window.localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
+      window.localStorage.setItem(LEGACY_NOTIFICATIONS_MIGRATION_KEY, 'true');
+    } catch (error) {
+      console.warn('Failed to migrate legacy notifications:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || authLoading) return;
+
+    recentDispatchRef.current.clear();
+
+    if (!isAuthenticated || !notificationStorageKey) {
+      setNotifications([]);
+      return;
+    }
+
+    setNotifications(readStoredNotifications(notificationStorageKey));
+  }, [authLoading, isAuthenticated, notificationStorageKey]);
 
   // ─── Init ringtoneManager on first user interaction ────────────────────────
   // AudioContext requires a user gesture before it can run. We wait for the
@@ -519,8 +558,13 @@ export const NotificationProvider = ({ children }) => {
 
   // ─── Persist notifications ─────────────────────────────────────────────────
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || authLoading) return;
     try {
+      if (!isAuthenticated || !notificationStorageKey) {
+        window.localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
+        return;
+      }
+
       const serializable = notifications
         .slice(0, MAX_NOTIFICATIONS)
         .map((notification) => {
@@ -528,11 +572,12 @@ export const NotificationProvider = ({ children }) => {
           delete s.onClick;
           return s;
         });
-      window.localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(serializable));
+      window.localStorage.setItem(notificationStorageKey, JSON.stringify(serializable));
+      window.localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
     } catch (error) {
       console.warn('Failed to persist notifications:', error);
     }
-  }, [notifications]);
+  }, [authLoading, isAuthenticated, notificationStorageKey, notifications]);
 
   // ─── Sync permission state ─────────────────────────────────────────────────
   useEffect(() => {

@@ -12,7 +12,7 @@ const LandingAuthSection = ({
   onLoadingChange,
 }) => {
   const navigate = useNavigate();
-  const { loginWithBackend, signupWithBackend, forgotPassword, resetPassword } = useAuth();
+  const { loginWithBackend, verifyLoginOtpWithBackend, signupWithBackend, forgotPassword, resetPassword } = useAuth();
   const { addNotification } = useNotifications();
 
   const isLogin = requestedMode !== "signup";
@@ -91,6 +91,11 @@ const LandingAuthSection = ({
         email: formData.email,
         password: formData.password,
       });
+      if (loginResult?.requiresOtp) {
+        finishLoading();
+        return loginResult;
+      }
+
       const loggedInUser = loginResult?.user || loginResult;
       emitAuthNotification(
         loginResult,
@@ -109,6 +114,31 @@ const LandingAuthSection = ({
       console.error("Login error:", error);
       failLoading();
       throw new Error(error?.message || "Login failed. Please try again.");
+    }
+  };
+
+  const handleVerifyLoginOtp = async ({ loginOtpToken, otp }) => {
+    try {
+      startLoading(45);
+      const loginResult = await verifyLoginOtpWithBackend({ loginOtpToken, otp });
+      const loggedInUser = loginResult?.user || loginResult;
+      emitAuthNotification(
+        loginResult,
+        "user_logged_in",
+        "Login Successful",
+        `Welcome back ${loggedInUser?.username || "there"}, you logged in successfully.`
+      );
+      setLoadingProgress(85);
+      if (onLogin) {
+        onLogin(loggedInUser);
+      }
+      finishLoading();
+      navigate("/dashboard");
+      return loggedInUser;
+    } catch (error) {
+      console.error("Login OTP verification error:", error);
+      failLoading();
+      throw new Error(error?.message || "OTP verification failed. Please try again.");
     }
   };
 
@@ -206,6 +236,7 @@ const LandingAuthSection = ({
       <div id="auth-section" className="py-12 md:py-16">
         <Auth
           onLogin={handleAuthLogin}
+          onVerifyLoginOtp={handleVerifyLoginOtp}
           onSignup={handleAuthSignup}
           onForgotPassword={handleForgotPassword}
           onResetPassword={handleResetPassword}

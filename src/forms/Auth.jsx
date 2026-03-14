@@ -6,6 +6,7 @@ import Button from '../components/Button';
 
 const Auth = ({
   onLogin,
+  onVerifyLoginOtp,
   onSignup,
   onForgotPassword,
   onResetPassword,
@@ -23,6 +24,12 @@ const Auth = ({
     email: '',
     password: ''
   });
+  const [loginOtpForm, setLoginOtpForm] = useState({
+    otp: '',
+    loginOtpToken: '',
+    email: '',
+    expiresAt: '',
+  });
   const [signupForm, setSignupForm] = useState({
     name: '',
     email: '',
@@ -38,11 +45,18 @@ const Auth = ({
     confirmPassword: '',
   });
   const [errors, setErrors] = useState({});
+  const isLoginOtpStep = Boolean(loginOtpForm.loginOtpToken);
 
   useEffect(() => {
     setIsLogin(initialIsLogin);
     setShowForgotPassword(false);
     setShowResetPassword(false);
+    setLoginOtpForm({
+      otp: '',
+      loginOtpToken: '',
+      email: '',
+      expiresAt: '',
+    });
     setStatusMessage('');
     setErrors({});
   }, [initialIsLogin]);
@@ -101,6 +115,21 @@ const Auth = ({
       setErrors(prev => ({
         ...prev,
         submit: ''
+      }));
+    }
+  };
+
+  const handleLoginOtpChange = (e) => {
+    const { value } = e.target;
+    setLoginOtpForm((prev) => ({
+      ...prev,
+      otp: value,
+    }));
+    if (errors.otp || errors.submit) {
+      setErrors((prev) => ({
+        ...prev,
+        otp: '',
+        submit: '',
       }));
     }
   };
@@ -189,6 +218,17 @@ const Auth = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateLoginOtp = () => {
+    const newErrors = {};
+
+    if (!loginOtpForm.otp.trim()) {
+      newErrors.otp = "OTP is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const validateResetPassword = () => {
     const newErrors = {};
 
@@ -223,7 +263,19 @@ const Auth = ({
       
       if (onLogin) {
         try {
-          await onLogin(formData);
+          const loginResult = await onLogin(formData);
+          if (loginResult?.requiresOtp) {
+            setLoginOtpForm({
+              otp: '',
+              loginOtpToken: loginResult.loginOtpToken || '',
+              email: formData.email.trim(),
+              expiresAt: loginResult.expiresAt || '',
+            });
+            setStatusMessage(
+              loginResult.message || `A one-time code was sent to ${formData.email.trim()}.`
+            );
+            setErrors({});
+          }
         } catch (error) {
           setErrors(prev => ({
             ...prev,
@@ -231,6 +283,34 @@ const Auth = ({
           }));
         }
       }
+    }
+  };
+
+  const handleLoginOtpSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateLoginOtp() || isLoading) {
+      return;
+    }
+
+    if (!onVerifyLoginOtp) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: "Login OTP verification is not configured yet.",
+      }));
+      return;
+    }
+
+    try {
+      await onVerifyLoginOtp({
+        loginOtpToken: loginOtpForm.loginOtpToken,
+        otp: loginOtpForm.otp.trim(),
+      });
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: error?.message || "OTP verification failed. Please try again.",
+      }));
     }
   };
 
@@ -341,6 +421,12 @@ const Auth = ({
   const openForgotPassword = () => {
     setShowForgotPassword(true);
     setShowResetPassword(false);
+    setLoginOtpForm({
+      otp: '',
+      loginOtpToken: '',
+      email: '',
+      expiresAt: '',
+    });
     setStatusMessage('');
     setErrors({});
     setForgotForm({ email: loginForm.email || '' });
@@ -349,6 +435,12 @@ const Auth = ({
   const openLoginView = () => {
     setShowForgotPassword(false);
     setShowResetPassword(false);
+    setLoginOtpForm({
+      otp: '',
+      loginOtpToken: '',
+      email: '',
+      expiresAt: '',
+    });
     setStatusMessage('');
     setErrors({});
     setIsLogin(true);
@@ -362,7 +454,7 @@ const Auth = ({
           {/* Form Section */}
           <div className="p-6 sm:p-8 lg:p-12 order-1">
             <div className="flex justify-center mb-6 sm:mb-8">
-              {showForgotPassword || showResetPassword ? (
+              {showForgotPassword || showResetPassword || isLoginOtpStep ? (
                 <button
                   type="button"
                   onClick={openLoginView}
@@ -575,6 +667,64 @@ const Auth = ({
                   disabled={isLoading}
                 >
                   {isLoading ? "Updating..." : "Reset Password"}
+                </Button>
+
+                {errors.submit && (
+                  <p className="text-sm text-red-600 text-center -mt-2">
+                    {errors.submit}
+                  </p>
+                )}
+              </form>
+            ) : isLoginOtpStep ? (
+              <form onSubmit={handleLoginOtpSubmit} className="space-y-4 sm:space-y-6">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 text-center mb-2">
+                    Verify Login OTP
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4">
+                    Enter the one-time code sent to {loginOtpForm.email || "your email"}.
+                  </p>
+                  {loginOtpForm.expiresAt && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-4">
+                      Code expires at {new Date(loginOtpForm.expiresAt).toLocaleString()}.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    One-Time Password
+                  </label>
+                  <div className="relative">
+                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                    <input
+                      type="text"
+                      name="otp"
+                      value={loginOtpForm.otp}
+                      onChange={handleLoginOtpChange}
+                      disabled={isLoading}
+                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                        errors.otp ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder="123456"
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                  {errors.otp && (
+                    <p className="mt-1 text-xs sm:text-sm text-red-600">
+                      {errors.otp}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Verifying..." : "Verify OTP"}
                 </Button>
 
                 {errors.submit && (
