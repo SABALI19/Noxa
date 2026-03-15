@@ -93,6 +93,25 @@ const persistCommunityWords = (entries) => {
   return normalizedEntries;
 };
 
+const mergeCommunityWords = (remoteEntries, localEntries = readStoredCommunityWords()) => {
+  const normalizedRemote = Array.isArray(remoteEntries)
+    ? remoteEntries.map((item) => normalizeWordOfDay(item))
+    : [];
+  const remoteKeys = new Set(
+    normalizedRemote.map((entry) => `${entry.id || "no-id"}:${String(entry.word || "").toLowerCase()}`)
+  );
+
+  const localPendingEntries = localEntries
+    .map((item) => normalizeWordOfDay(item))
+    .filter((entry) => entry.status !== "approved")
+    .filter((entry) => {
+      const key = `${entry.id || "no-id"}:${String(entry.word || "").toLowerCase()}`;
+      return !remoteKeys.has(key);
+    });
+
+  return [...localPendingEntries, ...normalizedRemote];
+};
+
 const hashString = (value) => {
   let hash = 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -137,17 +156,32 @@ export const getCommunityWords = async () => {
 
     const payload = await parseJsonSafe(response);
     const entries = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
-    return persistCommunityWords(entries);
+    return persistCommunityWords(mergeCommunityWords(entries));
   } catch {
     return readStoredCommunityWords();
   }
 };
 
 export const submitCommunityWord = async (payload) => {
+  const submissionPayload = {
+    word: String(payload?.word || "").trim(),
+    meaning: String(payload?.meaning || "").trim(),
+    example: String(payload?.example || "").trim(),
+  };
+
+  if (!submissionPayload.word) {
+    throw new Error("Word is required.");
+  }
+
+  if (!submissionPayload.meaning) {
+    throw new Error("Meaning is required.");
+  }
+
   const normalizedPayload = normalizeWordOfDay({
-    ...payload,
+    ...submissionPayload,
     updatedAt: new Date().toISOString(),
     status: "pending",
+    submittedBy: payload?.submittedBy || null,
   });
 
   let response;
@@ -155,7 +189,10 @@ export const submitCommunityWord = async (payload) => {
   try {
     response = await authFetch(COMMUNITY_WORDS_PATH, {
       method: "POST",
-      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(submissionPayload),
     });
   } catch {
     const nextEntries = [normalizedPayload, ...readStoredCommunityWords()];

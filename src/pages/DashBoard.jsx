@@ -53,41 +53,56 @@ const WordOfDayModal = ({
     };
 
     window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4 py-6 dark:bg-black/60">
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-0 sm:p-3 md:p-4 dark:bg-black/70"
+      aria-modal="true"
+      role="dialog"
+      aria-labelledby="word-of-day-modal-title"
+    >
       <div
         className="absolute inset-0"
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex items-start justify-between border-b border-gray-200 px-6 py-5 dark:border-gray-800">
+      <div className="relative z-10 flex h-full w-full flex-col overflow-hidden bg-white shadow-2xl dark:bg-gray-900 sm:h-auto sm:max-h-[92vh] sm:max-w-2xl sm:rounded-3xl sm:border sm:border-gray-200 dark:sm:border-gray-700">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 z-20 rounded-full bg-white/90 p-2 text-gray-600 shadow-sm ring-1 ring-gray-200 transition hover:bg-white hover:text-gray-900 dark:bg-gray-900/90 dark:text-gray-300 dark:ring-gray-700 dark:hover:bg-gray-900 dark:hover:text-white sm:right-4 sm:top-4"
+          aria-label="Close word of the day modal"
+        >
+          <FiX className="text-lg" />
+        </button>
+
+        <div className="border-b border-gray-200 px-4 py-5 pr-14 dark:border-gray-800 sm:px-6 sm:py-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#3D9B9B] dark:text-[#4fb3b3]">
               Word Of The Day
             </p>
-            <h2 className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">{wordOfDay.word}</h2>
+            <h2
+              id="word-of-day-modal-title"
+              className="mt-2 text-xl font-bold text-gray-900 dark:text-gray-100 sm:text-2xl"
+            >
+              {wordOfDay.word}
+            </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{wordOfDay.meaning}</p>
             {wordOfDay.example ? (
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Example: {wordOfDay.example}</p>
             ) : null}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-            aria-label="Close word of the day modal"
-          >
-            <FiX className="text-lg" />
-          </button>
         </div>
 
-        <div className="grid max-h-[calc(100vh-8rem)] gap-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 md:grid-cols-[0.95fr_1.05fr] md:px-6 md:py-6">
+        <div className="grid flex-1 gap-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5 md:grid-cols-[0.95fr_1.05fr] md:px-6 md:py-6">
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/10 sm:p-5">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-amber-600 shadow-sm dark:bg-gray-900 dark:text-amber-300">
@@ -170,12 +185,14 @@ const WordOfDayModal = ({
               </p>
             ) : null}
 
-            <div className="mt-5 flex items-center justify-between">
-              <span className="text-xs text-gray-500 dark:text-gray-400">Featured words are rotated daily.</span>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                Featured words are rotated daily after moderation approval.
+              </span>
               <button
                 type="submit"
                 disabled={!user || submitStatus.loading}
-                className="rounded-xl bg-[#3D9B9B] px-3 py-1.5 text-sm font-medium text-white transition hover:bg-[#2f7878] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-[#2d7b7b] dark:hover:bg-[#3D9B9B]"
+                className="w-full rounded-xl bg-[#3D9B9B] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#2f7878] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-[#2d7b7b] dark:hover:bg-[#3D9B9B] sm:w-auto sm:px-3 sm:py-1.5"
               >
                 {submitStatus.loading ? "Submitting..." : "Submit Word"}
               </button>
@@ -366,6 +383,7 @@ const Dashboard = ({ isSidebarOpen = true }) => {
 
   const handleOpenWordModal = () => {
     setShowDateMenu(false);
+    setSubmitStatus({ loading: false, error: false, message: "" });
     setShowWordModal(true);
   };
 
@@ -433,6 +451,7 @@ const Dashboard = ({ isSidebarOpen = true }) => {
 
   const handleWordFormChange = (event) => {
     const { name, value } = event.target;
+    setSubmitStatus((prev) => (prev.message ? { ...prev, error: false, message: "" } : prev));
     setWordForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -689,7 +708,10 @@ const Dashboard = ({ isSidebarOpen = true }) => {
 
       <WordOfDayModal
         isOpen={showWordModal}
-        onClose={() => setShowWordModal(false)}
+        onClose={() => {
+          setShowWordModal(false);
+          setSubmitStatus({ loading: false, error: false, message: "" });
+        }}
         wordOfDay={wordOfDay}
         communityWordsCount={communityWords.length}
         formState={wordForm}
