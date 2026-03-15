@@ -319,13 +319,20 @@ export const getCurrentUserRequest = async () => {
   };
 };
 
-export const updateProfileRequest = async ({ username, name, email, avatar } = {}) => {
+export const updateProfileRequest = async ({
+  username,
+  name,
+  email,
+  avatar,
+  selectedRingtone,
+} = {}) => {
   const profilePayload = {};
 
   if (username !== undefined) profilePayload.username = username;
   if (name !== undefined) profilePayload.name = name;
   if (email !== undefined) profilePayload.email = email;
   if (avatar !== undefined) profilePayload.avatar = avatar;
+  if (selectedRingtone !== undefined) profilePayload.selectedRingtone = selectedRingtone;
 
   const payload = await request(UPDATE_PROFILE_PATH, {
     method: "PATCH",

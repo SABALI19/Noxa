@@ -252,7 +252,9 @@ const NotificationPageSettings = () => {
       if (permission !== 'granted') { alert('Push notifications were not enabled because browser permission is blocked.'); return; }
     }
     updateNotificationSettings({ enableNotifications, pushNotifications, emailNotifications, customRingtones, defaultSound, soundEnabled, ringtoneVolume });
-    if (soundEnabled) playDefaultSound();
+    if (soundEnabled) {
+      customRingtones ? ringtoneManager.ring(ringtoneVolume) : playBuiltInSound(defaultSound);
+    }
     alert('Settings saved successfully!');
   };
 

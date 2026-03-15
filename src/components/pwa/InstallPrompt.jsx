@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-const DISMISS_STORAGE_KEY = "noxa_install_prompt_dismissed_at";
-const DISMISS_DURATION_MS = 1000 * 60 * 60 * 24 * 7;
+const INSTALL_COMPLETED_STORAGE_KEY = "noxa_install_prompt_installed";
 
 const isStandaloneMode = () => {
   if (typeof window === "undefined") return false;
@@ -19,18 +18,15 @@ const isIosSafari = () => {
   return isIOS && isSafari;
 };
 
-const canShowAfterDismiss = () => {
-  if (typeof window === "undefined") return true;
-  const raw = window.localStorage.getItem(DISMISS_STORAGE_KEY);
-  if (!raw) return true;
-  const timestamp = Number(raw);
-  if (!Number.isFinite(timestamp)) return true;
-  return Date.now() - timestamp > DISMISS_DURATION_MS;
+const isInstallCompleted = () => {
+  if (typeof window === "undefined") return false;
+  if (isStandaloneMode()) return true;
+  return window.localStorage.getItem(INSTALL_COMPLETED_STORAGE_KEY) === "true";
 };
 
-const saveDismissed = () => {
+const saveInstalled = () => {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(DISMISS_STORAGE_KEY, String(Date.now()));
+  window.localStorage.setItem(INSTALL_COMPLETED_STORAGE_KEY, "true");
 };
 
 const InstallPrompt = () => {
@@ -39,20 +35,21 @@ const InstallPrompt = () => {
     []
   );
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [visible, setVisible] = useState(() => canShowAfterDismiss() && showIosHint);
+  const [visible, setVisible] = useState(() => showIosHint && !isInstallCompleted());
 
   useEffect(() => {
-    if (!canShowAfterDismiss()) return;
+    if (isInstallCompleted()) return;
 
     const onBeforeInstallPrompt = (event) => {
       event.preventDefault();
       setDeferredPrompt(event);
-      if (!isStandaloneMode()) {
+      if (!isInstallCompleted()) {
         setVisible(true);
       }
     };
 
     const onAppInstalled = () => {
+      saveInstalled();
       setVisible(false);
       setDeferredPrompt(null);
     };
@@ -66,19 +63,25 @@ const InstallPrompt = () => {
     };
   }, [showIosHint]);
 
-  if (!visible || isStandaloneMode()) return null;
+  if (!visible || isInstallCompleted()) return null;
 
   const closePrompt = () => {
     setVisible(false);
-    saveDismissed();
   };
 
   const installApp = async () => {
     if (!deferredPrompt) return;
 
     deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
+    const choice = await deferredPrompt.userChoice;
     setDeferredPrompt(null);
+
+    if (choice?.outcome === "accepted") {
+      saveInstalled();
+      setVisible(false);
+      return;
+    }
+
     setVisible(false);
   };
 

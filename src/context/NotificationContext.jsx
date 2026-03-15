@@ -45,6 +45,8 @@ const NOTIFICATION_RETENTION_MS = 1000 * 60 * 60 * 24 * 30;
 const SCHEDULED_TRIGGER_CACHE_STORAGE_KEY = 'noxa_scheduled_trigger_cache';
 const SCHEDULED_TRIGGER_RETENTION_MS = 1000 * 60 * 60 * 24 * 90;
 const REMINDER_SCHEDULER_INTERVAL_MS = 30000;
+const QUIET_MODE_CACHE_NAME = 'noxa-notification-state';
+const QUIET_MODE_CACHE_KEY = '/__noxa_notification_quiet_mode__';
 const TASK_REMINDER_OFFSET_MS = {
   '1_hour_before': 60 * 60 * 1000,
   '2_hours_before': 2 * 60 * 60 * 1000,
@@ -138,6 +140,20 @@ const persistScheduledTriggerCache = (cache) => {
   try {
     window.localStorage.setItem(SCHEDULED_TRIGGER_CACHE_STORAGE_KEY, JSON.stringify(cache));
   } catch {}
+};
+
+const readServiceWorkerQuietMode = async () => {
+  if (typeof window === 'undefined' || !('caches' in window)) return null;
+  try {
+    const cache = await window.caches.open(QUIET_MODE_CACHE_NAME);
+    const response = await cache.match(QUIET_MODE_CACHE_KEY);
+    if (!response) return null;
+    const payload = await response.json();
+    if (!payload || typeof payload !== 'object') return null;
+    return normalizeText(payload.quietUntil, '');
+  } catch {
+    return null;
+  }
 };
 
 const pruneScheduledTriggerCache = (cache, now = Date.now()) => {
@@ -408,6 +424,7 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState(getInitialNotificationSettings);
+  const [quietModeHydrated, setQuietModeHydrated] = useState(() => typeof window === 'undefined');
   const [notificationPermission, setNotificationPermission] = useState(() => {
     if (typeof window === 'undefined') return 'unsupported';
     if (!('Notification' in window)) return 'unsupported';
@@ -467,6 +484,34 @@ export const NotificationProvider = ({ children }) => {
 
     setNotifications(readStoredNotifications(notificationStorageKey));
   }, [authLoading, isAuthenticated, notificationStorageKey]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    readServiceWorkerQuietMode().then((quietUntil) => {
+      if (isCancelled) return;
+
+      const quietUntilTs = readTimestamp(quietUntil);
+      if (quietUntilTs !== null && quietUntilTs > Date.now()) {
+        setNotificationSettings((prev) => {
+          const localQuietUntilTs = readTimestamp(prev.soundSnoozedUntil);
+          if (localQuietUntilTs !== null && localQuietUntilTs >= quietUntilTs) {
+            return prev;
+          }
+          return {
+            ...prev,
+            soundSnoozedUntil: new Date(quietUntilTs).toISOString(),
+          };
+        });
+      }
+
+      setQuietModeHydrated(true);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   // ─── Init ringtoneManager on first user interaction ────────────────────────
   // AudioContext requires a user gesture before it can run. We wait for the
@@ -713,6 +758,15 @@ export const NotificationProvider = ({ children }) => {
 
       // User dismissed or actioned the OS notification — stop looping sounds
       if (type === 'NOTIFICATION_ACTION') {
+        if (payload?.action === 'snooze') {
+          const quietUntil = readTimestamp(payload?.quietUntil);
+          if (quietUntil !== null && quietUntil > Date.now()) {
+            setNotificationSettings((prev) => ({
+              ...prev,
+              soundSnoozedUntil: new Date(quietUntil).toISOString(),
+            }));
+          }
+        }
         ringtoneManager.stop();
       }
     });
@@ -890,8 +944,9 @@ export const NotificationProvider = ({ children }) => {
   }, [notificationSettings.soundSnoozedUntil]);
 
   useEffect(() => {
+    if (!quietModeHydrated) return;
     syncQuietModeToServiceWorker();
-  }, [syncQuietModeToServiceWorker]);
+  }, [quietModeHydrated, syncQuietModeToServiceWorker]);
 
   const resolveVapidPublicKey = useCallback(async () => {
     if (vapidPublicKeyRef.current) return vapidPublicKeyRef.current;
