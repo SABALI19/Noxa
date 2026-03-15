@@ -110,6 +110,7 @@ export const AuthProvider = ({ children }) => {
         requiresOtp: true,
         loginOtpToken: authResponse.loginOtpToken,
         expiresAt: authResponse.expiresAt || null,
+        loginOtp: authResponse.loginOtp || null,
         message: authResponse.message || "Login OTP sent. Verify it to complete sign in.",
       };
     }

@@ -110,6 +110,7 @@ const normalizeLoginOtpChallenge = (data = {}) => {
     requiresOtp: true,
     loginOtpToken,
     expiresAt: data.expiresAt || null,
+    loginOtp: data.loginOtp || data.otp || null,
     message: data.message || "Login OTP sent. Verify it to complete sign in.",
   };
 };

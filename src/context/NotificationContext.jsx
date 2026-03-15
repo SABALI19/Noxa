@@ -63,6 +63,7 @@ const DEFAULT_NOTIFICATION_SETTINGS = {
   defaultSound: 'Default',     // key in RINGTONE_CATALOGUE
   soundEnabled: true,
   ringtoneVolume: 0.8,         // 0.0 – 1.0
+  soundSnoozedUntil: null,
 };
 
 const buildNotificationsStorageKey = (userId = '') => {
@@ -434,6 +435,10 @@ export const NotificationProvider = ({ children }) => {
   const notificationStorageKey = isAuthenticated
     ? buildNotificationsStorageKey(user?.id || user?._id)
     : null;
+  const isSoundSnoozed = useCallback(() => {
+    const snoozedUntil = readTimestamp(notificationSettings.soundSnoozedUntil);
+    return snoozedUntil !== null && snoozedUntil > Date.now();
+  }, [notificationSettings.soundSnoozedUntil]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -633,7 +638,13 @@ export const NotificationProvider = ({ children }) => {
   //   system/*    → SystemSound MP3
   //   everything else → user's selected ringtone from the picker
   const playNotificationSound = useCallback((notificationType = 'socket_message') => {
-    if (!notificationSettings.enableNotifications || !notificationSettings.soundEnabled) return;
+    if (
+      !notificationSettings.enableNotifications ||
+      !notificationSettings.soundEnabled ||
+      isSoundSnoozed()
+    ) {
+      return;
+    }
 
     const volume = notificationSettings.ringtoneVolume ?? 0.8;
 
@@ -660,6 +671,7 @@ export const NotificationProvider = ({ children }) => {
   }, [
     notificationSettings.enableNotifications,
     notificationSettings.soundEnabled,
+    isSoundSnoozed,
     notificationSettings.customRingtones,
     notificationSettings.defaultSound,
     notificationSettings.ringtoneVolume,
@@ -718,11 +730,106 @@ export const NotificationProvider = ({ children }) => {
   // ─── Stop ringtone (e.g. when user dismisses an alert) ────────────────────
   const stopRingtone = useCallback(() => {
     ringtoneManager.stop();
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      } catch {}
+    }
+  }, []);
+
+  const muteNotificationSounds = useCallback(() => {
+    stopRingtone();
+    setNotificationSettings((prev) => ({
+      ...prev,
+      soundEnabled: false,
+      soundSnoozedUntil: null,
+    }));
+  }, [stopRingtone]);
+
+  const unmuteNotificationSounds = useCallback(() => {
+    setNotificationSettings((prev) => ({
+      ...prev,
+      soundEnabled: true,
+      soundSnoozedUntil: null,
+    }));
+  }, []);
+
+  const snoozeNotificationSounds = useCallback((minutes = 30) => {
+    const safeMinutes =
+      Number.isFinite(Number(minutes)) && Number(minutes) > 0 ? Number(minutes) : 30;
+    stopRingtone();
+    setNotificationSettings((prev) => ({
+      ...prev,
+      soundSnoozedUntil: new Date(Date.now() + safeMinutes * 60 * 1000).toISOString(),
+    }));
+  }, [stopRingtone]);
+
+  const clearNotificationSoundSnooze = useCallback(() => {
+    setNotificationSettings((prev) => ({
+      ...prev,
+      soundSnoozedUntil: null,
+    }));
   }, []);
 
   const updateNotificationSettings = useCallback((newSettings) => {
     setNotificationSettings((prev) => ({ ...prev, ...newSettings }));
   }, []);
+
+  useEffect(() => {
+    if (notificationSettings.enableNotifications && notificationSettings.soundEnabled) return;
+    stopRingtone();
+  }, [notificationSettings.enableNotifications, notificationSettings.soundEnabled, stopRingtone]);
+
+  useEffect(() => {
+    if (!isSoundSnoozed()) return;
+    stopRingtone();
+  }, [isSoundSnoozed, notificationSettings.soundSnoozedUntil, stopRingtone]);
+
+  useEffect(() => {
+    const snoozedUntil = readTimestamp(notificationSettings.soundSnoozedUntil);
+    if (snoozedUntil === null) return undefined;
+
+    if (snoozedUntil <= Date.now()) {
+      setNotificationSettings((prev) =>
+        prev.soundSnoozedUntil ? { ...prev, soundSnoozedUntil: null } : prev
+      );
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNotificationSettings((prev) =>
+        prev.soundSnoozedUntil ? { ...prev, soundSnoozedUntil: null } : prev
+      );
+    }, snoozedUntil - Date.now());
+
+    return () => window.clearTimeout(timeoutId);
+  }, [notificationSettings.soundSnoozedUntil]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopRingtone();
+      }
+    };
+
+    const handleWindowBlur = () => stopRingtone();
+    const handlePageHide = () => stopRingtone();
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('beforeunload', handlePageHide);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handlePageHide);
+    };
+  }, [stopRingtone]);
 
   const navigateToNotificationOrigin = useCallback((originPath) => {
     if (typeof window === 'undefined' || !originPath) return;
@@ -760,6 +867,31 @@ export const NotificationProvider = ({ children }) => {
     setNotificationPermission(permission);
     return permission;
   }, []);
+
+  const syncQuietModeToServiceWorker = useCallback(async () => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+
+    const quietUntil = readTimestamp(notificationSettings.soundSnoozedUntil);
+    const payload = {
+      quietUntil: quietUntil !== null && quietUntil > Date.now() ? new Date(quietUntil).toISOString() : null,
+    };
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const target =
+        registration.active || navigator.serviceWorker.controller || registration.waiting || registration.installing;
+      target?.postMessage({
+        type: 'SET_NOTIFICATION_QUIET_MODE',
+        payload,
+      });
+    } catch (error) {
+      console.warn('Failed to sync quiet mode to service worker:', error);
+    }
+  }, [notificationSettings.soundSnoozedUntil]);
+
+  useEffect(() => {
+    syncQuietModeToServiceWorker();
+  }, [syncQuietModeToServiceWorker]);
 
   const resolveVapidPublicKey = useCallback(async () => {
     if (vapidPublicKeyRef.current) return vapidPublicKeyRef.current;
@@ -848,6 +980,7 @@ export const NotificationProvider = ({ children }) => {
   const showBrowserNotification = useCallback((notification) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     if (!notificationSettings.enableNotifications || !notificationSettings.pushNotifications) return;
+    if (isSoundSnoozed()) return;
     if (notificationPermission !== 'granted') return;
 
     const instance = new Notification(notification.title, {
@@ -867,6 +1000,7 @@ export const NotificationProvider = ({ children }) => {
 
     window.setTimeout(() => instance.close(), 10000);
   }, [
+    isSoundSnoozed,
     navigateToNotificationOrigin,
     notificationSettings.enableNotifications,
     notificationSettings.pushNotifications,
@@ -1215,6 +1349,11 @@ export const NotificationProvider = ({ children }) => {
     getNotificationsByItem,
     getUnreadCount,
     updateNotificationSettings,
+    muteNotificationSounds,
+    unmuteNotificationSounds,
+    snoozeNotificationSounds,
+    clearNotificationSoundSnooze,
+    isSoundSnoozed: isSoundSnoozed(),
     requestPushPermission,
     playNotificationSound,
     testNotificationSound,
@@ -1223,6 +1362,7 @@ export const NotificationProvider = ({ children }) => {
     stopRingtone,                       // () => void  — fade out current sound
     ringtoneList: ringtoneManager.getList(), // [{ name, label, selected }]
     RINGTONE_CATALOGUE,                 // exported for settings UI
+    soundSnoozedUntil: notificationSettings.soundSnoozedUntil,
   };
 
   return (

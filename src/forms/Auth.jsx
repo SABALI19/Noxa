@@ -29,6 +29,7 @@ const Auth = ({
     loginOtpToken: '',
     email: '',
     expiresAt: '',
+    loginOtp: '',
   });
   const [signupForm, setSignupForm] = useState({
     name: '',
@@ -56,6 +57,7 @@ const Auth = ({
       loginOtpToken: '',
       email: '',
       expiresAt: '',
+      loginOtp: '',
     });
     setStatusMessage('');
     setErrors({});
@@ -270,6 +272,7 @@ const Auth = ({
               loginOtpToken: loginResult.loginOtpToken || '',
               email: formData.email.trim(),
               expiresAt: loginResult.expiresAt || '',
+              loginOtp: loginResult.loginOtp || '',
             });
             setStatusMessage(
               loginResult.message || `A one-time code was sent to ${formData.email.trim()}.`
@@ -426,6 +429,7 @@ const Auth = ({
       loginOtpToken: '',
       email: '',
       expiresAt: '',
+      loginOtp: '',
     });
     setStatusMessage('');
     setErrors({});
@@ -440,6 +444,7 @@ const Auth = ({
       loginOtpToken: '',
       email: '',
       expiresAt: '',
+      loginOtp: '',
     });
     setStatusMessage('');
     setErrors({});
@@ -687,6 +692,11 @@ const Auth = ({
                   {loginOtpForm.expiresAt && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-4">
                       Code expires at {new Date(loginOtpForm.expiresAt).toLocaleString()}.
+                    </p>
+                  )}
+                  {loginOtpForm.loginOtp && (
+                    <p className="text-xs text-amber-700 dark:text-amber-300 text-center mb-4">
+                      Development OTP: <span className="font-semibold">{loginOtpForm.loginOtp}</span>
                     </p>
                   )}
                 </div>

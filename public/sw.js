@@ -1,3 +1,30 @@
+self.__NOXA_QUIET_MODE_CACHE = "noxa-notification-state";
+self.__NOXA_QUIET_MODE_KEY = "/__noxa_notification_quiet_mode__";
+
+const readQuietModeState = async () => {
+  try {
+    const cache = await caches.open(self.__NOXA_QUIET_MODE_CACHE);
+    const response = await cache.match(self.__NOXA_QUIET_MODE_KEY);
+    if (!response) return { quietUntil: null };
+    const parsed = await response.json();
+    return parsed && typeof parsed === "object" ? parsed : { quietUntil: null };
+  } catch {
+    return { quietUntil: null };
+  }
+};
+
+const writeQuietModeState = async (payload = {}) => {
+  try {
+    const cache = await caches.open(self.__NOXA_QUIET_MODE_CACHE);
+    await cache.put(
+      self.__NOXA_QUIET_MODE_KEY,
+      new Response(JSON.stringify({ quietUntil: payload.quietUntil || null }), {
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+  } catch {}
+};
+
 self.addEventListener("install", () => {
   self.skipWaiting();
 });
@@ -27,6 +54,13 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(fetch(event.request));
 });
 
+self.addEventListener("message", (event) => {
+  const { type, payload } = event.data || {};
+  if (type === "SET_NOTIFICATION_QUIET_MODE") {
+    event.waitUntil(writeQuietModeState(payload));
+  }
+});
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
@@ -46,6 +80,12 @@ self.addEventListener("push", (event) => {
 
   event.waitUntil(
     (async () => {
+      const quietModeState = await readQuietModeState();
+      const quietUntil = quietModeState?.quietUntil ? new Date(quietModeState.quietUntil).getTime() : null;
+      if (quietUntil && quietUntil > Date.now()) {
+        return;
+      }
+
       try {
         if ("BroadcastChannel" in self) {
           const channel = new BroadcastChannel("noxa-notification-channel");
