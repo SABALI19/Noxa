@@ -40,11 +40,17 @@ import AIAssistantChat from '../components/ai/AIAssistantChat';
 import SmartAutomation from '../components/ai/SmartAutomation';
 
 const serializeGoals = (items = []) => JSON.stringify(items);
+const GOAL_FILTER_OPTIONS = [
+  { id: 'active', label: 'Active' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'all', label: 'All' },
+];
 
 const GoalsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sortBy, setSortBy] = useState("deadline");
+  const [goalFilter, setGoalFilter] = useState('active');
   const [goals, setGoals] = useState(() => getGoals());
 
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -228,6 +234,16 @@ const GoalsPage = () => {
     goals.filter(goal => goal.completed), 
     [goals]
   );
+
+  const visibleActiveGoals = useMemo(() => {
+    if (goalFilter === 'completed') return [];
+    return sortedActiveGoals;
+  }, [goalFilter, sortedActiveGoals]);
+
+  const visibleCompletedGoals = useMemo(() => {
+    if (goalFilter === 'active') return [];
+    return completedGoals;
+  }, [goalFilter, completedGoals]);
 
   // ========== NEW: User Activity for AI ==========
   const userActivity = useMemo(() => {
@@ -499,50 +515,48 @@ const GoalsPage = () => {
           </div>
         )}
 
-        {/* Goal filter buttons - UNCHANGED */}
+        {/* Goal filter buttons */}
         <div className="flex flex-wrap mb-4 gap-2 sm:gap-4">
-          <Button 
-            variant="primary"
-            size="sm"
-            className="rounded-full flex-1 sm:flex-none text-sm sm:text-base"
-          >
-            Active
-          </Button>
-          <Button
-            variant="soft"
-            size="sm"
-            className="rounded-full flex-1 sm:flex-none text-sm sm:text-base"
-          >
-            Completed
-          </Button>
-          <Button
-            variant="soft"
-            size="sm"
-            className="rounded-full flex-1 sm:flex-none text-sm sm:text-base"
-          >
-            All
-          </Button>
+          {GOAL_FILTER_OPTIONS.map((option) => {
+            const isActive = goalFilter === option.id;
+            return (
+              <Button
+                key={option.id}
+                variant={isActive ? "primary" : "soft"}
+                size="sm"
+                onClick={() => setGoalFilter(option.id)}
+                className={`rounded-full flex-1 sm:flex-none text-sm sm:text-base ${
+                  isActive
+                    ? 'bg-[#3D9B9B] text-white dark:bg-[#3D9B9B] dark:text-white'
+                    : 'bg-[#f0f2f5] text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                }`}
+              >
+                {option.label}
+              </Button>
+            );
+          })}
         </div>
 
         
-        {/* Active goals header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-          <div>
-            <h2 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-300">Active Goals</h2>
-            <p className="text-sm md:text-base text-gray-600 dark:text-gray-300">{getSortSubtitle()}</p>
-          </div>
+        {visibleActiveGoals.length > 0 && (
+          <>
+            {/* Active goals header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-300">Active Goals</h2>
+                <p className="text-sm md:text-base text-gray-600 dark:text-gray-300">{getSortSubtitle()}</p>
+              </div>
 
-          <SortDropdown
-            selectedOption={sortBy}
-            onSelect={setSortBy}
-            buttonLabel="Sort by"
-          />
-        </div>
+              <SortDropdown
+                selectedOption={sortBy}
+                onSelect={setSortBy}
+                buttonLabel="Sort by"
+              />
+            </div>
 
-        {/* Active Goals Grid - UNCHANGED */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8">
-          {sortedActiveGoals.length > 0 ? (
-            sortedActiveGoals.map((goal) => {
+            {/* Active Goals Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8">
+              {visibleActiveGoals.map((goal) => {
               const goalTracking = getNotificationStats(goal.id, 'goal');
               
               return (
@@ -679,27 +693,30 @@ const GoalsPage = () => {
                   </div>
                 </div>
               );
-            })
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-500 text-lg">No active goals found</p>
-              <p className="text-gray-400 mt-2">Add a new goal to get started</p>
-              <div className="mt-5">
-                <Button
-                  variant="primary"
-                  size="md"
-                  className="rounded-xl"
-                  onClick={() => navigate('/goals/new')}
-                >
-                  + Create goal
-                </Button>
-              </div>
+              })}
             </div>
-          )}
-        </div>
+          </>
+        )}
 
-        {/* Completed Goals Section - UNCHANGED */}
-        {completedGoals.length > 0 && (
+        {goalFilter !== 'completed' && visibleActiveGoals.length === 0 && (
+          <div className="text-center py-12 mb-8">
+            <p className="text-gray-500 text-lg">No active goals found</p>
+            <p className="text-gray-400 mt-2">Add a new goal to get started</p>
+            <div className="mt-5">
+              <Button
+                variant="primary"
+                size="md"
+                className="rounded-xl"
+                onClick={() => navigate('/goals/new')}
+              >
+                + Create goal
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Completed Goals Section */}
+        {visibleCompletedGoals.length > 0 && (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
               <div>
@@ -709,7 +726,7 @@ const GoalsPage = () => {
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8">
-              {completedGoals.map((goal) => {
+              {visibleCompletedGoals.map((goal) => {
                 const goalTracking = getNotificationStats(goal.id, 'goal');
                 
                 return (
@@ -799,6 +816,13 @@ const GoalsPage = () => {
               })}
             </div>
           </>
+        )}
+
+        {goalFilter === 'completed' && visibleCompletedGoals.length === 0 && (
+          <div className="text-center py-12 mb-8">
+            <p className="text-gray-500 text-lg">No completed goals found</p>
+            <p className="text-gray-400 mt-2">Complete a goal to see it here.</p>
+          </div>
         )}
 
         {/* Category Distribution - UNCHANGED */}

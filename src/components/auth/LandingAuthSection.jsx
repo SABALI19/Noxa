@@ -12,7 +12,16 @@ const LandingAuthSection = ({
   onLoadingChange,
 }) => {
   const navigate = useNavigate();
-  const { loginWithBackend, verifyLoginOtpWithBackend, signupWithBackend, forgotPassword, resetPassword } = useAuth();
+  const {
+    loginWithBackend,
+    verifyLoginOtpWithBackend,
+    signupWithBackend,
+    requestSignupVerificationWithBackend,
+    verifySignupEmailWithBackend,
+    resendSignupVerificationWithBackend,
+    forgotPassword,
+    resetPassword,
+  } = useAuth();
   const { addNotification } = useNotifications();
 
   const isLogin = requestedMode !== "signup";
@@ -145,11 +154,61 @@ const LandingAuthSection = ({
   const handleAuthSignup = async (formData) => {
     try {
       startLoading(25);
+      const verificationResult = await requestSignupVerificationWithBackend(formData.email);
+      finishLoading();
+      return verificationResult;
+    } catch (error) {
+      const message = error?.message || "";
+      if (/verification is not enabled/i.test(message)) {
+        try {
+          const signupResult = await signupWithBackend(formData);
+          const newUser = signupResult?.user || signupResult;
+          emitAuthNotification(
+            signupResult,
+            "account_created",
+            "Account Created",
+            `Welcome ${newUser?.username || "there"}, your account was created successfully.`
+          );
+          setLoadingProgress(85);
+          if (onSignup) {
+            onSignup(newUser);
+          }
+          finishLoading();
+          navigate("/dashboard");
+          return newUser;
+        } catch (signupError) {
+          console.error("Signup error:", signupError);
+          failLoading();
+          throw new Error(signupError?.message || "Signup failed. Please try again.");
+        }
+      }
+      console.error("Signup error:", error);
+      failLoading();
+      throw new Error(error?.message || "Signup failed. Please try again.");
+    }
+  };
+
+  const handleVerifySignupEmail = async ({ signupVerificationToken, otp, signupForm }) => {
+    try {
+      startLoading(45);
+      const verificationResult = await verifySignupEmailWithBackend({
+        signupVerificationToken,
+        otp,
+      });
+      if (verificationResult?.existingAccountVerified || verificationResult?.canLogin) {
+        finishLoading();
+        return verificationResult;
+      }
+
+      if (!signupForm) {
+        failLoading();
+        throw new Error("Signup details are missing. Please start signup again.");
+      }
+
+      setLoadingProgress(70);
       const signupResult = await signupWithBackend({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
+        ...signupForm,
+        verifiedSignupToken: verificationResult.verifiedSignupToken,
       });
       const newUser = signupResult?.user || signupResult;
       emitAuthNotification(
@@ -166,9 +225,21 @@ const LandingAuthSection = ({
       navigate("/dashboard");
       return newUser;
     } catch (error) {
-      console.error("Signup error:", error);
+      console.error("Signup verification error:", error);
       failLoading();
-      throw new Error(error?.message || "Signup failed. Please try again.");
+      throw new Error(error?.message || "Signup verification failed. Please try again.");
+    }
+  };
+
+  const handleResendSignupVerification = async (email) => {
+    try {
+      startLoading(35);
+      const result = await resendSignupVerificationWithBackend(email);
+      finishLoading();
+      return result;
+    } catch (error) {
+      failLoading();
+      throw new Error(error?.message || "Failed to resend signup verification.");
     }
   };
 
@@ -238,6 +309,8 @@ const LandingAuthSection = ({
           onLogin={handleAuthLogin}
           onVerifyLoginOtp={handleVerifyLoginOtp}
           onSignup={handleAuthSignup}
+          onVerifySignupEmail={handleVerifySignupEmail}
+          onResendSignupVerification={handleResendSignupVerification}
           onForgotPassword={handleForgotPassword}
           onResetPassword={handleResetPassword}
           initialIsLogin={isLogin}

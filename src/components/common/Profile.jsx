@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiUser, FiMail, FiCalendar, FiEdit, FiX, FiCamera, FiSave, FiLogOut, FiSettings, FiUpload, FiCrop, FiCheckCircle } from 'react-icons/fi';
+import { FiUser, FiMail, FiCalendar, FiEdit, FiX, FiCamera, FiSave, FiLogOut, FiSettings, FiUpload, FiCrop, FiCheckCircle, FiTrash2 } from 'react-icons/fi';
 import { useAuth } from "../../hooks/UseAuth.jsx";
 import { useNotifications } from "../../hooks/useNotifications";
 import ProfileImage from '../../assets/logo-items/logo-2-square.png';
@@ -82,12 +82,14 @@ const PICKER_SEEDS = [
   'Lambda','Mu','Nu','Xi','Omicron',
   'Pi','Rho','Sigma','Tau','Upsilon',
 ];
+const DELETE_ACCOUNT_CONFIRMATION =
+  'Delete your account permanently? This will remove your profile, goals, tasks, reminders, notes, and saved history.';
 
 const Profile = ({
   profileImage = ProfileImage,
   size = "medium"
 }) => {
-  const { user: currentUser, updateProfile } = useAuth();
+  const { user: currentUser, updateProfile, deleteAccount, deletingAccount } = useAuth();
   const [showProfileModal, setShowProfileModal]   = useState(false);
   const [editMode, setEditMode]                   = useState(false);
   const [profileForm, setProfileForm]             = useState({ username: "", name: "", email: "", avatar: "" });
@@ -297,6 +299,19 @@ const Profile = ({
       setUploadError(error?.message || 'Failed to save profile');
       setUploading(false);
       setUploadProgress(0);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteAccount || deletingAccount) return;
+    const confirmed = window.confirm(DELETE_ACCOUNT_CONFIRMATION);
+    if (!confirmed) return;
+
+    try {
+      await deleteAccount();
+      setShowProfileModal(false);
+    } catch (error) {
+      setUploadError(error?.message || 'Failed to delete account');
     }
   };
 
@@ -657,6 +672,26 @@ const Profile = ({
                           Edit Profile
                         </Button>
                       )}
+                    </div>
+
+                    <div className="pt-4 border-t border-red-100 dark:border-red-900/40">
+                      <div className="mb-3">
+                        <h3 className="text-sm font-semibold text-red-600 dark:text-red-300">Danger zone</h3>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          Permanently delete this account and all its saved data.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleDeleteAccount}
+                        disabled={uploading || deletingAccount}
+                        className="w-full rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/40"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <FiTrash2 />
+                          {deletingAccount ? 'Deleting account...' : 'Delete account'}
+                        </span>
+                      </button>
                     </div>
                   </form>
                 </>

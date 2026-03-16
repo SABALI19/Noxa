@@ -1,14 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   clearAuthSession,
+  deleteAccountRequest,
   forgotPasswordRequest,
   getAuthTokens,
   getCurrentUserRequest,
   loginRequest,
+  requestSignupVerificationRequest,
   resetPasswordRequest,
   logoutRequest,
   registerRequest,
+  resendSignupVerificationRequest,
   updateProfileRequest,
+  verifySignupEmailRequest,
   verifyLoginOtpRequest,
 } from "../services/authService";
 
@@ -47,6 +51,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     let isCancelled = false;
@@ -149,6 +154,18 @@ export const AuthProvider = ({ children }) => {
     };
   };
 
+  const requestSignupVerificationWithBackend = async (email) => {
+    return requestSignupVerificationRequest({ email });
+  };
+
+  const verifySignupEmailWithBackend = async ({ signupVerificationToken, otp }) => {
+    return verifySignupEmailRequest({ signupVerificationToken, otp });
+  };
+
+  const resendSignupVerificationWithBackend = async (email) => {
+    return resendSignupVerificationRequest({ email });
+  };
+
   const logout = async () => {
     try {
       await logoutRequest();
@@ -158,6 +175,26 @@ export const AuthProvider = ({ children }) => {
       clearPersistedUser();
       setUser(null);
       setToken(null);
+    }
+  };
+
+  const deleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      const response = await deleteAccountRequest();
+      clearSession();
+      setUser(null);
+      setToken(null);
+      return response?.message || "Account deleted successfully.";
+    } catch (error) {
+      if (/session expired|log in again/i.test(error?.message || "")) {
+        clearSession();
+        setUser(null);
+        setToken(null);
+      }
+      throw error;
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -192,11 +229,16 @@ export const AuthProvider = ({ children }) => {
     loginWithBackend,
     verifyLoginOtpWithBackend,
     signupWithBackend,
+    requestSignupVerificationWithBackend,
+    verifySignupEmailWithBackend,
+    resendSignupVerificationWithBackend,
     forgotPassword,
     resetPassword,
     logout,
+    deleteAccount,
     updateProfile,
     loading,
+    deletingAccount,
     isAuthenticated: Boolean(user && token),
   };
 

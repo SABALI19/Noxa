@@ -6,11 +6,21 @@ const SIGNUP_PATH =
   import.meta.env.VITE_AUTH_SIGNUP_PATH ||
   import.meta.env.VITE_AUTH_REGISTER_PATH ||
   "/api/v1/users/signup";
+const SIGNUP_REQUEST_VERIFICATION_PATH =
+  import.meta.env.VITE_AUTH_SIGNUP_REQUEST_VERIFICATION_PATH ||
+  "/api/v1/users/signup/request-verification";
+const SIGNUP_VERIFY_EMAIL_PATH =
+  import.meta.env.VITE_AUTH_SIGNUP_VERIFY_EMAIL_PATH || "/api/v1/users/signup/verify-email";
+const SIGNUP_RESEND_VERIFICATION_PATH =
+  import.meta.env.VITE_AUTH_SIGNUP_RESEND_VERIFICATION_PATH ||
+  "/api/v1/users/signup/resend-verification";
 const REFRESH_PATH = import.meta.env.VITE_AUTH_REFRESH_PATH || "/api/v1/users/refresh";
 const LOGOUT_PATH = import.meta.env.VITE_AUTH_LOGOUT_PATH || "/api/v1/users/logout";
 const ME_PATH = import.meta.env.VITE_AUTH_ME_PATH || "/api/v1/users/me";
 const UPDATE_PROFILE_PATH =
   import.meta.env.VITE_AUTH_UPDATE_PROFILE_PATH || "/api/v1/users/me";
+const DELETE_ACCOUNT_PATH =
+  import.meta.env.VITE_AUTH_DELETE_ACCOUNT_PATH || "/api/v1/users/me";
 const FORGOT_PASSWORD_PATH =
   import.meta.env.VITE_AUTH_FORGOT_PASSWORD_PATH || "/api/v1/users/forgot-password";
 const RESET_PASSWORD_PATH =
@@ -112,6 +122,53 @@ const normalizeLoginOtpChallenge = (data = {}) => {
     expiresAt: data.expiresAt || null,
     loginOtp: data.loginOtp || data.otp || null,
     message: data.message || "Login OTP sent. Verify it to complete sign in.",
+  };
+};
+
+const normalizeSignupVerificationChallenge = (data = {}, emailFallback = "") => {
+  const signupVerificationToken = data.signupVerificationToken || data.token || null;
+
+  if (!signupVerificationToken) {
+    throw new Error("Signup verification failed: missing signup verification token in response.");
+  }
+
+  return {
+    requiresEmailVerification: true,
+    signupVerificationToken,
+    email: data.email || emailFallback || "",
+    expiresAt: data.expiresAt || null,
+    signupOtp: data.signupOtp || data.otp || null,
+    confirmationEmailSent: data.confirmationEmailSent !== false,
+    message: data.message || "Confirmation email sent. Verify it before completing signup.",
+  };
+};
+
+const normalizeVerifiedSignup = (data = {}, emailFallback = "") => {
+  const verifiedSignupToken =
+    data.verifiedSignupToken || data.emailVerificationToken || data.verificationToken || null;
+
+  if (data.existingAccountVerified || data.canLogin) {
+    return {
+      verifiedSignupToken: null,
+      existingAccountVerified: true,
+      canLogin: data.canLogin !== false,
+      email: data.email || emailFallback || "",
+      expiresAt: data.expiresAt || null,
+      message: data.message || "Email verified. You can now sign in to your existing account.",
+    };
+  }
+
+  if (!verifiedSignupToken) {
+    throw new Error("Signup verification failed: missing verified signup token in response.");
+  }
+
+  return {
+    verifiedSignupToken,
+    existingAccountVerified: false,
+    canLogin: false,
+    email: data.email || emailFallback || "",
+    expiresAt: data.expiresAt || null,
+    message: data.message || "Email verified. Complete signup to create your account.",
   };
 };
 
@@ -280,10 +337,55 @@ export const verifyLoginOtpRequest = async ({ loginOtpToken, otp }) => {
   };
 };
 
-export const registerRequest = async ({ name, email, password, confirmPassword }) => {
+export const requestSignupVerificationRequest = async ({ email }) => {
+  const payload = await request(SIGNUP_REQUEST_VERIFICATION_PATH, {
+    method: "POST",
+    body: { email },
+  });
+
+  const data = extractData(payload);
+  return {
+    ...normalizeSignupVerificationChallenge(data, email),
+    raw: payload,
+  };
+};
+
+export const verifySignupEmailRequest = async ({ signupVerificationToken, otp }) => {
+  const payload = await request(SIGNUP_VERIFY_EMAIL_PATH, {
+    method: "POST",
+    body: { signupVerificationToken, otp },
+  });
+
+  const data = extractData(payload);
+  return {
+    ...normalizeVerifiedSignup(data),
+    raw: payload,
+  };
+};
+
+export const resendSignupVerificationRequest = async ({ email }) => {
+  const payload = await request(SIGNUP_RESEND_VERIFICATION_PATH, {
+    method: "POST",
+    body: { email },
+  });
+
+  const data = extractData(payload);
+  return {
+    ...normalizeSignupVerificationChallenge(data, email),
+    raw: payload,
+  };
+};
+
+export const registerRequest = async ({
+  name,
+  email,
+  password,
+  confirmPassword,
+  verifiedSignupToken,
+}) => {
   const payload = await request(SIGNUP_PATH, {
     method: "POST",
-    body: { name, email, password, confirmPassword },
+    body: { name, email, password, confirmPassword, verifiedSignupToken },
   });
 
   const data = extractData(payload);
@@ -369,6 +471,21 @@ export const logoutRequest = async () => {
   } finally {
     clearStoredTokens();
   }
+};
+
+export const deleteAccountRequest = async () => {
+  const payload = await request(DELETE_ACCOUNT_PATH, {
+    method: "DELETE",
+    requireAuth: true,
+    retryOn401: true,
+  });
+
+  clearStoredTokens();
+
+  return {
+    message: extractMessage(payload, "Account deleted successfully."),
+    raw: payload,
+  };
 };
 
 export const forgotPasswordRequest = async ({ email }) => {
@@ -464,10 +581,14 @@ export const authConfig = {
   LOGIN_PATH,
   LOGIN_VERIFY_OTP_PATH,
   SIGNUP_PATH,
+  SIGNUP_REQUEST_VERIFICATION_PATH,
+  SIGNUP_VERIFY_EMAIL_PATH,
+  SIGNUP_RESEND_VERIFICATION_PATH,
   REFRESH_PATH,
   LOGOUT_PATH,
   ME_PATH,
   UPDATE_PROFILE_PATH,
+  DELETE_ACCOUNT_PATH,
   FORGOT_PASSWORD_PATH,
   RESET_PASSWORD_PATH,
   TOKEN_STORAGE_KEY,

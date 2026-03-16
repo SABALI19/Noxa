@@ -8,6 +8,8 @@ const Auth = ({
   onLogin,
   onVerifyLoginOtp,
   onSignup,
+  onVerifySignupEmail,
+  onResendSignupVerification,
   onForgotPassword,
   onResetPassword,
   onDemoLogin,
@@ -31,6 +33,14 @@ const Auth = ({
     expiresAt: '',
     loginOtp: '',
   });
+  const [signupVerificationForm, setSignupVerificationForm] = useState({
+    otp: '',
+    signupVerificationToken: '',
+    email: '',
+    expiresAt: '',
+    signupOtp: '',
+    signupData: null,
+  });
   const [signupForm, setSignupForm] = useState({
     name: '',
     email: '',
@@ -46,7 +56,13 @@ const Auth = ({
     confirmPassword: '',
   });
   const [errors, setErrors] = useState({});
+  const [loginNeedsVerification, setLoginNeedsVerification] = useState(false);
   const isLoginOtpStep = Boolean(loginOtpForm.loginOtpToken);
+  const isSignupVerificationStep = Boolean(signupVerificationForm.signupVerificationToken);
+  const isExistingAccountActivation =
+    isSignupVerificationStep && !signupVerificationForm.signupData;
+  const passwordRuleMessage =
+    "Password must be at least 8 characters and include uppercase, lowercase, and a number.";
 
   useEffect(() => {
     setIsLogin(initialIsLogin);
@@ -59,8 +75,17 @@ const Auth = ({
       expiresAt: '',
       loginOtp: '',
     });
+    setSignupVerificationForm({
+      otp: '',
+      signupVerificationToken: '',
+      email: '',
+      expiresAt: '',
+      signupOtp: '',
+      signupData: null,
+    });
     setStatusMessage('');
     setErrors({});
+    setLoginNeedsVerification(false);
   }, [initialIsLogin]);
 
   useEffect(() => {
@@ -81,6 +106,17 @@ const Auth = ({
     setShowPassword(!showPassword);
   };
 
+  const resetSignupVerificationStep = () => {
+    setSignupVerificationForm({
+      otp: '',
+      signupVerificationToken: '',
+      email: '',
+      expiresAt: '',
+      signupOtp: '',
+      signupData: null,
+    });
+  };
+
   const handleLoginChange = (e) => {
     const { name, value } = e.target;
     setLoginForm(prev => ({
@@ -98,6 +134,9 @@ const Auth = ({
         ...prev,
         submit: ''
       }));
+    }
+    if (loginNeedsVerification) {
+      setLoginNeedsVerification(false);
     }
   };
 
@@ -124,6 +163,21 @@ const Auth = ({
   const handleLoginOtpChange = (e) => {
     const { value } = e.target;
     setLoginOtpForm((prev) => ({
+      ...prev,
+      otp: value,
+    }));
+    if (errors.otp || errors.submit) {
+      setErrors((prev) => ({
+        ...prev,
+        otp: '',
+        submit: '',
+      }));
+    }
+  };
+
+  const handleSignupVerificationChange = (e) => {
+    const { value } = e.target;
+    setSignupVerificationForm((prev) => ({
       ...prev,
       otp: value,
     }));
@@ -182,6 +236,8 @@ const Auth = ({
 
   const validateSignup = () => {
     const newErrors = {};
+    const hasPasswordComplexity =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(signupForm.password);
 
     if (!signupForm.name.trim()) {
       newErrors.name = "Name is required";
@@ -195,8 +251,8 @@ const Auth = ({
 
     if (!signupForm.password) {
       newErrors.password = "Password is required";
-    } else if (signupForm.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
+    } else if (signupForm.password.length < 8 || !hasPasswordComplexity) {
+      newErrors.password = passwordRuleMessage;
     }
 
     if (!signupForm.confirmPassword) {
@@ -231,8 +287,21 @@ const Auth = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const validateSignupVerification = () => {
+    const newErrors = {};
+
+    if (!signupVerificationForm.otp.trim()) {
+      newErrors.otp = "Verification code is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const validateResetPassword = () => {
     const newErrors = {};
+    const hasPasswordComplexity =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(resetForm.password);
 
     if (!resetForm.token.trim()) {
       newErrors.token = "Reset token is required";
@@ -240,8 +309,8 @@ const Auth = ({
 
     if (!resetForm.password) {
       newErrors.password = "Password is required";
-    } else if (resetForm.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
+    } else if (resetForm.password.length < 8 || !hasPasswordComplexity) {
+      newErrors.password = passwordRuleMessage;
     }
 
     if (!resetForm.confirmPassword) {
@@ -280,9 +349,12 @@ const Auth = ({
             setErrors({});
           }
         } catch (error) {
+          const message = error?.message || "Login failed. Please try again.";
+          const requiresVerification = /email not verified/i.test(message);
+          setLoginNeedsVerification(requiresVerification);
           setErrors(prev => ({
             ...prev,
-            submit: error?.message || "Login failed. Please try again."
+            submit: message
           }));
         }
       }
@@ -330,7 +402,21 @@ const Auth = ({
       
       if (onSignup) {
         try {
-          await onSignup(formData);
+          const signupResult = await onSignup(formData);
+          if (signupResult?.requiresEmailVerification) {
+            setSignupVerificationForm({
+              otp: '',
+              signupVerificationToken: signupResult.signupVerificationToken || '',
+              email: formData.email.trim(),
+              expiresAt: signupResult.expiresAt || '',
+              signupOtp: signupResult.signupOtp || '',
+              signupData: formData,
+            });
+            setStatusMessage(
+              signupResult.message || `A verification code was sent to ${formData.email.trim()}.`
+            );
+            setErrors({});
+          }
         } catch (error) {
           setErrors(prev => ({
             ...prev,
@@ -338,6 +424,102 @@ const Auth = ({
           }));
         }
       }
+    }
+  };
+
+  const handleSignupVerificationSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateSignupVerification() || isLoading) {
+      return;
+    }
+
+    if (!onVerifySignupEmail) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: "Signup email verification is not configured yet.",
+      }));
+      return;
+    }
+
+    try {
+      const verificationResult = await onVerifySignupEmail({
+        signupVerificationToken: signupVerificationForm.signupVerificationToken,
+        otp: signupVerificationForm.otp.trim(),
+        signupForm: signupVerificationForm.signupData,
+      });
+      resetSignupVerificationStep();
+      if (verificationResult?.existingAccountVerified || verificationResult?.canLogin) {
+        setLoginNeedsVerification(false);
+        setIsLogin(true);
+        setLoginForm((prev) => ({
+          ...prev,
+          email: verificationResult.email || signupVerificationForm.email || prev.email,
+          password: "",
+        }));
+        setStatusMessage(
+          verificationResult.message || "Email verified. You can now sign in."
+        );
+      } else {
+        setStatusMessage('');
+      }
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: error?.message || "Verification failed. Please try again.",
+      }));
+    }
+  };
+
+  const handleStartAccountVerification = async () => {
+    if (!onResendSignupVerification || isLoading || !loginForm.email.trim()) {
+      return;
+    }
+
+    try {
+      const result = await onResendSignupVerification(loginForm.email.trim());
+      setSignupVerificationForm({
+        otp: '',
+        signupVerificationToken: result.signupVerificationToken || '',
+        email: loginForm.email.trim(),
+        expiresAt: result.expiresAt || '',
+        signupOtp: result.signupOtp || '',
+        signupData: null,
+      });
+      setLoginNeedsVerification(false);
+      setStatusMessage(
+        result.message || `A verification code was sent to ${loginForm.email.trim()}.`
+      );
+      setErrors({});
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: error?.message || "Failed to send verification code.",
+      }));
+    }
+  };
+
+  const handleResendSignupVerification = async () => {
+    if (!onResendSignupVerification || isLoading || !signupVerificationForm.email) {
+      return;
+    }
+
+    try {
+      const result = await onResendSignupVerification(signupVerificationForm.email.trim());
+      setSignupVerificationForm((prev) => ({
+        ...prev,
+        otp: '',
+        signupVerificationToken: result.signupVerificationToken || prev.signupVerificationToken,
+        expiresAt: result.expiresAt || prev.expiresAt,
+        signupOtp: result.signupOtp || '',
+      }));
+      setStatusMessage(result.message || `A new verification code was sent to ${signupVerificationForm.email.trim()}.`);
+      setErrors({});
+    } catch (error) {
+      setErrors((prev) => ({
+        ...prev,
+        submit: error?.message || "Failed to resend verification code.",
+      }));
     }
   };
 
@@ -431,8 +613,10 @@ const Auth = ({
       expiresAt: '',
       loginOtp: '',
     });
+    resetSignupVerificationStep();
     setStatusMessage('');
     setErrors({});
+    setLoginNeedsVerification(false);
     setForgotForm({ email: loginForm.email || '' });
   };
 
@@ -446,8 +630,10 @@ const Auth = ({
       expiresAt: '',
       loginOtp: '',
     });
+    resetSignupVerificationStep();
     setStatusMessage('');
     setErrors({});
+    setLoginNeedsVerification(false);
     setIsLogin(true);
     setShowPassword(false);
   };
@@ -459,7 +645,7 @@ const Auth = ({
           {/* Form Section */}
           <div className="p-6 sm:p-8 lg:p-12 order-1">
             <div className="flex justify-center mb-6 sm:mb-8">
-              {showForgotPassword || showResetPassword || isLoginOtpStep ? (
+              {showForgotPassword || showResetPassword || isLoginOtpStep || isSignupVerificationStep ? (
                 <button
                   type="button"
                   onClick={openLoginView}
@@ -474,6 +660,7 @@ const Auth = ({
                     onClick={() => {
                       if (!isLoading) {
                         setIsLogin(true);
+                        resetSignupVerificationStep();
                         setErrors({});
                         setStatusMessage('');
                       }
@@ -491,6 +678,7 @@ const Auth = ({
                     onClick={() => {
                       if (!isLoading) {
                         setIsLogin(false);
+                        resetSignupVerificationStep();
                         setErrors({});
                         setStatusMessage('');
                       }
@@ -680,6 +868,86 @@ const Auth = ({
                   </p>
                 )}
               </form>
+            ) : isSignupVerificationStep ? (
+              <form onSubmit={handleSignupVerificationSubmit} className="space-y-4 sm:space-y-6">
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 text-center mb-2">
+                    {isExistingAccountActivation ? "Activate Your Account" : "Verify Your Email"}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4">
+                    {isExistingAccountActivation
+                      ? `Enter the verification code sent to ${signupVerificationForm.email || "your email"} to activate your existing account.`
+                      : `Enter the signup code sent to ${signupVerificationForm.email || "your email"} to finish creating your account.`}
+                  </p>
+                  {signupVerificationForm.expiresAt && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-4">
+                      Code expires at {new Date(signupVerificationForm.expiresAt).toLocaleString()}.
+                    </p>
+                  )}
+                  {signupVerificationForm.signupOtp && (
+                    <p className="text-xs text-amber-700 dark:text-amber-300 text-center mb-4">
+                      Development OTP: <span className="font-semibold">{signupVerificationForm.signupOtp}</span>
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    Email Verification Code
+                  </label>
+                  <div className="relative">
+                    <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                    <input
+                      type="text"
+                      name="otp"
+                      value={signupVerificationForm.otp}
+                      onChange={handleSignupVerificationChange}
+                      disabled={isLoading}
+                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                        errors.otp ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder="123456"
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                  {errors.otp && (
+                    <p className="mt-1 text-xs sm:text-sm text-red-600">
+                      {errors.otp}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading
+                    ? "Verifying..."
+                    : isExistingAccountActivation
+                      ? "Verify Email"
+                      : "Verify Email & Create Account"}
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={handleResendSignupVerification}
+                  disabled={isLoading || !onResendSignupVerification}
+                  className={`w-full text-sm font-medium text-[#3D9B9B] hover:text-[#2D8B8B] ${
+                    isLoading || !onResendSignupVerification ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  Resend verification code
+                </button>
+
+                {errors.submit && (
+                  <p className="text-sm text-red-600 text-center -mt-2">
+                    {errors.submit}
+                  </p>
+                )}
+              </form>
             ) : isLoginOtpStep ? (
               <form onSubmit={handleLoginOtpSubmit} className="space-y-4 sm:space-y-6">
                 <div>
@@ -842,6 +1110,18 @@ const Auth = ({
                   <p className="text-sm text-red-600 text-center -mt-2">
                     {errors.submit}
                   </p>
+                )}
+                {loginNeedsVerification && (
+                  <button
+                    type="button"
+                    onClick={handleStartAccountVerification}
+                    disabled={isLoading || !onResendSignupVerification}
+                    className={`w-full text-sm font-medium text-[#3D9B9B] hover:text-[#2D8B8B] ${
+                      isLoading || !onResendSignupVerification ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    Send verification code
+                  </button>
                 )}
 
                 <div className="relative my-4 sm:my-6">

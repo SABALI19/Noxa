@@ -19,12 +19,13 @@ import { IoIosHelpCircleOutline } from "react-icons/io";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   PanelLeftOpen, PanelRightOpen, Menu, NotebookText,
-  ChevronDown, Wrench, AlarmClock, CalendarDays, X, Music2,
+  ChevronDown, Wrench, AlarmClock, CalendarDays, X, Music2, Trash2,
 } from "lucide-react";
 import ThemeModal from "../modals/ThemeModal";
 import { useTheme } from "../../hooks/useTheme";
 import { useTasks } from "../../context/TaskContext";
 import { useNotifications } from "../../hooks/useNotifications";
+import { useAuth } from "../../hooks/UseAuth.jsx";
 import { ringtoneManager } from "../../services/ringtones/RingtoneManager";
 
 const SIDEBAR_TOOLS = [
@@ -36,6 +37,8 @@ const SIDEBAR_TOOLS = [
 
 const tooltipClassName = "absolute left-full ml-2 px-2 py-1 rounded-md text-sm whitespace-nowrap z-50 pointer-events-none shadow-lg border border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100";
 const SIDEBAR_DRAG_THRESHOLD = 56;
+const DELETE_ACCOUNT_CONFIRMATION =
+  "Delete your account permanently? This will remove your profile, goals, tasks, reminders, notes, and saved history.";
 
 // ─── Ringtone Quick Panel ─────────────────────────────────────────────────────
 // Appears alongside the sidebar when the 🎵 icon is clicked.
@@ -513,6 +516,7 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
   const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const { reminders } = useTasks();
+  const { deleteAccount, deletingAccount } = useAuth();
 
   const isCollapsed = isMobile ? true : !isOpen;
 
@@ -652,6 +656,43 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
     setActiveToolId("sounds");
   };
 
+  const handleDeleteAccount = async () => {
+    if (deletingAccount) return;
+    const confirmed = window.confirm(DELETE_ACCOUNT_CONFIRMATION);
+    if (!confirmed) return;
+
+    try {
+      await deleteAccount();
+      if (isMobile && onToggle) onToggle(false);
+      navigate("/landing", { replace: true });
+    } catch (error) {
+      window.alert(error?.message || "Failed to delete account.");
+    }
+  };
+
+  const renderDeleteAccountButton = (collapsed) => (
+    <button
+      type="button"
+      onClick={handleDeleteAccount}
+      disabled={deletingAccount}
+      className={`group relative flex items-center rounded-2xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+        collapsed
+          ? "justify-center w-11 h-11"
+          : "w-full gap-3 px-3 py-3 border border-red-100 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/40"
+      }`}
+      aria-label="Delete account"
+    >
+      <Trash2 size={18} className={collapsed ? "text-red-500 dark:text-red-300" : "text-current"} />
+      {collapsed ? (
+        <span className={`${tooltipClassName} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+          {deletingAccount ? "Deleting..." : "Delete account"}
+        </span>
+      ) : (
+        <span className="text-sm font-semibold">{deletingAccount ? "Deleting..." : "Delete account"}</span>
+      )}
+    </button>
+  );
+
   // ── Render a single menu item, with the 🎵 button on Notifications ────────
   const renderMenuItem = (item, collapsed) => {
     const active = hoveredMenuId === item.id || activeMenuId === item.id || isActive(item.path);
@@ -756,7 +797,7 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
     return (
       <>
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" onClick={() => onToggle(false)} />
-        <div className={`fixed left-0 top-0 h-full w-64 bg-[#f2f5f7] dark:bg-gray-800 shadow-xl rounded-2xl z-50 p-4 transition-transform duration-300 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className={`fixed left-0 top-0 h-full w-64 bg-[#f2f5f7] dark:bg-gray-800 shadow-xl rounded-2xl z-50 p-4 transition-transform duration-300 flex flex-col overflow-y-auto ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
           <div
             className="absolute right-0 top-0 h-full w-5 cursor-ew-resize"
             onTouchStart={(e) => startSidebarDrag(e.touches[0].clientX)}
@@ -800,6 +841,10 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isDarkMode ? "translate-x-6" : "translate-x-1"}`} />
             </button>
           </div>
+
+          <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+            {renderDeleteAccountButton(false)}
+          </div>
         </div>
 
         <ThemeModal isOpen={showThemeModal} onClose={() => setShowThemeModal(false)} />
@@ -817,7 +862,7 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
   // ── Desktop sidebar ───────────────────────────────────────────────────────
   return (
     <>
-      <div className={`${isCollapsed ? "w-20" : "w-64"} h-[calc(100vh-3.5rem)] bg-[#f2f5f7] dark:bg-gray-800 p-4 transition-all duration-300 fixed left-0 top-14 z-30`}>
+      <div className={`${isCollapsed ? "w-20" : "w-64"} h-[calc(100vh-3.5rem)] bg-[#f2f5f7] dark:bg-gray-800 p-4 transition-all duration-300 fixed left-0 top-14 z-30 flex flex-col`}>
         <div
           className={`absolute top-0 h-full cursor-ew-resize ${isCollapsed ? "-right-2 w-4" : "right-0 w-4"}`}
           onTouchStart={(e) => startSidebarDrag(e.touches[0].clientX)}
@@ -920,6 +965,10 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
             </button>
           </div>
         )}
+
+        <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-center">
+          {renderDeleteAccountButton(isCollapsed)}
+        </div>
       </div>
 
       <ThemeModal isOpen={showThemeModal} onClose={() => setShowThemeModal(false)} />

@@ -12,35 +12,37 @@ import {
   FiMenu,
   FiX
 } from "react-icons/fi";
-import { 
-  CalendarDays, 
-  Calendar, 
-  Flag, 
-  Folder, 
-  Briefcase, 
-  CheckCircle, 
-  AlertCircle, 
-  PanelRightOpen, 
+import {
+  CalendarDays,
+  Calendar,
+  Flag,
+  Folder,
+  Briefcase,
+  CheckCircle,
+  AlertCircle,
+  PanelRightOpen,
   PanelLeftOpen,
-  ChevronDown, 
-  ChevronUp, 
-  ClipboardList, 
-  NotebookText, 
-  House, 
-  Heart, 
-  ArrowUp, 
-  ArrowDown, 
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
+  NotebookText,
+  House,
+  Heart,
+  ArrowUp,
+  ArrowDown,
   Minus,
   Menu,
   X,
   Home,
   Wrench,
-  AlarmClock
+  AlarmClock,
+  Trash2,
 } from "lucide-react";
 import Button from "../Button";
 import { useTasks } from "../../context/TaskContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
+import { useAuth } from "../../hooks/UseAuth.jsx";
 
 // MobileOverlay component with blur
 const MobileOverlay = ({ isOpen, onClose }) => (
@@ -60,6 +62,8 @@ const TOOLS = [
 
 const tooltipClassName = "absolute left-full ml-2 px-2 py-1 rounded-md text-sm whitespace-nowrap z-50 pointer-events-none shadow-lg border border-gray-200 bg-white text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100";
 const SIDEBAR_DRAG_THRESHOLD = 56;
+const DELETE_ACCOUNT_CONFIRMATION =
+  "Delete your account permanently? This will remove your profile, goals, tasks, reminders, notes, and saved history.";
 
 const ReminderCalendarPopup = ({ isOpen, onClose, reminders, onOpenCalendarPage }) => {
   const [activeDate, setActiveDate] = useState(new Date());
@@ -318,6 +322,7 @@ const TaskSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const { deleteAccount, deletingAccount } = useAuth();
   
   // Get tasks and filter functions from context
   const {
@@ -520,6 +525,45 @@ const TaskSidebar = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (deletingAccount) return;
+    const confirmed = window.confirm(DELETE_ACCOUNT_CONFIRMATION);
+    if (!confirmed) return;
+
+    try {
+      await deleteAccount();
+      if (isMobile) {
+        setIsMobileMenuOpen(false);
+      }
+      navigate("/landing", { replace: true });
+    } catch (error) {
+      window.alert(error?.message || "Failed to delete account.");
+    }
+  };
+
+  const renderDeleteAccountButton = (collapsed = false) => (
+    <button
+      type="button"
+      onClick={handleDeleteAccount}
+      disabled={deletingAccount}
+      className={`group relative flex items-center rounded-2xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+        collapsed
+          ? "justify-center w-11 h-11"
+          : "w-full gap-3 px-3 py-3 border border-red-100 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/40"
+      }`}
+      aria-label="Delete account"
+    >
+      <Trash2 size={18} className={collapsed ? "text-red-500 dark:text-red-300" : "text-current"} />
+      {collapsed ? (
+        <span className={`${tooltipClassName} opacity-0 group-hover:opacity-100 transition-opacity duration-200`}>
+          {deletingAccount ? "Deleting..." : "Delete account"}
+        </span>
+      ) : (
+        <span className="text-sm font-semibold">{deletingAccount ? "Deleting..." : "Delete account"}</span>
+      )}
+    </button>
+  );
+
   // Collapsed sidebar for desktop
   if (isCollapsed && !isMobile) {
     return (
@@ -532,7 +576,7 @@ const TaskSidebar = () => {
             onMouseDown={(e) => startSidebarDrag(e.clientX)}
             onMouseUp={(e) => finishSidebarDrag(e.clientX)}
           />
-          <div className="p-4 flex flex-col items-center">
+          <div className="p-4 h-full flex flex-col items-center">
             <Button
               variant="icon"
               size="xs"
@@ -596,6 +640,10 @@ const TaskSidebar = () => {
               <CalendarDays size={20} className="text-[#3D9B9B] dark:text-[#4fb3b3] mb-7" />
               <AlertCircle size={20} className="text-[#e67373] mb-7" />
               <CheckCircle size={20} className="text-[#4cb04f]" />
+            </div>
+
+            <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-center w-full">
+              {renderDeleteAccountButton(true)}
             </div>
           </div>
         </div>
@@ -662,7 +710,7 @@ const TaskSidebar = () => {
             onMouseDown={(e) => startSidebarDrag(e.clientX)}
             onMouseUp={(e) => finishSidebarDrag(e.clientX)}
           />
-          <div className="p-4 h-full overflow-y-auto">
+          <div className="p-4 h-full overflow-y-auto flex flex-col">
             {/* Mobile Header - separated action buttons */}
             <div className="flex items-center justify-between mb-4">
               <Button
@@ -970,6 +1018,10 @@ const TaskSidebar = () => {
                 </div>
               </div>
             </div>
+
+            <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+              {renderDeleteAccountButton(false)}
+            </div>
           </div>
         </div>
         <ReminderCalendarPopup
@@ -993,7 +1045,7 @@ const TaskSidebar = () => {
           onMouseDown={(e) => startSidebarDrag(e.clientX)}
           onMouseUp={(e) => finishSidebarDrag(e.clientX)}
         />
-        <div className="p-4">
+        <div className="p-4 h-full flex flex-col overflow-y-auto">
           {/* Header action buttons */}
           <div className="flex items-center justify-between mb-4">
             <Button
@@ -1285,6 +1337,10 @@ const TaskSidebar = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="mt-auto pt-4 border-t border-gray-200 dark:border-gray-700">
+            {renderDeleteAccountButton(false)}
           </div>
         </div>
       </div>
