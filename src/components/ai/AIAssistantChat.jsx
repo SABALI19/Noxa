@@ -732,15 +732,16 @@ const AIAssistantChat = ({
   return (
     //minimized header noxa assistance
     <div
-  className={`fixed z-50 flex flex-col transition-all duration-300 
-    ${isMinimized 
-      ? 'bottom-6 left-1/2 -translate-x-1/2 w-80 h-16' 
-      : 'bottom-0 right-0 md:bottom-6 md:right-6 w-full h-full md:w-96 md:h-[600px] md:rounded-2xl'
-    } 
-    bg-white dark:bg-gray-800 shadow-2xl rounded-t-2xl border border-gray-200 dark:border-gray-400
-    ${!isMinimized && 'rounded-t-2xl md:rounded-2xl'}
+      className={`fixed z-50 flex flex-col transition-all duration-300 
+  ${
+    isMinimized
+      ? "bottom-6 left-1/2 -translate-x-1/2 w-80 h-16" // ← centered
+      : "bottom-0 right-0 md:bottom-6 md:right-6 w-full h-full md:w-96 md:h-[600px] md:rounded-2xl"
+  }
+    bg-white dark:bg-gray-800 shadow-2xl rounded-t-2xl border border-gray-200 dark:border-gray-400 overflow-hidden
+    ${!isMinimized && "rounded-t-2xl md:rounded-2xl"}
   `}
->
+    >
       {/* Header */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <div

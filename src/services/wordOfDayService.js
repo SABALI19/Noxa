@@ -112,22 +112,12 @@ const mergeCommunityWords = (remoteEntries, localEntries = readStoredCommunityWo
   return [...localPendingEntries, ...normalizedRemote];
 };
 
-const hashString = (value) => {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(index);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-};
-
-const getDeterministicFeaturedWord = (entries) => {
+const getRandomFeaturedWord = (entries) => {
   if (!entries.length) {
     return DEFAULT_WORD_OF_DAY;
   }
 
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const selectedIndex = hashString(todayKey) % entries.length;
+  const selectedIndex = Math.floor(Math.random() * entries.length);
   return normalizeWordOfDay(entries[selectedIndex]);
 };
 
@@ -136,14 +126,14 @@ export const getWordOfDay = async () => {
     const response = await fetch(WORD_OF_DAY_READ_PATH);
     if (!response.ok) {
       const fallbackEntries = readStoredCommunityWords();
-      return persistWordOfDay(getDeterministicFeaturedWord(fallbackEntries));
+      return persistWordOfDay(getRandomFeaturedWord(fallbackEntries));
     }
 
     const payload = await parseJsonSafe(response);
     return persistWordOfDay(payload);
   } catch {
     const fallbackEntries = readStoredCommunityWords();
-    return persistWordOfDay(getDeterministicFeaturedWord(fallbackEntries));
+    return persistWordOfDay(getRandomFeaturedWord(fallbackEntries));
   }
 };
 
@@ -197,7 +187,7 @@ export const submitCommunityWord = async (payload) => {
   } catch {
     const nextEntries = [normalizedPayload, ...readStoredCommunityWords()];
     persistCommunityWords(nextEntries);
-    persistWordOfDay(getDeterministicFeaturedWord(nextEntries));
+    persistWordOfDay(getRandomFeaturedWord(nextEntries));
     return normalizedPayload;
   }
 
