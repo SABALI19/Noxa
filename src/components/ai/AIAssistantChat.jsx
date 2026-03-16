@@ -730,12 +730,11 @@ const AIAssistantChat = ({
   }
 
   return (
-    //minimized header noxa assistance
     <div
       className={`fixed z-50 flex flex-col transition-all duration-300 
   ${
     isMinimized
-      ? "bottom-6 left-1/2 -translate-x-1/2 w-80 h-16" // ← centered
+      ? "bottom-6 left-1/2 -translate-x-1/2 w-80 h-16"
       : "bottom-0 right-0 md:bottom-6 md:right-6 w-full h-full md:w-96 md:h-[600px] md:rounded-2xl"
   }
     bg-white dark:bg-gray-800 shadow-2xl rounded-t-2xl border border-gray-200 dark:border-gray-400 overflow-hidden
@@ -743,48 +742,41 @@ const AIAssistantChat = ({
   `}
     >
       {/* Header */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div
-          ref={messagesContainerRef}
-          className="flex-1 min-h-0 overflow-y-auto"
-        >
-          <div className="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm">
-            <FiMessageSquare className="text-[#3d9c9c] dark:text-[#3d9c9c]" />
-          </div>
-          <div className="min-h-[2.5rem]">
-            <h3 className="font-bold text-gray-100">Noxa Assistant</h3>
-            <p className="text-xs text-gray-300 h-4">
-              {isTyping ? "Typing..." : "\u00A0"}
-            </p>
-          </div>
+      <div className="flex items-center gap-3 px-3 py-2 bg-gradient-to-r from-[#3D9B9B] to-[#4AB3B3] shrink-0">
+        <div className="p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm shrink-0">
+          <FiMessageSquare className="text-[#3d9c9c]" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-white leading-tight">Noxa Assistant</h3>
+          <p className="text-xs text-white/70 h-4">
+            {isTyping ? "Typing..." : "\u00A0"}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={handleCreateConversation}
-            className="p-2 hover:bg-white hover:bg-opacity-60 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
             title="New conversation"
           >
-            <FiPlus className="text-gray-600 dark:text-gray-300" />
+            <FiPlus className="text-white" />
           </button>
           <button
             onClick={() => setShowHistory((prev) => !prev)}
             className={`p-2 rounded-lg transition-colors ${
-              showHistory
-                ? "bg-white bg-opacity-70 dark:bg-gray-700"
-                : "hover:bg-white hover:bg-opacity-60 dark:hover:bg-gray-700"
+              showHistory ? "bg-white/30" : "hover:bg-white/20"
             }`}
             title="Conversation history"
           >
-            <FiClock className="text-gray-600 dark:text-gray-300" />
+            <FiClock className="text-white" />
           </button>
           <button
             onClick={() => setIsMinimized(!isMinimized)}
-            className="p-2 hover:bg-white hover:bg-opacity-60 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
           >
             {isMinimized ? (
-              <FiMaximize2 className="text-gray-600 dark:text-gray-300" />
+              <FiMaximize2 className="text-white" />
             ) : (
-              <FiMinimize2 className="text-gray-600 dark:text-gray-300" />
+              <FiMinimize2 className="text-white" />
             )}
           </button>
           <button
@@ -792,9 +784,9 @@ const AIAssistantChat = ({
               setIsOpen(false);
               setShowHistory(false);
             }}
-            className="p-2 hover:bg-white hover:bg-opacity-60 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
           >
-            <FiX className="text-gray-600 dark:text-gray-300" />
+            <FiX className="text-white" />
           </button>
         </div>
       </div>
@@ -963,4 +955,4 @@ const AIAssistantChat = ({
   );
 };
 
-export default AIAssistantChat;
+export default AIAssistantChat; 
