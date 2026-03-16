@@ -221,9 +221,7 @@ const Auth = ({
     const newErrors = {};
 
     if (!loginForm.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(loginForm.email)) {
-      newErrors.email = "Email is invalid";
+      newErrors.email = "Email or username is required";
     }
 
     if (!loginForm.password) {
@@ -238,10 +236,6 @@ const Auth = ({
     const newErrors = {};
     const hasPasswordComplexity =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(signupForm.password);
-
-    if (!signupForm.name.trim()) {
-      newErrors.name = "Name is required";
-    }
 
     if (!signupForm.email.trim()) {
       newErrors.email = "Email is required";
@@ -1015,12 +1009,12 @@ const Auth = ({
               <form onSubmit={handleLoginSubmit} className="space-y-4 sm:space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-                    Email Address
+                    Email Or Username
                   </label>
                   <div className="relative">
                     <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
                     <input
-                      type="email"
+                      type="text"
                       name="email"
                       value={loginForm.email}
                       onChange={handleLoginChange}
@@ -1030,7 +1024,7 @@ const Auth = ({
                           ? "border-red-500"
                           : "border-gray-300 dark:border-gray-600"
                       } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      placeholder="you@example.com"
+                      placeholder="you@example.com or your username"
                     />
                   </div>
                   {errors.email && (
@@ -1149,7 +1143,7 @@ const Auth = ({
               <form onSubmit={handleSignupSubmit} className="space-y-4 sm:space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-                    Full Name
+                    Full Name (Optional)
                   </label>
                   <div className="relative">
                     <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />

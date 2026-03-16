@@ -292,10 +292,15 @@ const refreshAccessToken = async () => {
   return refreshInFlight;
 };
 
-export const loginRequest = async ({ email, password }) => {
+export const loginRequest = async ({ email, identifier, username, password }) => {
+  const loginIdentifier = identifier || email || username || "";
   const payload = await request(LOGIN_PATH, {
     method: "POST",
-    body: { email, password },
+    body: {
+      identifier: loginIdentifier,
+      email: loginIdentifier,
+      password,
+    },
   });
 
   const data = extractData(payload);
