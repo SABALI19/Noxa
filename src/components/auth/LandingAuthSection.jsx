@@ -158,30 +158,6 @@ const LandingAuthSection = ({
       finishLoading();
       return verificationResult;
     } catch (error) {
-      const message = error?.message || "";
-      if (/verification is not enabled/i.test(message)) {
-        try {
-          const signupResult = await signupWithBackend(formData);
-          const newUser = signupResult?.user || signupResult;
-          emitAuthNotification(
-            signupResult,
-            "account_created",
-            "Account Created",
-            `Welcome ${newUser?.username || "there"}, your account was created successfully.`
-          );
-          setLoadingProgress(85);
-          if (onSignup) {
-            onSignup(newUser);
-          }
-          finishLoading();
-          navigate("/dashboard");
-          return newUser;
-        } catch (signupError) {
-          console.error("Signup error:", signupError);
-          failLoading();
-          throw new Error(signupError?.message || "Signup failed. Please try again.");
-        }
-      }
       console.error("Signup error:", error);
       failLoading();
       throw new Error(error?.message || "Signup failed. Please try again.");
