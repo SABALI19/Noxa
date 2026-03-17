@@ -203,9 +203,11 @@ export const AuthProvider = ({ children }) => {
     return response?.message || "If an account exists, a reset link has been sent.";
   };
 
-  const resetPassword = async ({ token: resetToken, password, confirmPassword }) => {
+  const resetPassword = async ({ token: resetToken, email, otp, password, confirmPassword }) => {
     const response = await resetPasswordRequest({
       token: resetToken,
+      email,
+      otp,
       password,
       confirmPassword,
     });

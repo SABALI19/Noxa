@@ -515,13 +515,32 @@ export const forgotPasswordRequest = async ({ email }) => {
   }
 };
 
-export const resetPasswordRequest = async ({ token, password, confirmPassword }) => {
+export const resetPasswordRequest = async ({
+  token,
+  otp,
+  code,
+  email,
+  password,
+  confirmPassword,
+}) => {
   try {
+    const trimmedToken = String(token || "").trim();
+    const trimmedOtp = String(otp || code || "").trim();
+    const trimmedEmail = String(email || "").trim();
+
     const payload = await request(RESET_PASSWORD_PATH, {
       method: "POST",
       body: {
-        token,
-        resetToken: token,
+        ...(trimmedToken
+          ? {
+              token: trimmedToken,
+              resetToken: trimmedToken,
+            }
+          : {
+              otp: trimmedOtp,
+              code: trimmedOtp,
+              email: trimmedEmail,
+            }),
         password,
         newPassword: password,
         confirmPassword,

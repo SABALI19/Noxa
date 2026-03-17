@@ -52,6 +52,8 @@ const Auth = ({
   });
   const [resetForm, setResetForm] = useState({
     token: '',
+    email: '',
+    otp: '',
     password: '',
     confirmPassword: '',
   });
@@ -297,8 +299,20 @@ const Auth = ({
     const hasPasswordComplexity =
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(resetForm.password);
 
-    if (!resetForm.token.trim()) {
-      newErrors.token = "Reset token is required";
+    const hasToken = resetForm.token.trim().length > 0;
+    const hasOtp = resetForm.otp.trim().length > 0;
+    const hasEmail = resetForm.email.trim().length > 0;
+
+    if (!hasToken) {
+      if (!hasEmail) {
+        newErrors.email = "Email is required when using OTP";
+      } else if (!/\S+@\S+\.\S+/.test(resetForm.email)) {
+        newErrors.email = "Email is invalid";
+      }
+
+      if (!hasOtp) {
+        newErrors.otp = "OTP is required when using email reset";
+      }
     }
 
     if (!resetForm.password) {
@@ -538,7 +552,12 @@ const Auth = ({
       setErrors({});
       setShowForgotPassword(false);
       setShowResetPassword(true);
-      setResetForm((prev) => ({ ...prev, token: prev.token || '' }));
+      setResetForm((prev) => ({
+        ...prev,
+        email: forgotForm.email.trim(),
+        otp: '',
+        token: prev.token || '',
+      }));
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
@@ -565,6 +584,8 @@ const Auth = ({
     try {
       const responseMessage = await onResetPassword({
         token: resetForm.token.trim(),
+        email: resetForm.email.trim(),
+        otp: resetForm.otp.trim(),
         password: resetForm.password,
         confirmPassword: resetForm.confirmPassword,
       });
@@ -576,6 +597,8 @@ const Auth = ({
       setShowPassword(false);
       setResetForm({
         token: '',
+        email: '',
+        otp: '',
         password: '',
         confirmPassword: '',
       });
@@ -752,7 +775,7 @@ const Auth = ({
                     Reset Password
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4">
-                    Enter your reset token and choose a new password.
+                    Use the reset token from your link, or enter the email OTP you received.
                   </p>
                 </div>
 
@@ -774,6 +797,56 @@ const Auth = ({
                   {errors.token && (
                     <p className="mt-1 text-xs sm:text-sm text-red-600">
                       {errors.token}
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Optional if you are resetting with email + OTP instead.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                    <input
+                      type="email"
+                      name="email"
+                      value={resetForm.email}
+                      onChange={handleResetChange}
+                      disabled={isLoading}
+                      className={`w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                        errors.email ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="mt-1 text-xs sm:text-sm text-red-600">
+                      {errors.email}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    Email OTP
+                  </label>
+                  <input
+                    type="text"
+                    name="otp"
+                    value={resetForm.otp}
+                    onChange={handleResetChange}
+                    disabled={isLoading}
+                    className={`w-full px-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg focus:ring-2 focus:ring-[#3D9B9B] focus:border-transparent outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 ${
+                      errors.otp ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    placeholder="Enter the OTP from your email"
+                  />
+                  {errors.otp && (
+                    <p className="mt-1 text-xs sm:text-sm text-red-600">
+                      {errors.otp}
                     </p>
                   )}
                 </div>

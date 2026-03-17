@@ -231,10 +231,10 @@ const LandingAuthSection = ({
     }
   };
 
-  const handleResetPassword = async ({ token, password, confirmPassword }) => {
+  const handleResetPassword = async ({ token, email, otp, password, confirmPassword }) => {
     try {
       startLoading(35);
-      const message = await resetPassword({ token, password, confirmPassword });
+      const message = await resetPassword({ token, email, otp, password, confirmPassword });
       finishLoading();
       return message;
     } catch (error) {
