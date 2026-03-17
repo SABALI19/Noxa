@@ -237,6 +237,32 @@ const buildTimeContext = (now = new Date()) => ({
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 });
 
+const truncateText = (value = '', maxLength = 140) => {
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) return '';
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, Math.max(0, maxLength - 3)).trim()}...`
+    : normalized;
+};
+
+const formatContextDate = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().split('T')[0];
+};
+
+const formatConversationTranscript = (messages = []) =>
+  (Array.isArray(messages) ? messages : [])
+    .slice(-6)
+    .map((message) => {
+      const role = message?.role === 'assistant' ? 'Assistant' : 'User';
+      const content = truncateText(message?.content || '', 280);
+      return content ? `${role}: ${content}` : null;
+    })
+    .filter(Boolean)
+    .join('\n');
+
 class AiService {
   constructor() {
     this.apiKey = null; // Kept for backward compatibility
@@ -361,6 +387,108 @@ class AiService {
       dueDate: task.dueDate || null,
       goalId: task.goalId || null
     };
+  }
+
+  cleanNoteData(note) {
+    if (!note) return null;
+
+    return {
+      id: note.id || note._id || null,
+      title: note.title || 'Untitled note',
+      category: note.category || 'general',
+      isPinned: Boolean(note.isPinned),
+      createdAt: note.createdAt || null,
+      content: truncateText(note.content || '', 180)
+    };
+  }
+
+  buildWorkspaceSnapshot(context = {}) {
+    const cleanGoals = (context.goals || []).map((goal) => this.cleanGoalData(goal)).filter(Boolean);
+    const cleanTasks = (context.tasks || []).map((task) => this.cleanTaskData(task)).filter(Boolean);
+    const cleanNotes = (context.notes || []).map((note) => this.cleanNoteData(note)).filter(Boolean);
+
+    const activeGoals = cleanGoals
+      .filter((goal) => !goal.completed)
+      .slice(0, 5)
+      .map((goal) => ({
+        title: goal.title,
+        progress: goal.progress,
+        priority: goal.priority,
+        targetDate: formatContextDate(goal.targetDate),
+        category: goal.category || 'general',
+        description: truncateText(goal.description || '', 120)
+      }));
+
+    const pendingTasks = cleanTasks
+      .filter((task) => !task.completed)
+      .slice(0, 8)
+      .map((task) => ({
+        title: task.title,
+        priority: task.priority,
+        dueDate: formatContextDate(task.dueDate),
+        category: task.category || 'general',
+        estimatedTime: task.estimatedTime || null,
+        linkedGoalId: task.goalId || null
+      }));
+
+    const completedTasks = cleanTasks
+      .filter((task) => task.completed)
+      .slice(0, 5)
+      .map((task) => ({
+        title: task.title,
+        completed: true,
+        category: task.category || 'general'
+      }));
+
+    const notes = cleanNotes.slice(0, 5).map((note) => ({
+      title: note.title,
+      category: note.category,
+      isPinned: note.isPinned,
+      createdAt: formatContextDate(note.createdAt),
+      content: note.content
+    }));
+
+    return {
+      page: context.page || context.route || null,
+      user: {
+        name:
+          context.userName ||
+          context.user?.fullName ||
+          context.user?.name ||
+          context.user?.username ||
+          null
+      },
+      counts: {
+        totalGoals: cleanGoals.length,
+        activeGoals: cleanGoals.filter((goal) => !goal.completed).length,
+        completedGoals: cleanGoals.filter((goal) => goal.completed).length,
+        pendingTasks: cleanTasks.filter((task) => !task.completed).length,
+        completedTasks: cleanTasks.filter((task) => task.completed).length,
+        notes: cleanNotes.length
+      },
+      activeGoals,
+      pendingTasks,
+      completedTasks,
+      recentNotes: notes
+    };
+  }
+
+  buildChatUserMessage(message, context = {}, now = new Date()) {
+    const timeContext = buildTimeContext(now);
+    const workspaceSnapshot = this.buildWorkspaceSnapshot(context);
+    const conversationTranscript = formatConversationTranscript(context.previousMessages);
+
+    return `Current time context:
+${JSON.stringify(timeContext, null, 2)}
+
+Workspace snapshot:
+${JSON.stringify(workspaceSnapshot, null, 2)}
+
+Recent conversation:
+${conversationTranscript || 'No prior messages in this conversation.'}
+
+Latest user request:
+${message}`;
   }
 
   // ==================== PREDICTIVE INTELLIGENCE ====================
@@ -885,21 +1013,21 @@ Generate smart reminders for the next 7 days.`;
    * Chat with AI assistant (general purpose)
    */
   async chat(message, context = {}) {
-    const systemPrompt = `You are Noxa, an AI productivity assistant. You help users:
-    - Manage goals and tasks effectively
-    - Stay organized and on track
-    - Prevent problems before they happen
-    - Automate repetitive work
-    
-    Be concise, helpful, and actionable. Always relate advice back to the user's specific goals and tasks.`;
+    const systemPrompt = `You are Noxa, an AI productivity assistant inside a goals, tasks, reminders, and notes app.
 
-    const userMessage = context.previousMessages 
-      ? message 
-      : `Context: ${JSON.stringify(context, null, 2)}\n\nUser: ${message}`;
+Your responses must feel specific, grounded, and useful, never generic.
 
-    const messages = context.previousMessages 
-      ? [...context.previousMessages, { role: 'user', content: message }]
-      : [{ role: 'user', content: userMessage }];
+Rules:
+- Use the user's actual goals, tasks, notes, and recent conversation when available.
+- Refer to item names directly instead of vague phrases like "your tasks" or "your goals."
+- Give concrete next steps, prioritization, sequencing, or tradeoffs.
+- If you mention urgency, explain why using the provided deadlines, progress, or priorities.
+- Avoid filler, cliches, empty motivation, and generic productivity advice.
+- Do not invent missing context. If something important is missing, say what is missing in one sentence and still provide the best next step.
+- Keep the answer concise but substantive.`;
+
+    const userMessage = this.buildChatUserMessage(message, context);
+    const messages = [{ role: 'user', content: userMessage }];
 
     const response = await this.makeRequest(messages, systemPrompt);
     return response.text;
@@ -916,8 +1044,9 @@ Generate smart reminders for the next 7 days.`;
       return directActionResult;
     }
 
-    const timeContext = buildTimeContext(now);
-    const systemPrompt = `You are Noxa, an AI productivity assistant integrated with a task/goal/reminder/note app.
+    const systemPrompt = `You are Noxa, an AI productivity assistant integrated with a task, goal, reminder, and note app.
+
+Your responses must feel concrete and personalized to the workspace data you receive.
 
 You must return STRICT JSON with this schema:
 {
@@ -942,13 +1071,12 @@ Rules:
 - For reminders include a concrete ISO datetime in payload.reminderTime and payload.dueDate.
 - For reminder notification channel use one of: "app", "email", "both".
 - If details are missing, ask follow-up questions in "message" and return empty actions.
+- In "message", reference the user's real goals, tasks, notes, or constraints when they are relevant.
+- Avoid generic encouragement and vague summaries.
+- Prefer one clear recommendation over a broad list of obvious ideas.
 - Output valid JSON only.`;
 
-    const userMessage = `Current time context: ${JSON.stringify(timeContext, null, 2)}
-
-Context: ${JSON.stringify(context, null, 2)}
-
-User: ${message}`;
+    const userMessage = this.buildChatUserMessage(message, context, now);
     const response = await this.makeRequest(
       [{ role: 'user', content: userMessage }],
       systemPrompt

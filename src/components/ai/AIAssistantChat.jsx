@@ -30,7 +30,7 @@ const MAX_CHAT_SESSIONS = 20;
 const createAssistantWelcomeMessage = () => ({
   role: "assistant",
   content:
-    "Hi! I'm Noxa, your AI productivity assistant. I can help you draft emails, prepare agendas, summarize your week, or manage your goals, tasks, reminders, and notes. What would you like help with?",
+    "Hi! I'm Noxa. I can help you plan around your actual goals, tasks, reminders, and notes, or take actions like creating tasks and reminders. What should we work on?",
   timestamp: new Date(),
 });
 
@@ -610,6 +610,7 @@ const AIAssistantChat = ({
         goals: liveGoals,
         tasks: liveTasks,
         notes: liveNotes,
+        page: typeof window !== "undefined" ? window.location.pathname : "",
         ...userContext,
         previousMessages: nextMessagesForContext.map((m) => ({
           role: m.role,
