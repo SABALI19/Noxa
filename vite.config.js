@@ -1,10 +1,13 @@
 import { defineConfig, loadEnv } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const configDir = dirname(fileURLToPath(import.meta.url));
+  const env = loadEnv(mode, configDir, '');
   const backendProxyTarget = env.VITE_BACKEND_PROXY_TARGET || 'http://localhost:4000';
 
   return ({
@@ -61,6 +64,23 @@ export default defineConfig(({ mode }) => {
                 id.includes('node_modules/victory-') ||
                 id.includes('node_modules/decimal.js')) {
               return 'charts-vendor'
+            }
+
+            // Avatar generation / visual assets
+            if (id.includes('node_modules/@dicebear/')) {
+              return 'avatars-vendor'
+            }
+
+            // Networking and fetch utilities
+            if (id.includes('node_modules/axios/') ||
+                id.includes('node_modules/node-fetch/')) {
+              return 'network-vendor'
+            }
+
+            // Smaller UI utilities
+            if (id.includes('node_modules/react-image-crop/') ||
+                id.includes('node_modules/react-is/')) {
+              return 'ui-utils-vendor'
             }
             
             // Icons (separate from everything else)

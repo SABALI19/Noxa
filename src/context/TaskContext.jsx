@@ -184,6 +184,8 @@ const normalizeTaskFromApi = (task = {}, fallbackTask = null) => {
     overdue: false,
     status: normalizeTaskStatus(task.status, completed),
     createdAt: task.createdAt ? new Date(task.createdAt).toISOString() : new Date().toISOString(),
+    linkedGoalId: task.linkedGoalId || task.goalId || fallbackTask?.linkedGoalId || fallbackTask?.goalId || null,
+    goalId: task.goalId || task.linkedGoalId || fallbackTask?.goalId || fallbackTask?.linkedGoalId || null,
     reminderSettings: normalizeTaskReminderSettings(task.reminderSettings, fallbackReminderSettings, dueDateValue),
   };
 };
@@ -497,6 +499,8 @@ export const TaskProvider = ({ children }) => {
         priority: normalizePriority(newTask.priority),
         category: normalizeCategory(newTask.category),
         status: normalizeTaskStatus(newTask.status, Boolean(newTask.completed)),
+        linkedGoalId: newTask.linkedGoalId ? String(newTask.linkedGoalId) : null,
+        goalId: newTask.linkedGoalId ? String(newTask.linkedGoalId) : null,
         overdue: false,
         reminderSettings: normalizeTaskReminderSettings(newTask.reminderSettings),
       };
@@ -518,6 +522,11 @@ export const TaskProvider = ({ children }) => {
             ? String(newTask.recurrence).toLowerCase()
             : 'none',
         };
+
+        if (newTask.linkedGoalId) {
+          payload.linkedGoalId = String(newTask.linkedGoalId);
+          payload.goalId = String(newTask.linkedGoalId);
+        }
 
         void backendService
           .createTask(payload)
@@ -582,6 +591,11 @@ export const TaskProvider = ({ children }) => {
             ? String(merged.recurrence).toLowerCase()
             : 'none',
         };
+
+        if (merged.linkedGoalId) {
+          payload.linkedGoalId = String(merged.linkedGoalId);
+          payload.goalId = String(merged.linkedGoalId);
+        }
 
         const normalizedReminderSettings = normalizeTaskReminderSettings(merged.reminderSettings);
         if (normalizedReminderSettings) {

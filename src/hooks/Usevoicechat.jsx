@@ -19,32 +19,44 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
 // ── Platform detection ────────────────────────────────────────
-const detectIOS = () =>
-  typeof navigator !== 'undefined' &&
-  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+const detectIOS = () => {
+  if (typeof navigator === 'undefined') return false;
+
+  const userAgent = navigator.userAgent || '';
+  const vendor = navigator.vendor || '';
+  const touchPoints = navigator.maxTouchPoints || 0;
+
+  const isClassicIOS = /\b(iPad|iPhone|iPod)\b/i.test(userAgent);
+  const isIPadDesktopMode =
+    /\bMacintosh\b/i.test(userAgent) &&
+    /\bAppleWebKit\b/i.test(userAgent) &&
+    /Apple/i.test(vendor) &&
+    touchPoints > 1;
+
+  return isClassicIOS || isIPadDesktopMode;
+};
 
 const useVoiceChat = ({ onTranscript, onError } = {}) => {
   const [isListening, setIsListening]             = useState(false);
   const [isSpeaking, setIsSpeaking]               = useState(false);
-  const [isSupported, setIsSupported]             = useState(false);
+  const [isSupported]                             = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    return !!SpeechRecognition && !!window.speechSynthesis;
+  });
   const [interimTranscript, setInterimTranscript] = useState('');
   const [voices, setVoices]                       = useState([]);
 
   const recognitionRef = useRef(null);
   const synthRef       = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
-  const onIOSRef       = useRef(detectIOS());
+  const [onIOS]        = useState(() => detectIOS());
 
   // ── Support check + voice loading ────────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    const supported = !!SpeechRecognition && !!window.speechSynthesis;
-    setIsSupported(supported);
-
-    if (!supported) return;
+    if (!isSupported) return;
 
     const loadVoices = () => {
       const available = window.speechSynthesis.getVoices();
@@ -57,7 +69,7 @@ const useVoiceChat = ({ onTranscript, onError } = {}) => {
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
     };
-  }, []);
+  }, [isSupported]);
 
   // ── Speech-to-Text ───────────────────────────────────────────
   const startListening = useCallback(() => {
@@ -77,7 +89,7 @@ const useVoiceChat = ({ onTranscript, onError } = {}) => {
     const recognition = new SpeechRecognition();
     recognition.lang            = 'en-US';
     recognition.continuous      = false; // iOS fix: continuous not supported
-    recognition.interimResults  = !onIOSRef.current; // iOS fix: crashes on iOS
+    recognition.interimResults  = !onIOS; // iOS fix: crashes on iOS
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
@@ -98,7 +110,7 @@ const useVoiceChat = ({ onTranscript, onError } = {}) => {
         }
       }
 
-      if (!onIOSRef.current && interim) setInterimTranscript(interim);
+      if (!onIOS && interim) setInterimTranscript(interim);
 
       if (final) {
         setInterimTranscript('');
@@ -111,11 +123,11 @@ const useVoiceChat = ({ onTranscript, onError } = {}) => {
       setInterimTranscript('');
 
       const msgs = {
-        'no-speech':     onIOSRef.current
+        'no-speech':     onIOS
           ? 'Nothing heard. Tap mic and speak clearly.'
           : 'No speech detected. Please try again.',
         'audio-capture': 'Microphone not found.',
-        'not-allowed':   onIOSRef.current
+        'not-allowed':   onIOS
           ? 'Mic denied. Go to Settings → Safari → Microphone and allow.'
           : 'Microphone access denied.',
         'network':       'Network error during speech recognition.',
@@ -134,7 +146,7 @@ const useVoiceChat = ({ onTranscript, onError } = {}) => {
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [onTranscript, onError]);
+  }, [onTranscript, onError, onIOS]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -156,7 +168,7 @@ const useVoiceChat = ({ onTranscript, onError } = {}) => {
     if (!synthRef.current) return;
 
     // iOS fix: auto-speak requires direct user gesture — skip silently
-    if (onIOSRef.current && options.auto) return;
+    if (onIOS && options.auto) return;
 
     synthRef.current.cancel();
 
@@ -167,7 +179,7 @@ const useVoiceChat = ({ onTranscript, onError } = {}) => {
 
     const utterance        = new SpeechSynthesisUtterance(clean);
     utterance.lang         = 'en-US';
-    utterance.rate         = options.rate   ?? (onIOSRef.current ? 0.95 : 1.0);
+    utterance.rate         = options.rate   ?? (onIOS ? 0.95 : 1.0);
     utterance.pitch        = options.pitch  ?? 1.0;
     utterance.volume       = options.volume ?? 1.0;
 
@@ -200,25 +212,27 @@ const useVoiceChat = ({ onTranscript, onError } = {}) => {
     };
 
     // iOS fix: 100ms timeout fixes occasional silent playback
-    if (onIOSRef.current) {
+    if (onIOS) {
       setTimeout(() => synthRef.current?.speak(utterance), 100);
     } else {
       synthRef.current.speak(utterance);
     }
-  }, [voices]);
+  }, [voices, onIOS]);
 
   const stopSpeaking = useCallback(() => {
     synthRef.current?.cancel();
     setIsSpeaking(false);
   }, []);
 
+  const cleanupVoiceChat = useCallback(() => {
+    recognitionRef.current?.stop();
+    synthRef.current?.cancel();
+  }, []);
+
   // Cleanup
   useEffect(() => {
-    return () => {
-      recognitionRef.current?.stop();
-      synthRef.current?.cancel();
-    };
-  }, []);
+    return cleanupVoiceChat;
+  }, [cleanupVoiceChat]);
 
   return {
     isListening,
@@ -227,7 +241,7 @@ const useVoiceChat = ({ onTranscript, onError } = {}) => {
     isProcessing: false,      // reserved for Whisper upgrade
     interimTranscript,
     voices,
-    onIOS: onIOSRef.current,
+    onIOS,
     startListening,
     stopListening,
     speak,

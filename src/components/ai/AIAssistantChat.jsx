@@ -36,7 +36,7 @@ import {
   getGoals,
 } from "../../services/goalStorage";
 import { useAuth } from "../../hooks/UseAuth";
-import useVoiceChat from "../../hooks/useVoiceChat";
+import useVoiceChat from "../../hooks/Usevoicechat";
 
 const CHAT_STORAGE_KEY = "noxa_ai_chat_sessions_v1";
 const MAX_CHAT_SESSIONS = 20;
@@ -50,6 +50,31 @@ const DEFAULT_VOICE_SETTINGS = {
   voiceName:  "",
 };
 
+const VoiceSettingSlider = ({ label, value, min, max, step, display, onChange }) => (
+  <div className="mb-4">
+    <div className="flex justify-between items-center mb-1">
+      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{label}</span>
+      <span className="text-xs text-[#3d9c9c] font-semibold w-16 text-right">
+        {display ? display(value) : value}
+      </span>
+    </div>
+    <input
+      type="range" min={min} max={max} step={step}
+      value={value}
+      onChange={(e) => onChange(parseFloat(e.target.value))}
+      className="w-full h-1.5 rounded-full appearance-none cursor-pointer
+        bg-gray-200 dark:bg-gray-600
+        [&::-webkit-slider-thumb]:appearance-none
+        [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+        [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#3d9c9c]
+        [&::-webkit-slider-thumb]:cursor-pointer"
+    />
+    <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+      <span>{min}</span><span>{max}</span>
+    </div>
+  </div>
+);
+
 // ── Voice Settings Panel (unchanged) ─────────────────────────
 const VoiceSettingsPanel = ({
   settings,
@@ -60,31 +85,6 @@ const VoiceSettingsPanel = ({
   isSpeaking,
   onIOS,
 }) => {
-  const Slider = ({ label, settingKey, min, max, step, display }) => (
-    <div className="mb-4">
-      <div className="flex justify-between items-center mb-1">
-        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{label}</span>
-        <span className="text-xs text-[#3d9c9c] font-semibold w-16 text-right">
-          {display ? display(settings[settingKey]) : settings[settingKey]}
-        </span>
-      </div>
-      <input
-        type="range" min={min} max={max} step={step}
-        value={settings[settingKey]}
-        onChange={(e) => onChange(settingKey, parseFloat(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none cursor-pointer
-          bg-gray-200 dark:bg-gray-600
-          [&::-webkit-slider-thumb]:appearance-none
-          [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-          [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#3d9c9c]
-          [&::-webkit-slider-thumb]:cursor-pointer"
-      />
-      <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
-        <span>{min}</span><span>{max}</span>
-      </div>
-    </div>
-  );
-
   return (
     <div className="absolute inset-0 bg-white dark:bg-gray-800 z-20 flex flex-col rounded-t-2xl md:rounded-2xl overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-[#3D9B9B] to-[#4AB3B3] shrink-0">
@@ -120,11 +120,14 @@ const VoiceSettingsPanel = ({
             </p>
           </div>
         )}
-        <Slider label="Speech Rate" settingKey="rate" min={0.5} max={2.0} step={0.1}
+        <VoiceSettingSlider label="Speech Rate" value={settings.rate} min={0.5} max={2.0} step={0.1}
+          onChange={(value) => onChange("rate", value)}
           display={(v) => v <= 0.7 ? "Slow" : v <= 0.9 ? "Relaxed" : v <= 1.1 ? "Normal" : v <= 1.4 ? "Fast" : "Very Fast"} />
-        <Slider label="Pitch" settingKey="pitch" min={0.5} max={2.0} step={0.1}
+        <VoiceSettingSlider label="Pitch" value={settings.pitch} min={0.5} max={2.0} step={0.1}
+          onChange={(value) => onChange("pitch", value)}
           display={(v) => v <= 0.7 ? "Deep" : v <= 0.9 ? "Low" : v <= 1.1 ? "Normal" : v <= 1.4 ? "High" : "Very High"} />
-        <Slider label="Volume" settingKey="volume" min={0.0} max={1.0} step={0.05}
+        <VoiceSettingSlider label="Volume" value={settings.volume} min={0.0} max={1.0} step={0.05}
+          onChange={(value) => onChange("volume", value)}
           display={(v) => `${Math.round(v * 100)}%`} />
         {availableVoices.filter((v) => v.lang.startsWith("en")).length > 0 && (
           <div className="mb-4">
@@ -496,12 +499,23 @@ const AIAssistantChat = ({
       const payload = action?.payload || {};
 
       if (type === "create_task") {
+        const duplicateTask = payload.duplicateTaskId
+          ? taskSnapshot.find((task) => String(task.id) === String(payload.duplicateTaskId))
+          : taskSnapshot.find((task) =>
+              task.title?.trim().toLowerCase() === String(payload.title || "").trim().toLowerCase(),
+            );
+        if (duplicateTask && !duplicateTask.completed) {
+          created.push(`Task already exists: ${duplicateTask.title}`);
+          continue;
+        }
+
         const createdTask = addTask({
           title: payload.title || "New Task",
           description: payload.description || "",
           dueDate: toIsoDate(payload.dueDate, new Date(Date.now() + 24 * 60 * 60 * 1000)),
           priority: normalizePriority(payload.priority),
           category: (payload.category || "personal").toLowerCase(),
+          linkedGoalId: payload.linkedGoalId || null,
           completed: false, status: payload.status || "pending", overdue: false,
         });
         taskSnapshot = [createdTask, ...taskSnapshot];

@@ -129,6 +129,64 @@ const findGoalByTitle = (goals = [], rawTitle = '') => {
   return goals.find((goal) => normalizeWhitespace(goal?.title).toLowerCase() === normalizedTitle) || null;
 };
 
+const TASK_CATEGORY_KEYWORDS = {
+  work: ['work', 'client', 'meeting', 'project', 'deadline', 'presentation', 'report', 'email'],
+  personal: ['home', 'family', 'personal', 'self', 'errand'],
+  shopping: ['buy', 'shop', 'shopping', 'store', 'order', 'purchase', 'groceries'],
+  health: ['health', 'doctor', 'workout', 'exercise', 'gym', 'medicine', 'appointment'],
+  finance: ['budget', 'bill', 'invoice', 'payment', 'bank', 'tax', 'finance'],
+  education: ['study', 'course', 'class', 'exam', 'learn', 'assignment', 'school'],
+};
+
+const findGoalMentionInText = (goals = [], rawText = '') => {
+  const normalizedText = normalizeWhitespace(rawText).toLowerCase();
+  if (!normalizedText) return null;
+  return goals.find((goal) => {
+    const goalTitle = normalizeWhitespace(goal?.title).toLowerCase();
+    return goalTitle && normalizedText.includes(goalTitle);
+  }) || null;
+};
+
+const findMostCommonTaskCategory = (tasks = []) => {
+  const counts = new Map();
+  tasks.forEach((task) => {
+    if (task?.completed) return;
+    const category = normalizeWhitespace(task?.category).toLowerCase();
+    if (!category) return;
+    counts.set(category, (counts.get(category) || 0) + 1);
+  });
+
+  let topCategory = '';
+  let topCount = 0;
+  counts.forEach((count, category) => {
+    if (count > topCount) {
+      topCategory = category;
+      topCount = count;
+    }
+  });
+
+  return topCategory || null;
+};
+
+const inferTaskCategory = ({ payloadCategory = '', rawText = '', linkedGoal = null, tasks = [] }) => {
+  const explicitCategory = normalizeWhitespace(payloadCategory).toLowerCase();
+  if (explicitCategory) return explicitCategory;
+
+  if (linkedGoal?.category) {
+    return normalizeWhitespace(linkedGoal.category).toLowerCase();
+  }
+
+  const normalizedText = normalizeWhitespace(rawText).toLowerCase();
+  if (normalizedText) {
+    const keywordCategory = Object.entries(TASK_CATEGORY_KEYWORDS).find(([, keywords]) =>
+      keywords.some((keyword) => normalizedText.includes(keyword))
+    );
+    if (keywordCategory) return keywordCategory[0];
+  }
+
+  return findMostCommonTaskCategory(tasks) || 'personal';
+};
+
 const parseDateTimeExpression = (text, now = new Date()) => {
   const source = String(text || '');
   const relativeMatch = source.match(RELATIVE_TIME_PATTERN);
@@ -460,11 +518,19 @@ class AiService {
     } catch (err) {
       if (err?.name !== 'AbortError') throw err;
     } finally {
-      try { reader.releaseLock(); } catch {}
+      try {
+        reader.releaseLock();
+      } catch (releaseError) {
+        void releaseError;
+      }
     }
 
     if (buffer.trim()) {
-      try { processEvent(buffer); } catch {}
+      try {
+        processEvent(buffer);
+      } catch (processError) {
+        void processError;
+      }
     }
 
     return {
@@ -520,7 +586,7 @@ class AiService {
       estimatedTime: task.estimatedTime || null,
       timeSpent: task.timeSpent || null,
       dueDate: task.dueDate || null,
-      goalId: task.goalId || null
+      goalId: task.goalId || task.linkedGoalId || null
     };
   }
 
@@ -1520,18 +1586,36 @@ Rules:
       };
     }
 
+    const normalizedTitle = toTitleCase(title);
+    const existingTask = findTaskByTitle(context.tasks || [], normalizedTitle);
+    if (existingTask && !existingTask.completed) {
+      return {
+        message: `You already have a task called "${existingTask.title}".`,
+        actions: []
+      };
+    }
+
+    const linkedGoal =
+      findGoalByTitle(context.goals || [], title) ||
+      findGoalMentionInText(context.goals || [], message);
     const dueDate = parsedDateTime?.date || new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const category = inferTaskCategory({
+      rawText: message,
+      linkedGoal,
+      tasks: context.tasks || []
+    });
     return {
       message: `I’ll create that task for ${formatReminderTime(dueDate)}.`,
       actions: [
         {
           type: 'create_task',
           payload: {
-            title: toTitleCase(title),
+            title: normalizedTitle,
             description: '',
             dueDate: dueDate.toISOString(),
             priority: 'medium',
-            category: 'personal',
+            category,
+            linkedGoalId: linkedGoal?.id || null,
             status: 'pending'
           }
         }
@@ -1596,7 +1680,7 @@ Rules:
     if (type === 'create_task') {
       return {
         type,
-        payload: this.normalizeTaskPayload(payload, now)
+        payload: this.normalizeTaskPayload(payload, context, now)
       };
     }
 
@@ -1639,19 +1723,37 @@ Rules:
     };
   }
 
-  normalizeTaskPayload(payload = {}, now = new Date()) {
+  normalizeTaskPayload(payload = {}, context = {}, now = new Date()) {
     const dueDateCandidate = payload.dueDate || payload.when || payload.time || '';
     const parsedDueDate = parseDateTimeExpression(dueDateCandidate, now);
     const dueDate = parsedDueDate?.date || (isIsoDateTime(payload.dueDate) ? new Date(payload.dueDate) : null);
+    const normalizedTitle = normalizeWhitespace(payload.title || 'New Task');
+    const duplicateTaskCandidate = findTaskByTitle(context.tasks || [], normalizedTitle);
+    const duplicateTask = duplicateTaskCandidate && !duplicateTaskCandidate.completed
+      ? duplicateTaskCandidate
+      : null;
+    const linkedGoal =
+      payload.linkedGoalId
+        ? (context.goals || []).find((goal) => String(goal?.id) === String(payload.linkedGoalId))
+        : findGoalByTitle(context.goals || [], payload.goalTitle || normalizedTitle) ||
+          findGoalMentionInText(context.goals || [], payload.description || payload.message || normalizedTitle);
+    const category = inferTaskCategory({
+      payloadCategory: payload.category,
+      rawText: `${normalizedTitle} ${payload.description || ''}`.trim(),
+      linkedGoal,
+      tasks: context.tasks || []
+    });
     return {
       ...payload,
-      title: normalizeWhitespace(payload.title || 'New Task'),
+      title: toTitleCase(normalizedTitle),
       dueDate: (dueDate || new Date(now.getTime() + 24 * 60 * 60 * 1000)).toISOString(),
       priority: ['high', 'medium', 'low'].includes(String(payload.priority || '').toLowerCase())
         ? String(payload.priority).toLowerCase()
         : 'medium',
-      category: String(payload.category || 'personal').toLowerCase(),
-      status: payload.status || 'pending'
+      category,
+      status: payload.status || 'pending',
+      linkedGoalId: linkedGoal?.id || payload.linkedGoalId || payload.goalId || null,
+      duplicateTaskId: duplicateTask?.id || null
     };
   }
 }

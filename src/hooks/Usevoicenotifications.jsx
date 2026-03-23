@@ -27,10 +27,22 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import AiService from '../services/AiService';
 
 // ── Platform detection ────────────────────────────────────────
-const detectIOS = () =>
-  typeof navigator !== 'undefined' &&
-  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+const detectIOS = () => {
+  if (typeof navigator === 'undefined') return false;
+
+  const userAgent = navigator.userAgent || '';
+  const vendor = navigator.vendor || '';
+  const touchPoints = navigator.maxTouchPoints || 0;
+
+  const isClassicIOS = /\b(iPad|iPhone|iPod)\b/i.test(userAgent);
+  const isIPadDesktopMode =
+    /\bMacintosh\b/i.test(userAgent) &&
+    /\bAppleWebKit\b/i.test(userAgent) &&
+    /Apple/i.test(vendor) &&
+    touchPoints > 1;
+
+  return isClassicIOS || isIPadDesktopMode;
+};
 
 // ── Strip markdown for clean speech ──────────────────────────
 const cleanForSpeech = (text = '') =>
@@ -57,7 +69,7 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
   const [isGenerating, setIsGenerating]   = useState(false);
   const [voices, setVoices]               = useState([]);
   const synthRef                          = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
-  const onIOSRef                          = useRef(detectIOS());
+  const [isIOS]                           = useState(() => detectIOS());
 
   // Load voices — iOS loads async
   useEffect(() => {
@@ -76,13 +88,13 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
     if (!synthRef.current || !text?.trim()) return;
 
     // iOS: block auto calls — only allow direct user gesture taps
-    if (onIOSRef.current && opts.auto) return;
+    if (isIOS && opts.auto) return;
 
     synthRef.current.cancel();
 
     const utterance        = new SpeechSynthesisUtterance(cleanForSpeech(text));
     utterance.lang         = 'en-US';
-    utterance.rate         = opts.rate   ?? (onIOSRef.current ? 0.95 : rate);
+    utterance.rate         = opts.rate   ?? (isIOS ? 0.95 : rate);
     utterance.pitch        = opts.pitch  ?? pitch;
     utterance.volume       = opts.volume ?? volume;
 
@@ -98,12 +110,12 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
     };
 
     // iOS: 100ms delay fixes silent playback bug
-    if (onIOSRef.current) {
+    if (isIOS) {
       setTimeout(() => synthRef.current?.speak(utterance), 100);
     } else {
       synthRef.current.speak(utterance);
     }
-  }, [voices, rate, pitch, volume]);
+  }, [voices, rate, pitch, volume, isIOS]);
 
   const stopSpeaking = useCallback(() => {
     synthRef.current?.cancel();
@@ -120,7 +132,7 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
     if (!reminder?.title) return;
 
     // iOS: skip auto, show tap button instead (handled in UI)
-    if (onIOSRef.current && opts.auto) return;
+    if (isIOS && opts.auto) return;
 
     setIsGenerating(true);
     try {
@@ -144,7 +156,7 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
     } finally {
       setIsGenerating(false);
     }
-  }, [speakText]);
+  }, [speakText, isIOS]);
 
   // ── 2. Speak the smart briefing on app open ───────────────────
   /**
@@ -154,7 +166,7 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
    */
   const speakSmartBriefing = useCallback(async (digest, opts = {}) => {
     if (!digest) return;
-    if (onIOSRef.current && opts.auto) return;
+    if (isIOS && opts.auto) return;
 
     const text = [
       digest.title ? `${digest.title}.` : '',
@@ -171,17 +183,18 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
       .join(' ');
 
     speakText(text, { auto: opts.auto });
-  }, [speakText]);
+  }, [speakText, isIOS]);
 
   // Cleanup
   useEffect(() => {
-    return () => { synthRef.current?.cancel(); };
+    const synth = synthRef.current;
+    return () => { synth?.cancel(); };
   }, []);
 
   return {
     isSpeaking,
     isGenerating,
-    isIOS: onIOSRef.current,
+    isIOS,
     speakReminder,
     speakSmartBriefing,
     speakText,

@@ -9,7 +9,7 @@ import AIAssistantChat from '../ai/AIAssistantChat';
 import { useTasks } from '../../context/TaskContext';
 import { useNotifications } from '../../hooks/useNotifications';
 import { getGoals, goalEvents, hydrateGoalsFromBackend } from '../../services/goalStorage';
-import useVoiceNotifications from '../../hooks/useVoiceNotifications';
+import useVoiceNotifications from '../../hooks/Usevoicenotifications';
 import { FiVolume2, FiVolumeX } from 'react-icons/fi';
 
 const STARTUP_DIGEST_SESSION_KEY = 'noxa_startup_digest';
@@ -207,8 +207,13 @@ const Layout = () => {
   const [aiAssistantCloseSignal, setAiAssistantCloseSignal] = useState(0);
   const [goals, setGoals]                           = useState(() => getGoals());
   const [startupDigest, setStartupDigest]           = useState(null);
-  const [goalsHydrated, setGoalsHydrated]           = useState(false);
+  const [hydratedGoalsUserKey, setHydratedGoalsUserKey] = useState(null);
+  const [currentTimestamp, setCurrentTimestamp]     = useState(0);
   const startupDigestRef                            = useRef('');
+  const authUserKey =
+    isAuthenticated ? user?.id || user?._id || user?.email || 'guest' : null;
+  const visibleGoals = useMemo(() => (isAuthenticated ? goals : []), [goals, isAuthenticated]);
+  const goalsHydrated = Boolean(authUserKey && hydratedGoalsUserKey === authUserKey);
 
   // ── Voice notifications hook ──────────────────────────────────
   const {
@@ -226,22 +231,20 @@ const Layout = () => {
 
   // ── Your original effects (unchanged) ────────────────────────
   useEffect(() => {
-    if (!isAuthenticated) {
-      setGoals([]);
-      setGoalsHydrated(false);
-      return undefined;
-    }
+    if (!authUserKey) return undefined;
+
     let isCancelled = false;
+    const activeUserKey = authUserKey;
     const hydrate = async () => {
       const hydratedGoals = await hydrateGoalsFromBackend();
       if (!isCancelled && Array.isArray(hydratedGoals)) {
         setGoals(hydratedGoals);
-        setGoalsHydrated(true);
+        setHydratedGoalsUserKey(activeUserKey);
       }
     };
     void hydrate();
     return () => { isCancelled = true; };
-  }, [isAuthenticated]);
+  }, [authUserKey]);
 
   useEffect(() => {
     const syncGoals = (event) => {
@@ -274,6 +277,18 @@ const Layout = () => {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, [isTaskPage]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
+    const syncTimestamp = () => setCurrentTimestamp(Date.now());
+    const timeoutId = window.setTimeout(syncTimestamp, 0);
+    const intervalId = window.setInterval(syncTimestamp, 60 * 1000);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+    };
+  }, [isAuthenticated]);
+
   const handleToggleSidebar    = () => setIsSidebarOpen(!isSidebarOpen);
   const handleSearch           = (searchTerm) => console.log('Searching for:', searchTerm);
   const handleSidebarToggle    = (open) => setIsSidebarOpen(open);
@@ -290,17 +305,15 @@ const Layout = () => {
 
   // ── startupDigestSummary (unchanged) ─────────────────────────
   const startupDigestSummary = useMemo(() => {
-    if (!isAuthenticated) return null;
-
-    const now = Date.now();
+    if (!isAuthenticated || currentTimestamp === 0) return null;
     const activeReminders  = (reminders || []).filter((r) => r.status !== 'completed');
     const urgentReminders  = activeReminders.filter((r) => {
       const t = new Date(r.reminderTime);
       if (Number.isNaN(t.getTime())) return false;
-      return t.getTime() <= now || r.status === 'today' || r.status === 'missed';
+      return t.getTime() <= currentTimestamp || r.status === 'today' || r.status === 'missed';
     });
 
-    const activeGoals = (goals || [])
+    const activeGoals = visibleGoals
       .filter((g) => !g.completed)
       .sort((l, r) => {
         const pg = (PRIORITY_SCORE[r.priority] || 0) - (PRIORITY_SCORE[l.priority] || 0);
@@ -352,7 +365,7 @@ const Layout = () => {
       urgentCount: urgentReminders.length,
       topGoals: activeGoals,
     };
-  }, [goals, isAuthenticated, reminders]);
+  }, [currentTimestamp, isAuthenticated, reminders, visibleGoals]);
 
   // ── Show startup digest (unchanged logic) ─────────────────────
   useEffect(() => {
@@ -452,7 +465,7 @@ const Layout = () => {
     <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
       {/* ── StartupDigestPopup — voice props passed in ── */}
       <StartupDigestPopup
-        digest={startupDigest}
+        digest={isAuthenticated ? startupDigest : null}
         onDismiss={() => { setStartupDigest(null); stopSpeaking(); }}
         onOpenReminders={handleOpenReminders}
         onOpenGoals={handleOpenGoals}
@@ -501,7 +514,7 @@ const Layout = () => {
         </main>
 
         <AIAssistantChat
-          goals={goals}
+          goals={visibleGoals}
           tasks={tasks}
           userContext={{ user }}
           showFab={isAiAssistantEnabled}
