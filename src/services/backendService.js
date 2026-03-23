@@ -13,11 +13,12 @@ const extractMessage = (payload, fallback) => {
   return payload.message || payload.error?.message || payload.error || fallback;
 };
 
-const requestJson = async (path, { method = "GET", body } = {}) => {
+const requestJson = async (path, { method = "GET", body, headers } = {}) => {
   const response = await authFetch(path, {
     method,
     headers: {
       "Content-Type": "application/json",
+      ...(headers || {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -97,6 +98,33 @@ export const backendService = {
   },
   saveAiChatHistory: (sessions) =>
     requestJson("/api/v1/ai/chats", { method: "PUT", body: { sessions } }),
+  getAiActionLogs: () => requestJson("/api/v1/ai/actions"),
+
+  // AI email tools
+  getInboxEmails: (googleAccessToken, maxResults = 10) =>
+    requestJson(`/api/v1/emails?maxResults=${encodeURIComponent(String(maxResults))}`, {
+      headers: googleAccessToken
+        ? {
+            "x-google-access-token": googleAccessToken,
+          }
+        : {},
+    }),
+  getInboxSummary: (googleAccessToken, maxResults = 10) =>
+    requestJson(
+      `/api/v1/emails/inbox-summary?maxResults=${encodeURIComponent(String(maxResults))}`,
+      {
+        headers: googleAccessToken
+          ? {
+              "x-google-access-token": googleAccessToken,
+            }
+          : {},
+      }
+    ),
+  sendAutomatedEmail: (payload) =>
+    requestJson("/api/v1/emails/send", {
+      method: "POST",
+      body: payload,
+    }),
 };
 
 export default backendService;

@@ -279,7 +279,7 @@ class AiService {
   /**
    * Make a request to Claude API via backend API route
    */
-  async makeRequest(messages, systemPrompt = '') {
+  async makeRequest(messages, systemPrompt = '', options = {}) {
     try {
       const requestBody = {
         model: AI_CONFIG.model,
@@ -289,6 +289,22 @@ class AiService {
 
       if (systemPrompt) {
         requestBody.system = systemPrompt;
+      }
+
+      if (options.sessionId) {
+        requestBody.sessionId = options.sessionId;
+      }
+
+      if (options.sessionTitle) {
+        requestBody.sessionTitle = options.sessionTitle;
+      }
+
+      if (options.persistResponse !== undefined) {
+        requestBody.persistResponse = Boolean(options.persistResponse);
+      }
+
+      if (options.includeWorkspaceContext !== undefined) {
+        requestBody.includeWorkspaceContext = Boolean(options.includeWorkspaceContext);
       }
 
       const response = await authFetch(AI_CONFIG.apiEndpoint, {
@@ -335,7 +351,126 @@ class AiService {
     return {
       text: fullText,
       rawContent: data.content,
-      usage: data.usage
+      usage: data.usage,
+      noxa: data.noxa || {},
+      raw: data
+    };
+  }
+
+  async makeStreamRequest(messages, systemPrompt = '', options = {}) {
+    const requestBody = {
+      model: AI_CONFIG.model,
+      max_tokens: AI_CONFIG.maxTokens,
+      messages
+    };
+
+    if (systemPrompt)                          requestBody.system = systemPrompt;
+    if (options.sessionId)                     requestBody.sessionId = options.sessionId;
+    if (options.sessionTitle)                  requestBody.sessionTitle = options.sessionTitle;
+    if (options.persistResponse !== undefined) requestBody.persistResponse = Boolean(options.persistResponse);
+    if (options.includeWorkspaceContext !== undefined)
+                                               requestBody.includeWorkspaceContext = Boolean(options.includeWorkspaceContext);
+
+    const response = await authFetch(`${AI_CONFIG.apiEndpoint}/stream`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body:    JSON.stringify(requestBody),
+      signal:  options.signal || null
+    });
+
+    if (!response.ok) {
+      let error = null;
+      try   { error = await response.json(); }
+      catch { error = null; }
+      throw new Error(
+        error?.message || error?.error?.message || `AI stream request failed: ${response.status}`
+      );
+    }
+
+    if (!response.body) {
+      throw new Error('Streaming is not supported by this browser.');
+    }
+
+    const reader  = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer    = '';
+    let fullText  = '';
+    let noxa      = {};
+    let rawMessage = null;
+
+    const processEvent = (eventBlock) => {
+      const lines     = eventBlock.split('\n').filter(Boolean);
+      const eventName = lines
+        .filter((line) => line.startsWith('event:'))
+        .map((line) => line.slice(6).trim())[0];
+      const dataText  = lines
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trim())
+        .join('\n');
+
+      if (!eventName || !dataText) return;
+
+      let parsed = null;
+      try   { parsed = JSON.parse(dataText); }
+      catch { parsed = null; }
+
+      if (eventName === 'text') {
+        const textChunk = parsed?.text || '';
+        fullText += textChunk;
+        options.onText?.(textChunk, fullText);
+        return;
+      }
+
+      if (eventName === 'meta') {
+        noxa = parsed?.noxa || {};
+        options.onMeta?.(noxa);
+        return;
+      }
+
+      if (eventName === 'done') {
+        rawMessage = parsed?.message || null;
+        options.onDone?.(rawMessage);
+        return;
+      }
+
+      if (eventName === 'error') {
+        const errorMessage = parsed?.message || 'AI stream failed';
+        throw new Error(errorMessage);
+      }
+    };
+
+    try {
+      while (true) {
+        if (options.signal?.aborted) {
+          await reader.cancel();
+          break;
+        }
+
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        for (const eventBlock of events) {
+          processEvent(eventBlock);
+        }
+      }
+    } catch (err) {
+      if (err?.name !== 'AbortError') throw err;
+    } finally {
+      try { reader.releaseLock(); } catch {}
+    }
+
+    if (buffer.trim()) {
+      try { processEvent(buffer); } catch {}
+    }
+
+    return {
+      text: fullText,
+      noxa,
+      rawMessage
     };
   }
 
@@ -830,6 +965,113 @@ Summarize this week's productivity.`;
     };
   }
 
+  async summarizeInbox(googleAccessToken, maxResults = 10) {
+    const response = await authFetch(`/api/v1/emails/inbox-summary?maxResults=${encodeURIComponent(String(maxResults))}`, {
+      method: 'GET',
+      headers: googleAccessToken
+        ? {
+            'x-google-access-token': googleAccessToken
+          }
+        : {}
+    });
+
+    if (!response.ok) {
+      let error = null;
+      try {
+        error = await response.json();
+      } catch {
+        error = null;
+      }
+
+      throw new Error(error?.message || `Inbox summary request failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const data = payload?.data || payload || {};
+
+    return {
+      emails: Array.isArray(data.emails) ? data.emails : [],
+      digest: data.digest || {
+        summary: '',
+        actionItems: [],
+        urgentEmailIds: [],
+        emailsNeedingReply: []
+      }
+    };
+  }
+
+  async draftAutomatedEmail(payload = {}) {
+    const response = await authFetch('/api/v1/emails/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...payload,
+        dryRun: true
+      })
+    });
+
+    if (!response.ok) {
+      let error = null;
+      try {
+        error = await response.json();
+      } catch {
+        error = null;
+      }
+
+      throw new Error(error?.message || `Email draft request failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result?.data || result || {};
+  }
+
+  async sendAutomatedEmail(payload = {}) {
+    const response = await authFetch('/api/v1/emails/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      let error = null;
+      try {
+        error = await response.json();
+      } catch {
+        error = null;
+      }
+
+      throw new Error(error?.message || `Email send request failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result?.data || result || {};
+  }
+
+  async getAiActionLogs() {
+    const response = await authFetch('/api/v1/ai/actions', {
+      method: 'GET'
+    });
+
+    if (!response.ok) {
+      let error = null;
+      try {
+        error = await response.json();
+      } catch {
+        error = null;
+      }
+
+      throw new Error(error?.message || `AI action log request failed: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const data = payload?.data || payload || [];
+    return Array.isArray(data) ? data : [];
+  }
+
   /**
    * Smart task suggestions based on current goals
    */
@@ -1012,7 +1254,7 @@ Generate smart reminders for the next 7 days.`;
   /**
    * Chat with AI assistant (general purpose)
    */
-  async chat(message, context = {}) {
+  async chat(message, context = {}, options = {}) {
     const systemPrompt = `You are Noxa, an AI productivity assistant inside a goals, tasks, reminders, and notes app.
 
 Your responses must feel specific, grounded, and useful, never generic.
@@ -1029,7 +1271,7 @@ Rules:
     const userMessage = this.buildChatUserMessage(message, context);
     const messages = [{ role: 'user', content: userMessage }];
 
-    const response = await this.makeRequest(messages, systemPrompt);
+    const response = await this.makeRequest(messages, systemPrompt, options);
     return response.text;
   }
 
@@ -1037,7 +1279,7 @@ Rules:
    * Chat with AI and ask for executable app actions.
    * Returns a user-facing message plus optional actions.
    */
-  async chatWithActions(message, context = {}) {
+  async chatWithActions(message, context = {}, options = {}) {
     const now = new Date();
     const directActionResult = this.resolveDirectActionCommand(message, context, now);
     if (directActionResult) {
@@ -1053,7 +1295,7 @@ You must return STRICT JSON with this schema:
   "message": "assistant response for the user",
   "actions": [
     {
-      "type": "create_task" | "create_goal" | "create_reminder" | "create_note" | "complete_task" | "complete_goal",
+      "type": "create_task" | "create_goal" | "create_reminder" | "create_note" | "complete_task" | "complete_goal" | "send_email",
       "payload": {}
     }
   ]
@@ -1067,6 +1309,7 @@ Rules:
 - If timing or target is unclear, ask one short follow-up question only.
 - Keep clarification questions under 12 words.
 - If user asks to write down/save/jot something, use "create_note".
+- If user clearly asks to send an email, use "send_email" with payload like { "to": string, "subject": string, "text": string, "instructions": string }.
 - For notes use payload: { "title": string, "content": string, "category": "work" | "personal" | "ideas" | "study" | "general" | "other", "isPinned": boolean }.
 - For reminders include a concrete ISO datetime in payload.reminderTime and payload.dueDate.
 - For reminder notification channel use one of: "app", "email", "both".
@@ -1079,16 +1322,112 @@ Rules:
     const userMessage = this.buildChatUserMessage(message, context, now);
     const response = await this.makeRequest(
       [{ role: 'user', content: userMessage }],
-      systemPrompt
+      systemPrompt,
+      options
     );
 
     try {
       const parsed = this.parseActionPayload(response.text);
-      return this.normalizeActionPlan(parsed, context, now);
+      return {
+        ...this.normalizeActionPlan(parsed, context, now),
+        noxa: response.noxa || {},
+        followUpSuggestions: Array.isArray(response.noxa?.followUpSuggestions)
+          ? response.noxa.followUpSuggestions
+          : []
+      };
     } catch {
       return {
         message: response.text,
-        actions: []
+        actions: [],
+        noxa: response.noxa || {},
+        followUpSuggestions: Array.isArray(response.noxa?.followUpSuggestions)
+          ? response.noxa.followUpSuggestions
+          : []
+      };
+    }
+  }
+
+  async streamChatWithActions(message, context = {}, options = {}) {
+    const now = new Date();
+    const directActionResult = this.resolveDirectActionCommand(message, context, now);
+    if (directActionResult) {
+      return {
+        ...directActionResult,
+        noxa: {},
+        followUpSuggestions: [],
+        aborted: false,
+      };
+    }
+
+    const systemPrompt = `You are Noxa, an AI productivity assistant integrated with a task, goal, reminder, and note app.
+
+Your responses must feel concrete and personalized to the workspace data you receive.
+
+You must return STRICT JSON with this schema:
+{
+  "message": "assistant response for the user",
+  "actions": [
+    {
+      "type": "create_task" | "create_goal" | "create_reminder" | "create_note" | "complete_task" | "complete_goal" | "send_email",
+      "payload": {}
+    }
+  ]
+}
+
+Rules:
+- Include actions only when the user clearly requests app changes (create/update/complete/set reminder).
+- Keep actions minimal and safe.
+- Use the exact current datetime and timezone provided to you. Do not guess time.
+- Convert relative time requests like "in an hour" into concrete ISO datetimes.
+- If timing or target is unclear, ask one short follow-up question only.
+- Keep clarification questions under 12 words.
+- If user asks to write down/save/jot something, use "create_note".
+- If user clearly asks to send an email, use "send_email" with payload like { "to": string, "subject": string, "text": string, "instructions": string }.
+- For notes use payload: { "title": string, "content": string, "category": "work" | "personal" | "ideas" | "study" | "general" | "other", "isPinned": boolean }.
+- For reminders include a concrete ISO datetime in payload.reminderTime and payload.dueDate.
+- For reminder notification channel use one of: "app", "email", "both".
+- If details are missing, ask follow-up questions in "message" and return empty actions.
+- In "message", reference the user's real goals, tasks, notes, or constraints when they are relevant.
+- Avoid generic encouragement and vague summaries.
+- Prefer one clear recommendation over a broad list of obvious ideas.
+- Output valid JSON only.`;
+
+    const userMessage = this.buildChatUserMessage(message, context, now);
+    const response = await this.makeStreamRequest(
+      [{ role: 'user', content: userMessage }],
+      systemPrompt,
+      options,
+    );
+
+    if (options.signal?.aborted) {
+      return {
+        message: response.text || '',
+        actions: [],
+        noxa: response.noxa || {},
+        followUpSuggestions: [],
+        aborted: true,
+      };
+    }
+
+    try {
+      const parsed = this.parseActionPayload(response.text);
+      return {
+        ...this.normalizeActionPlan(parsed, context, now),
+        noxa: response.noxa || {},
+        followUpSuggestions: Array.isArray(response.noxa?.followUpSuggestions)
+          ? response.noxa.followUpSuggestions
+          : [],
+        aborted: false,
+      };
+    } catch {
+      return {
+        message: response.text,
+        actions: [],
+        noxa: response.noxa || {},
+        followUpSuggestions: Array.isArray(response.noxa?.followUpSuggestions)
+          ? response.noxa.followUpSuggestions
+          : [],
+        aborted: false,
       };
     }
   }
