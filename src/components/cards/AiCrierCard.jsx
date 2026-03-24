@@ -52,7 +52,7 @@ const AiCrierCard = ({
             <GiRobotGolem className="text-xl" style={{ color }} />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-800 dark:text-gray-300">{title}</h3>
+            <h3 className="font-semibold font-roboto text-gray-700 dark:text-gray-300">{title}</h3>
             <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor()}`}>
               {getStatusText()}
             </span>

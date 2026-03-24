@@ -269,15 +269,17 @@ const Dashboard = ({ isSidebarOpen = true }) => {
   const { notifications } = useNotifications();
   const [isMobile, setIsMobile] = useState(false);
   const [goals, setGoals] = useState(() => getGoals());
+  const [isGoalsLoading, setIsGoalsLoading] = useState(true);
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [showAiInsights, setShowAiInsights] = useState(false);
   const [wordOfDay, setWordOfDay] = useState(() => getCachedWordOfDay());
   const [communityWords, setCommunityWords] = useState(() => getCachedCommunityWords());
+  const [isWordDataLoading, setIsWordDataLoading] = useState(true);
   const [showDateMenu, setShowDateMenu] = useState(false);
   const [showWordModal, setShowWordModal] = useState(false);
   const [wordForm, setWordForm] = useState({ word: "", meaning: "", example: "" });
   const [submitStatus, setSubmitStatus] = useState({ loading: false, error: false, message: "" });
-  const [currentTimestamp, setCurrentTimestamp] = useState(null);
+  const [currentTimestamp, setCurrentTimestamp] = useState(() => Date.now());
   const dateMenuRef = useRef(null);
 
   useEffect(() => {
@@ -294,9 +296,15 @@ const Dashboard = ({ isSidebarOpen = true }) => {
   useEffect(() => {
     let isCancelled = false;
     const hydrate = async () => {
-      const hydratedGoals = await hydrateGoalsFromBackend();
-      if (!isCancelled && Array.isArray(hydratedGoals)) {
-        setGoals(hydratedGoals);
+      try {
+        const hydratedGoals = await hydrateGoalsFromBackend();
+        if (!isCancelled && Array.isArray(hydratedGoals)) {
+          setGoals(hydratedGoals);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsGoalsLoading(false);
+        }
       }
     };
 
@@ -330,10 +338,16 @@ const Dashboard = ({ isSidebarOpen = true }) => {
     let isCancelled = false;
 
     const loadWordOfDay = async () => {
-      const [nextWord, nextCommunityWords] = await Promise.all([getWordOfDay(), getCommunityWords()]);
-      if (!isCancelled) {
-        setWordOfDay(nextWord);
-        setCommunityWords(nextCommunityWords);
+      try {
+        const [nextWord, nextCommunityWords] = await Promise.all([getWordOfDay(), getCommunityWords()]);
+        if (!isCancelled) {
+          setWordOfDay(nextWord);
+          setCommunityWords(nextCommunityWords);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsWordDataLoading(false);
+        }
       }
     };
 
