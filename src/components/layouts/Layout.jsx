@@ -38,11 +38,11 @@ const StartupDigestPopup = ({
   if (!digest) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-[85] flex justify-center px-4">
-      <div className="pointer-events-auto w-full max-w-xl overflow-hidden rounded-3xl border border-teal-200 bg-white shadow-2xl shadow-teal-900/10 ring-1 ring-black/5 dark:border-teal-900/60 dark:bg-gray-900">
-        <div className="bg-[#0c7d7d] px-5 py-4 text-white">
+    <div className="pointer-events-none fixed inset-x-0 top-2 bottom-2 z-[85] flex justify-center px-3 sm:top-4 sm:px-4">
+      <div className="pointer-events-auto flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-teal-200 bg-white shadow-2xl shadow-teal-900/10 ring-1 ring-black/5 dark:border-teal-900/60 dark:bg-gray-900 sm:rounded-3xl">
+        <div className="bg-[#0c7d7d] px-4 py-4 text-white sm:px-5">
           {/* ── Voice status row in header ── */}
-          <div className="flex items-center justify-between mb-1">
+          <div className="mb-1 flex flex-wrap items-start justify-between gap-2 sm:flex-nowrap sm:items-center">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
               Smart Briefing
             </p>
@@ -52,7 +52,7 @@ const StartupDigestPopup = ({
               onClick={isSpeaking ? onStopSpeaking : onSpeak}
               disabled={isGenerating}
               title={isSpeaking ? 'Stop reading' : 'Read briefing aloud'}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all
                 ${isSpeaking
                   ? 'bg-white/30 text-white animate-pulse'
                   : isGenerating
@@ -73,8 +73,8 @@ const StartupDigestPopup = ({
             </button>
           </div>
 
-          <h2 className="mt-1 text-xl font-semibold">{digest.title}</h2>
-          <p className="mt-2 text-sm text-white/90">{digest.message}</p>
+          <h2 className="mt-1 text-lg font-semibold leading-tight sm:text-xl">{digest.title}</h2>
+          <p className="mt-2 text-sm leading-6 text-white/90">{digest.message}</p>
 
           {/* iOS notice — auto-speak not available */}
           {isIOS && (
@@ -85,7 +85,7 @@ const StartupDigestPopup = ({
         </div>
 
         {/* ── Rest of popup unchanged ── */}
-        <div className="space-y-4 px-5 py-4">
+        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 overscroll-contain sm:space-y-4 sm:px-5">
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl bg-teal-50 px-4 py-3 dark:bg-teal-950/40">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-300">
@@ -135,7 +135,7 @@ const StartupDigestPopup = ({
                     key={goal.id}
                     type="button"
                     onClick={() => onOpenGoals(goal.id)}
-                    className="rounded-full bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 transition hover:bg-teal-50 hover:text-teal-700 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-teal-950/40 dark:hover:text-teal-300"
+                    className="max-w-full truncate rounded-full bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 transition hover:bg-teal-50 hover:text-teal-700 dark:bg-gray-900 dark:text-gray-200 dark:ring-gray-700 dark:hover:bg-teal-950/40 dark:hover:text-teal-300"
                   >
                     {goal.title}
                   </button>
@@ -151,32 +151,32 @@ const StartupDigestPopup = ({
             <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">{digest.aiPrompt}</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             <button
               type="button"
               onClick={onOpenReminders}
-              className="rounded-2xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
+              className="w-full rounded-2xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 sm:w-auto"
             >
               Open reminders
             </button>
             <button
               type="button"
               onClick={() => onOpenGoals()}
-              className="rounded-2xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-teal-400 hover:text-teal-700 dark:border-gray-700 dark:text-gray-200 dark:hover:border-teal-600 dark:hover:text-teal-300"
+              className="w-full rounded-2xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-teal-400 hover:text-teal-700 dark:border-gray-700 dark:text-gray-200 dark:hover:border-teal-600 dark:hover:text-teal-300 sm:w-auto"
             >
               Review goals
             </button>
             <button
               type="button"
               onClick={onAskAi}
-              className="rounded-2xl border border-cyan-300 px-4 py-2.5 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50 dark:border-cyan-800 dark:text-cyan-300 dark:hover:bg-cyan-950/40"
+              className="w-full rounded-2xl border border-cyan-300 px-4 py-2.5 text-sm font-semibold text-cyan-700 transition hover:bg-cyan-50 dark:border-cyan-800 dark:text-cyan-300 dark:hover:bg-cyan-950/40 sm:w-auto"
             >
               Ask AI to plan today
             </button>
             <button
               type="button"
               onClick={onDismiss}
-              className="ml-auto text-sm font-medium text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+              className="w-full text-center text-sm font-medium text-gray-500 transition hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 sm:ml-auto sm:w-auto sm:text-left"
             >
               Dismiss
             </button>
@@ -303,7 +303,7 @@ const Layout = () => {
     setAiAssistantOpenSignal((prev) => prev + 1);
   };
 
-  // ── startupDigestSummary (unchanged) ─────────────────────────
+  // ── startupDigestSummary  ─────────────────────────
   const startupDigestSummary = useMemo(() => {
     if (!isAuthenticated || currentTimestamp === 0) return null;
     const activeReminders  = (reminders || []).filter((r) => r.status !== 'completed');
