@@ -25,6 +25,10 @@ const FORGOT_PASSWORD_PATH =
   import.meta.env.VITE_AUTH_FORGOT_PASSWORD_PATH || "/api/v1/users/forgot-password";
 const RESET_PASSWORD_PATH =
   import.meta.env.VITE_AUTH_RESET_PASSWORD_PATH || "/api/v1/users/reset-password";
+const DEFAULT_REQUEST_TIMEOUT_MS = (() => {
+  const parsed = Number.parseInt(import.meta.env.VITE_API_REQUEST_TIMEOUT_MS || "12000", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 12000;
+})();
 
 const TOKEN_STORAGE_KEY = "noxa_tokens";
 let refreshInFlight = null;
@@ -35,6 +39,33 @@ const joinUrl = (base, path) => {
   const normalizedBase = (base || "").replace(/\/$/, "");
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${normalizedBase}${normalizedPath}`;
+};
+
+const isAbortError = (error) =>
+  error?.name === "AbortError" || error?.code === 20 || /aborted|aborterror/i.test(error?.message || "");
+
+const fetchWithTimeout = async (
+  url,
+  init = {},
+  timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+  timeoutMessage = "Request timed out while contacting the Noxa backend."
+) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error(timeoutMessage);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 };
 
 const parseJsonSafe = async (response) => {
@@ -222,12 +253,17 @@ const request = async (path, options = {}) => {
   }
 
   const execute = () =>
-    fetch(url, {
-      method,
-      headers: requestHeaders,
-      credentials: "include",
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    fetchWithTimeout(
+      url,
+      {
+        method,
+        headers: requestHeaders,
+        credentials: "include",
+        body: body === undefined ? undefined : JSON.stringify(body),
+      },
+      DEFAULT_REQUEST_TIMEOUT_MS,
+      "Request timed out while contacting the Noxa backend. Check that the backend is running and reachable."
+    );
 
   let response = await execute();
 
@@ -259,14 +295,19 @@ const refreshAccessToken = async () => {
       throw new Error("No refresh token available.");
     }
 
-    const response = await fetch(joinUrl(API_BASE_URL, REFRESH_PATH), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await fetchWithTimeout(
+      joinUrl(API_BASE_URL, REFRESH_PATH),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
       },
-      credentials: "include",
-      body: JSON.stringify({ refreshToken: tokens.refreshToken }),
-    });
+      DEFAULT_REQUEST_TIMEOUT_MS,
+      "Session refresh timed out. Please make sure the backend is running, then try again."
+    );
 
     const payload = await parseJsonSafe(response);
     if (!response.ok) {
@@ -572,11 +613,16 @@ export const authFetch = async (path, init = {}) => {
   }
 
   const execute = () =>
-    fetch(url, {
-      ...init,
-      headers: requestHeaders,
-      credentials: init.credentials ?? "include",
-    });
+    fetchWithTimeout(
+      url,
+      {
+        ...init,
+        headers: requestHeaders,
+        credentials: init.credentials ?? "include",
+      },
+      DEFAULT_REQUEST_TIMEOUT_MS,
+      "Request timed out while contacting the Noxa backend. Check that the backend is running and reachable."
+    );
 
   let response = await execute();
 
@@ -616,4 +662,5 @@ export const authConfig = {
   FORGOT_PASSWORD_PATH,
   RESET_PASSWORD_PATH,
   TOKEN_STORAGE_KEY,
+  DEFAULT_REQUEST_TIMEOUT_MS,
 };
