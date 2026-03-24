@@ -4,7 +4,7 @@ import { FiMessageSquare, FiZap } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
 const AiCrierCard = ({ 
-  title = "NOXA AI ", 
+  title = "Noxa persona ", 
   status = "active",
   recentActivities = 12,
   color = "#10B981",
