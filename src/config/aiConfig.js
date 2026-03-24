@@ -2,6 +2,10 @@
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "http://localhost:4000").replace(/\/$/, "");
 const AI_PATH = import.meta.env.VITE_AI_PATH || "/api/ai";
+const AI_REQUEST_TIMEOUT_MS = (() => {
+  const parsed = Number.parseInt(import.meta.env.VITE_AI_REQUEST_TIMEOUT_MS || "45000", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 45000;
+})();
 
 export const AI_CONFIG = {
   apiEndpoint: `${API_BASE}${AI_PATH}`,
@@ -29,7 +33,7 @@ export const AI_CONFIG = {
     cacheResults: true,
     cacheDuration: 300000,
     maxConcurrentRequests: 3,
-    requestTimeout: 30000,
+    requestTimeout: AI_REQUEST_TIMEOUT_MS,
   },
 
   privacy: {

@@ -239,6 +239,8 @@ const request = async (path, options = {}) => {
     headers = {},
     requireAuth = false,
     retryOn401 = false,
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    timeoutMessage = "Request timed out while contacting the Noxa backend. Check that the backend is running and reachable.",
   } = options;
 
   const url = joinUrl(API_BASE_URL, path);
@@ -261,8 +263,8 @@ const request = async (path, options = {}) => {
         credentials: "include",
         body: body === undefined ? undefined : JSON.stringify(body),
       },
-      DEFAULT_REQUEST_TIMEOUT_MS,
-      "Request timed out while contacting the Noxa backend. Check that the backend is running and reachable."
+      timeoutMs,
+      timeoutMessage
     );
 
   let response = await execute();
@@ -604,8 +606,13 @@ export const resetPasswordRequest = async ({
 };
 
 export const authFetch = async (path, init = {}) => {
+  const {
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    timeoutMessage = "Request timed out while contacting the Noxa backend. Check that the backend is running and reachable.",
+    ...fetchInit
+  } = init;
   const url = /^https?:\/\//i.test(path) ? path : joinUrl(API_BASE_URL, path);
-  const requestHeaders = new Headers(init.headers || {});
+  const requestHeaders = new Headers(fetchInit.headers || {});
 
   const tokens = getStoredTokens();
   if (tokens?.accessToken) {
@@ -616,12 +623,12 @@ export const authFetch = async (path, init = {}) => {
     fetchWithTimeout(
       url,
       {
-        ...init,
+        ...fetchInit,
         headers: requestHeaders,
-        credentials: init.credentials ?? "include",
+        credentials: fetchInit.credentials ?? "include",
       },
-      DEFAULT_REQUEST_TIMEOUT_MS,
-      "Request timed out while contacting the Noxa backend. Check that the backend is running and reachable."
+      timeoutMs,
+      timeoutMessage
     );
 
   let response = await execute();

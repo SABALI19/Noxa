@@ -321,9 +321,22 @@ const formatConversationTranscript = (messages = []) =>
     .filter(Boolean)
     .join('\n');
 
+const ANALYTICS_DEDUPE_WINDOW_MS = 30000;
+const SMART_REMINDER_DEDUPE_WINDOW_MS = 45000;
+
+const buildDedupeKey = (scope, payload) => {
+  try {
+    return `${scope}:${JSON.stringify(payload)}`;
+  } catch {
+    return `${scope}:${String(Date.now())}`;
+  }
+};
+
 class AiService {
   constructor() {
     this.apiKey = null; // Kept for backward compatibility
+    this.inFlightRequests = new Map();
+    this.recentResults = new Map();
   }
 
   /**
@@ -332,6 +345,37 @@ class AiService {
   setApiKey(key) {
     this.apiKey = key;
     console.log('AI Service configured to use backend API');
+  }
+
+  async runDedupedRequest(dedupeKey, windowMs, requestFactory) {
+    if (!dedupeKey) {
+      return requestFactory();
+    }
+
+    const now = Date.now();
+    const recentEntry = this.recentResults.get(dedupeKey);
+    if (recentEntry && recentEntry.expiresAt > now) {
+      return recentEntry.value;
+    }
+
+    const existingPromise = this.inFlightRequests.get(dedupeKey);
+    if (existingPromise) {
+      return existingPromise;
+    }
+
+    const promise = (async () => {
+      const result = await requestFactory();
+      this.recentResults.set(dedupeKey, {
+        value: result,
+        expiresAt: Date.now() + Math.max(0, Number(windowMs) || 0),
+      });
+      return result;
+    })().finally(() => {
+      this.inFlightRequests.delete(dedupeKey);
+    });
+
+    this.inFlightRequests.set(dedupeKey, promise);
+    return promise;
   }
 
   /**
@@ -370,7 +414,10 @@ class AiService {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        timeoutMs: AI_CONFIG.performance.requestTimeout,
+        timeoutMessage:
+          'AI request timed out. The backend is reachable, but the AI provider took too long to respond. Please try again.'
       });
 
       if (!response.ok) {
@@ -733,9 +780,14 @@ Today's date: ${new Date().toISOString().split('T')[0]}
 
 Analyze these and predict any potential problems.`;
 
-    const response = await this.makeRequest(
-      [{ role: 'user', content: userMessage }],
-      systemPrompt
+    const dedupeKey = buildDedupeKey('predictive_issues', {
+      goals: cleanGoals,
+      tasks: cleanTasks,
+      date: new Date().toISOString().split('T')[0],
+    });
+
+    const response = await this.runDedupedRequest(dedupeKey, ANALYTICS_DEDUPE_WINDOW_MS, () =>
+      this.makeRequest([{ role: 'user', content: userMessage }], systemPrompt)
     );
 
     try {
@@ -834,9 +886,12 @@ ${JSON.stringify(userActivity, null, 2)}
 
 Discover patterns and suggest automations.`;
 
-    const response = await this.makeRequest(
-      [{ role: 'user', content: userMessage }],
-      systemPrompt
+    const dedupeKey = buildDedupeKey('discover_patterns', {
+      userActivity,
+    });
+
+    const response = await this.runDedupedRequest(dedupeKey, ANALYTICS_DEDUPE_WINDOW_MS, () =>
+      this.makeRequest([{ role: 'user', content: userMessage }], systemPrompt)
     );
 
     try {
@@ -1230,9 +1285,15 @@ Today's date: ${new Date().toISOString().split('T')[0]}
 
 Generate smart reminders for the next 7 days.`;
 
-    const response = await this.makeRequest(
-      [{ role: 'user', content: userMessage }],
-      systemPrompt
+    const dedupeKey = buildDedupeKey('smart_reminders', {
+      goals: cleanGoals,
+      tasks: cleanTasks,
+      userPatterns,
+      date: new Date().toISOString().split('T')[0],
+    });
+
+    const response = await this.runDedupedRequest(dedupeKey, SMART_REMINDER_DEDUPE_WINDOW_MS, () =>
+      this.makeRequest([{ role: 'user', content: userMessage }], systemPrompt)
     );
 
     try {
