@@ -179,19 +179,25 @@ const NotificationBell = () => {
 
       {/* Dropdown - Centered version */}
       {isOpen && (
-        <div className="fixed md:absolute inset-0 md:inset-auto md:right-0 md:top-full md:mt-2 md:w-80 bg-transparent md:bg-white md:dark:bg-gray-800 md:rounded-lg md:shadow-xl md:border md:border-gray-200 md:dark:border-gray-700 z-50 flex items-center justify-center md:block">
+        <div className="fixed inset-0 z-50 flex items-start justify-center px-3 pt-16 sm:px-4 md:absolute md:inset-auto md:right-0 md:top-full md:mt-3 md:block md:px-0 md:pt-0">
           {/* Mobile overlay - only visible on mobile */}
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 md:hidden"
+            className="fixed inset-0 bg-slate-950/35 backdrop-blur-sm md:bg-transparent md:backdrop-blur-0"
             onClick={() => setIsOpen(false)}
           />
           
           {/* Dropdown content - centered on mobile, positioned normally on desktop */}
-          <div className="absolute md:relative md:transform-none transform -translate-x-1/2 -translate-y-1/2 md:translate-x-0 md:translate-y-0 top-1/2 left-1/2 md:top-auto md:left-auto w-[95vw] max-w-sm md:w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[80vh] flex flex-col">
+          <div className="relative z-10 flex max-h-[min(85vh,44rem)] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/40 bg-white/90 shadow-2xl shadow-slate-900/20 backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/90 md:w-[24rem]">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-800 dark:text-gray-300">Notifications</h3>
-              <div className="flex gap-2">
+            <div className="border-b border-teal-700/40 bg-[#0c7d7d] px-4 py-4 text-white sm:px-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-white">Notifications</h3>
+                  <p className="mt-1 text-xs text-white/75">
+                    {unreadCount > 0 ? `${unreadCount} unread update${unreadCount === 1 ? '' : 's'}` : 'All caught up'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -201,7 +207,7 @@ const NotificationBell = () => {
                       unmuteNotificationSounds();
                     }
                   }}
-                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-300 flex items-center gap-1 px-2 py-1 rounded hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+                  className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/85 transition-colors hover:bg-white/20 hover:text-white"
                 >
                   {notificationSettings.soundEnabled ? <FiVolumeX className="text-sm" /> : <FiVolume2 className="text-sm" />}
                   {notificationSettings.soundEnabled ? "Mute" : "Unmute"}
@@ -215,7 +221,7 @@ const NotificationBell = () => {
                       snoozeNotificationSounds(30);
                     }
                   }}
-                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-300 flex items-center gap-1 px-2 py-1 rounded hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                  className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/85 transition-colors hover:bg-white/20 hover:text-white"
                 >
                   <FiClock className="text-sm" />
                   {isSoundSnoozed ? "Resume sound" : "Snooze 30m"}
@@ -227,7 +233,7 @@ const NotificationBell = () => {
                       stopRingtone();
                       markAllAsRead();
                     }}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/85 transition-colors hover:bg-white/20 hover:text-white"
                   >
                     <FiCheck className="text-sm" />
                     Mark all read
@@ -240,7 +246,7 @@ const NotificationBell = () => {
                       stopRingtone();
                       clearAll();
                     }}
-                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/85 transition-colors hover:bg-white/20 hover:text-white"
                   >
                     <FiX className="text-sm" />
                     Clear all
@@ -248,7 +254,8 @@ const NotificationBell = () => {
                 )}
               </div>
             </div>
-            <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+            </div>
+            <div className="border-b border-gray-200/80 px-4 py-2 text-xs text-gray-600 backdrop-blur-sm dark:border-gray-700/80 dark:text-gray-300 sm:px-5">
               {soundStatusText}
             </div>
 
@@ -258,8 +265,10 @@ const NotificationBell = () => {
                 notifications.map((notification) => (
                   <div 
                     key={notification.id}
-                    className={`p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer group ${
-                      !notification.read ? 'bg-blue-50/50 dark:bg-blue-900/20' : ''
+                    className={`cursor-pointer border-b border-gray-100/90 p-4 transition-colors dark:border-gray-800/90 sm:px-5 ${
+                      !notification.read
+                        ? 'bg-teal-50/70 hover:bg-teal-50 dark:bg-teal-950/25 dark:hover:bg-teal-950/40'
+                        : 'hover:bg-gray-50/90 dark:hover:bg-gray-800/70'
                     }`}
                     onClick={() => handleNotificationClick(notification)}
                   >
@@ -276,7 +285,7 @@ const NotificationBell = () => {
                               stopRingtone();
                               clearNotification(notification.id);
                             }}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 p-1 transition-opacity"
+                            className="text-gray-400 transition-colors hover:text-red-500 md:opacity-0 md:group-hover:opacity-100"
                           >
                             <FiX className="text-sm" />
                           </button>
@@ -308,7 +317,7 @@ const NotificationBell = () => {
                   </div>
                 ))
               ) : (
-                <div className="p-8 text-center text-gray-500">
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                   <FiBell className="text-3xl mx-auto mb-3 text-gray-300 dark:text-gray-600" />
                   <p className="text-gray-600 dark:text-gray-400 font-medium mb-1">No notifications</p>
                   <p className="text-sm text-gray-500 dark:text-gray-500">When you have notifications, they'll appear here</p>
@@ -317,7 +326,7 @@ const NotificationBell = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+            <div className="border-t border-gray-200/80 p-3 backdrop-blur-sm dark:border-gray-700/80 sm:px-5">
               <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
                 <span>
                   {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}

@@ -494,7 +494,7 @@ const Sidebar = ({ onToggle, isMobile, isOpen = false }) => {
     { id: "account",       icon: <FiUser className="text-xl" />,                  label: "Account",       path: "/account"       },
     { id: "notifications", icon: <FiBell className="text-xl" />,                  label: "Notifications", path: "/notifications"  },
     { id: "appearance",    icon: <IoColorPaletteOutline className="text-xl" />,    label: "Appearance",    path: null             },
-    { id: "data-privacy",  icon: <MdOutlineShield className="text-xl" />,          label: "Settings",      path: "/data-privacy"  },
+    { id: "settings",      icon: <MdOutlineShield className="text-xl" />,          label: "Settings",      path: "/settings"      },
     { id: "help",          icon: <IoIosHelpCircleOutline className="text-xl" />,   label: "Help & Support",path: "/help-support"  },
   ];
 

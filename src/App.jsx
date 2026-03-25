@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/layouts/Layout";
 import Dashboard from "./pages/DashBoard";
 import Analytics from "./pages/Analytics";
-import Settings from "./pages/DataPrivacy";
+import Settings from "./pages/SettingsPage";
 import GoalsFormWrapper from './forms/GoalsFormWrapper';
 import GoalsPage from "./pages/GoalPage";
 import GoalDetailsPage from "./pages/GoalDetailsPage";

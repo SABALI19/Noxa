@@ -5,17 +5,17 @@
  * Handles three voice notification scenarios:
  *
  * 1. speakReminder(reminder)
- *    — Called when a reminder fires (socket event or scheduler).
- *    — Claude generates a smart personalised message, then TTS speaks it.
+ *    - Called when a reminder fires (socket event or scheduler).
+ *    - Claude generates a smart personalised message, then TTS speaks it.
  *
  * 2. speakSmartBriefing(digest)
- *    — Called when the StartupDigestPopup appears.
- *    — Reads the briefing aloud automatically on app open.
+ *    - Called when the StartupDigestPopup appears.
+ *    - Reads the briefing aloud automatically on app open.
  *
  * 3. Background voice alert (option 4)
- *    — When app is closed, Browser Push Notification fires.
- *    — User taps it → app opens → speakReminder fires on arrival.
- *    — Handled via the `speakOnArrival` flag in NotificationContext socket handler.
+ *    - When app is closed, Browser Push Notification fires.
+ *    - User taps it -> app opens -> speakReminder fires on arrival.
+ *    - Handled via the `speakOnArrival` flag in NotificationContext socket handler.
  *
  * iOS note: auto-speak is blocked by iOS unless triggered by a direct user
  * gesture. On iOS, a "Tap to hear" button is shown instead.
@@ -26,7 +26,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import AiService from '../services/AiService';
 
-// ── Platform detection ────────────────────────────────────────
+const VOICE_SETTINGS_STORAGE_KEY = 'noxa_voice_notification_voice';
+
 const detectIOS = () => {
   if (typeof navigator === 'undefined') return false;
 
@@ -44,7 +45,6 @@ const detectIOS = () => {
   return isClassicIOS || isIPadDesktopMode;
 };
 
-// ── Strip markdown for clean speech ──────────────────────────
 const cleanForSpeech = (text = '') =>
   text
     .replace(/[#*_`~]/g, '')
@@ -52,149 +52,197 @@ const cleanForSpeech = (text = '') =>
     .replace(/Actions completed:/g, 'Actions completed:')
     .trim();
 
-// ── Pick best available English voice ────────────────────────
-const pickVoice = (voices = []) =>
-  voices.find(
-    (v) =>
-      v.name === 'Samantha' ||
-      v.name === 'Karen' ||
-      v.name === 'Moira' ||
-      v.name.includes('Google US English') ||
-      v.name.includes('Google') ||
-      v.lang === 'en-US',
-  ) || null;
+const pickVoice = (voiceList = [], selectedVoiceName = '') =>
+  voiceList.find((voice) => voice.name === selectedVoiceName) ||
+  voiceList.find(
+    (voice) =>
+      voice.name === 'Samantha' ||
+      voice.name === 'Karen' ||
+      voice.name === 'Moira' ||
+      voice.name.includes('Google US English') ||
+      voice.name.includes('Google') ||
+      voice.lang === 'en-US',
+  ) ||
+  null;
+
+const readStoredVoiceName = () => {
+  if (typeof window === 'undefined') return '';
+
+  try {
+    return window.localStorage.getItem(VOICE_SETTINGS_STORAGE_KEY) || '';
+  } catch {
+    return '';
+  }
+};
 
 const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) => {
-  const [isSpeaking, setIsSpeaking]       = useState(false);
-  const [isGenerating, setIsGenerating]   = useState(false);
-  const [voices, setVoices]               = useState([]);
-  const synthRef                          = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
-  const [isIOS]                           = useState(() => detectIOS());
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [voices, setVoices] = useState([]);
+  const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
+  const [isIOS] = useState(() => detectIOS());
+  const [selectedVoiceName, setSelectedVoiceNameState] = useState(() => readStoredVoiceName());
+  const supportsSpeech = Boolean(synthRef.current);
 
-  // Load voices — iOS loads async
   useEffect(() => {
-    if (!window.speechSynthesis) return;
-    const load = () => {
-      const available = window.speechSynthesis.getVoices();
-      if (available.length > 0) setVoices(available);
+    if (typeof window === 'undefined' || !window.speechSynthesis) return undefined;
+
+    const loadVoices = () => {
+      const availableVoices = window.speechSynthesis.getVoices();
+      if (availableVoices.length > 0) {
+        setVoices(availableVoices);
+      }
     };
-    load();
-    window.speechSynthesis.onvoiceschanged = load;
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
+
+    loadVoices();
+
+    if (typeof window.speechSynthesis.addEventListener === 'function') {
+      window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+      return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+    }
+
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => {
+      if (window.speechSynthesis.onvoiceschanged === loadVoices) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
   }, []);
 
-  // ── Core TTS ─────────────────────────────────────────────────
-  const speakText = useCallback((text, opts = {}) => {
-    if (!synthRef.current || !text?.trim()) return;
+  const setSelectedVoiceName = useCallback((voiceName) => {
+    const nextVoiceName = typeof voiceName === 'string' ? voiceName : '';
+    setSelectedVoiceNameState(nextVoiceName);
 
-    // iOS: block auto calls — only allow direct user gesture taps
-    if (isIOS && opts.auto) return;
+    if (typeof window === 'undefined') return;
 
-    synthRef.current.cancel();
-
-    const utterance        = new SpeechSynthesisUtterance(cleanForSpeech(text));
-    utterance.lang         = 'en-US';
-    utterance.rate         = opts.rate   ?? (isIOS ? 0.95 : rate);
-    utterance.pitch        = opts.pitch  ?? pitch;
-    utterance.volume       = opts.volume ?? volume;
-
-    const voiceList = voices.length > 0 ? voices : (window.speechSynthesis.getVoices() || []);
-    const preferred = pickVoice(voiceList);
-    if (preferred) utterance.voice = preferred;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend   = () => setIsSpeaking(false);
-    utterance.onerror = (e) => {
-      if (e.error !== 'interrupted') console.warn('TTS error:', e.error);
-      setIsSpeaking(false);
-    };
-
-    // iOS: 100ms delay fixes silent playback bug
-    if (isIOS) {
-      setTimeout(() => synthRef.current?.speak(utterance), 100);
-    } else {
-      synthRef.current.speak(utterance);
+    try {
+      if (nextVoiceName) {
+        window.localStorage.setItem(VOICE_SETTINGS_STORAGE_KEY, nextVoiceName);
+      } else {
+        window.localStorage.removeItem(VOICE_SETTINGS_STORAGE_KEY);
+      }
+    } catch {
+      // Keep the in-memory selection even if persistence fails.
     }
-  }, [voices, rate, pitch, volume, isIOS]);
+  }, []);
+
+  const speakText = useCallback(
+    (text, opts = {}) => {
+      if (!synthRef.current || !text?.trim()) return;
+
+      if (isIOS && opts.auto) return;
+
+      synthRef.current.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(cleanForSpeech(text));
+      utterance.lang = 'en-US';
+      utterance.rate = opts.rate ?? (isIOS ? 0.95 : rate);
+      utterance.pitch = opts.pitch ?? pitch;
+      utterance.volume = opts.volume ?? volume;
+
+      const voiceList =
+        voices.length > 0 ? voices : window.speechSynthesis?.getVoices?.() || [];
+      const preferredVoice = pickVoice(voiceList, selectedVoiceName);
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = (event) => {
+        if (event.error !== 'interrupted') {
+          console.warn('TTS error:', event.error);
+        }
+        setIsSpeaking(false);
+      };
+
+      if (isIOS) {
+        window.setTimeout(() => synthRef.current?.speak(utterance), 100);
+      } else {
+        synthRef.current.speak(utterance);
+      }
+    },
+    [isIOS, pitch, rate, selectedVoiceName, voices, volume],
+  );
 
   const stopSpeaking = useCallback(() => {
     synthRef.current?.cancel();
     setIsSpeaking(false);
   }, []);
 
-  // ── 1. Speak a reminder when it fires ────────────────────────
-  /**
-   * @param {object} reminder  — reminder object from your scheduler/socket
-   * @param {object} opts
-   * @param {boolean} opts.auto — true = auto-speak (blocked on iOS)
-   */
-  const speakReminder = useCallback(async (reminder, opts = {}) => {
-    if (!reminder?.title) return;
+  const speakReminder = useCallback(
+    async (reminder, opts = {}) => {
+      if (!reminder?.title) return;
+      if (isIOS && opts.auto) return;
 
-    // iOS: skip auto, show tap button instead (handled in UI)
-    if (isIOS && opts.auto) return;
+      setIsGenerating(true);
+      try {
+        const message = await AiService.generateSmartReminders(
+          [],
+          [
+            {
+              title: reminder.title,
+              priority: reminder.priority || 'medium',
+              category: reminder.category || 'general',
+            },
+          ],
+          {},
+        );
 
-    setIsGenerating(true);
-    try {
-      // Ask Claude to generate a smart contextual reminder message
-      const message = await AiService.generateSmartReminders(
-        [],
-        [{ title: reminder.title, priority: reminder.priority || 'medium', category: reminder.category || 'general' }],
-        {},
-      );
+        const firstReminder = message?.reminders?.[0];
+        const voiceText = firstReminder?.message
+          ? `${firstReminder.message}`
+          : `Reminder: ${reminder.title}`;
 
-      // Pull the first reminder message Claude generated
-      const firstReminder = message?.reminders?.[0];
-      const voiceText = firstReminder?.message
-        ? `${firstReminder.message}`
-        : `Reminder: ${reminder.title}`;
+        speakText(voiceText, { auto: opts.auto });
+      } catch {
+        speakText(`Reminder: ${reminder.title}`, { auto: opts.auto });
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [isIOS, speakText],
+  );
 
-      speakText(voiceText, { auto: opts.auto });
-    } catch {
-      // Fallback to plain title if Claude fails
-      speakText(`Reminder: ${reminder.title}`, { auto: opts.auto });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [speakText, isIOS]);
+  const speakSmartBriefing = useCallback(
+    async (digest, opts = {}) => {
+      if (!digest) return;
+      if (isIOS && opts.auto) return;
 
-  // ── 2. Speak the smart briefing on app open ───────────────────
-  /**
-   * @param {object} digest — startupDigestSummary from Layout.jsx
-   * @param {object} opts
-   * @param {boolean} opts.auto — true = auto-speak (blocked on iOS)
-   */
-  const speakSmartBriefing = useCallback(async (digest, opts = {}) => {
-    if (!digest) return;
-    if (isIOS && opts.auto) return;
+      const text = [
+        digest.title ? `${digest.title}.` : '',
+        digest.message ? digest.message : '',
+        digest.urgentCount > 0
+          ? `You have ${digest.urgentCount} urgent item${digest.urgentCount === 1 ? '' : 's'} due now.`
+          : '',
+        digest.topGoals?.length > 0
+          ? `Top goals: ${digest.topGoals.map((goal) => goal.title).join(', ')}.`
+          : '',
+        digest.aiPrompt ? digest.aiPrompt : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
 
-    const text = [
-      digest.title ? `${digest.title}.` : '',
-      digest.message ? digest.message : '',
-      digest.urgentCount > 0
-        ? `You have ${digest.urgentCount} urgent item${digest.urgentCount === 1 ? '' : 's'} due now.`
-        : '',
-      digest.topGoals?.length > 0
-        ? `Top goals: ${digest.topGoals.map((g) => g.title).join(', ')}.`
-        : '',
-      digest.aiPrompt ? digest.aiPrompt : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
+      speakText(text, { auto: opts.auto });
+    },
+    [isIOS, speakText],
+  );
 
-    speakText(text, { auto: opts.auto });
-  }, [speakText, isIOS]);
-
-  // Cleanup
   useEffect(() => {
     const synth = synthRef.current;
-    return () => { synth?.cancel(); };
+    return () => {
+      synth?.cancel();
+    };
   }, []);
 
   return {
     isSpeaking,
     isGenerating,
     isIOS,
+    supportsSpeech,
+    voices,
+    selectedVoiceName,
+    setSelectedVoiceName,
     speakReminder,
     speakSmartBriefing,
     speakText,
