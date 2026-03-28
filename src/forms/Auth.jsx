@@ -331,6 +331,19 @@ const Auth = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  const isBackendUnavailableMessage = (message = '') =>
+    /request timed out while contacting the noxa backend|failed to fetch|networkerror|load failed|backend is running|backend is reachable|err_connection_refused|err_network/i.test(
+      String(message)
+    );
+
+  const getFriendlyLoginErrorMessage = (error, fallbackMessage) => {
+    const message = error?.message || fallbackMessage;
+    if (isBackendUnavailableMessage(message)) {
+      return 'Try again in a moment.';
+    }
+    return message;
+  };
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
 
@@ -357,7 +370,7 @@ const Auth = ({
             setErrors({});
           }
         } catch (error) {
-          const message = error?.message || "Login failed. Please try again.";
+          const message = getFriendlyLoginErrorMessage(error, "Login failed. Please try again.");
           const requiresVerification = /email not verified/i.test(message);
           setLoginNeedsVerification(requiresVerification);
           setErrors(prev => ({
@@ -392,7 +405,10 @@ const Auth = ({
     } catch (error) {
       setErrors((prev) => ({
         ...prev,
-        submit: error?.message || "OTP verification failed. Please try again.",
+        submit: getFriendlyLoginErrorMessage(
+          error,
+          "OTP verification failed. Please try again."
+        ),
       }));
     }
   };
