@@ -75,6 +75,11 @@ const readStoredVoiceName = () => {
   }
 };
 
+const createSpeechQueueItem = (text, opts = {}) => ({
+  text,
+  opts,
+});
+
 const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -82,6 +87,8 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
   const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
   const [isIOS] = useState(() => detectIOS());
   const [selectedVoiceName, setSelectedVoiceNameState] = useState(() => readStoredVoiceName());
+  const isSpeakingRef = useRef(false);
+  const queuedSpeechRef = useRef([]);
   const supportsSpeech = Boolean(synthRef.current);
 
   useEffect(() => {
@@ -126,12 +133,69 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
     }
   }, []);
 
+  const flushQueuedSpeech = useCallback(() => {
+    const synth = synthRef.current;
+    if (!synth || isSpeakingRef.current) return;
+
+    const nextQueuedSpeech = queuedSpeechRef.current.shift();
+    if (!nextQueuedSpeech?.text?.trim()) return;
+
+    window.setTimeout(() => {
+      if (!isSpeakingRef.current) {
+        const { text, opts } = nextQueuedSpeech;
+        const voiceList =
+          voices.length > 0 ? voices : window.speechSynthesis?.getVoices?.() || [];
+        const preferredVoice = pickVoice(voiceList, selectedVoiceName);
+        const utterance = new SpeechSynthesisUtterance(cleanForSpeech(text));
+        utterance.lang = 'en-US';
+        utterance.rate = opts.rate ?? (isIOS ? 0.95 : rate);
+        utterance.pitch = opts.pitch ?? pitch;
+        utterance.volume = opts.volume ?? volume;
+
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+
+        utterance.onstart = () => {
+          isSpeakingRef.current = true;
+          setIsSpeaking(true);
+        };
+        utterance.onend = () => {
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+          flushQueuedSpeech();
+        };
+        utterance.onerror = (event) => {
+          if (event.error !== 'interrupted') {
+            console.warn('TTS error:', event.error);
+          }
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+          flushQueuedSpeech();
+        };
+
+        if (isIOS) {
+          window.setTimeout(() => synthRef.current?.speak(utterance), 100);
+        } else {
+          synthRef.current?.speak(utterance);
+        }
+      }
+    }, 0);
+  }, [isIOS, pitch, rate, selectedVoiceName, voices, volume]);
+
   const speakText = useCallback(
     (text, opts = {}) => {
       if (!synthRef.current || !text?.trim()) return;
 
       if (isIOS && opts.auto) return;
 
+      const shouldQueue = opts.interrupt === false && (isSpeakingRef.current || synthRef.current.speaking);
+      if (shouldQueue) {
+        queuedSpeechRef.current.push(createSpeechQueueItem(text, opts));
+        return;
+      }
+
+      queuedSpeechRef.current = [];
       synthRef.current.cancel();
 
       const utterance = new SpeechSynthesisUtterance(cleanForSpeech(text));
@@ -147,13 +211,22 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
         utterance.voice = preferredVoice;
       }
 
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
+      utterance.onstart = () => {
+        isSpeakingRef.current = true;
+        setIsSpeaking(true);
+      };
+      utterance.onend = () => {
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        flushQueuedSpeech();
+      };
       utterance.onerror = (event) => {
         if (event.error !== 'interrupted') {
           console.warn('TTS error:', event.error);
         }
+        isSpeakingRef.current = false;
         setIsSpeaking(false);
+        flushQueuedSpeech();
       };
 
       if (isIOS) {
@@ -162,10 +235,12 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
         synthRef.current.speak(utterance);
       }
     },
-    [isIOS, pitch, rate, selectedVoiceName, voices, volume],
+    [flushQueuedSpeech, isIOS, pitch, rate, selectedVoiceName, voices, volume],
   );
 
   const stopSpeaking = useCallback(() => {
+    queuedSpeechRef.current = [];
+    isSpeakingRef.current = false;
     synthRef.current?.cancel();
     setIsSpeaking(false);
   }, []);
@@ -194,9 +269,9 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
           ? `${firstReminder.message}`
           : `Reminder: ${reminder.title}`;
 
-        speakText(voiceText, { auto: opts.auto });
+        speakText(voiceText, { auto: opts.auto, interrupt: false });
       } catch {
-        speakText(`Reminder: ${reminder.title}`, { auto: opts.auto });
+        speakText(`Reminder: ${reminder.title}`, { auto: opts.auto, interrupt: false });
       } finally {
         setIsGenerating(false);
       }
@@ -231,6 +306,8 @@ const useVoiceNotifications = ({ rate = 1.0, pitch = 1.0, volume = 1.0 } = {}) =
   useEffect(() => {
     const synth = synthRef.current;
     return () => {
+      queuedSpeechRef.current = [];
+      isSpeakingRef.current = false;
       synth?.cancel();
     };
   }, []);
