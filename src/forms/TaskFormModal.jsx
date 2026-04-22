@@ -5,6 +5,11 @@ import {
   FiEdit2, FiCheck, FiClock
 } from 'react-icons/fi';
 import { Calendar, Clock } from 'lucide-react';
+import { useNotifications } from '../hooks/useNotifications';
+import {
+  mapReminderLeadTimeToTaskTiming,
+  normalizeNotificationMethodPreference,
+} from '../utils/notificationPreferences';
 
 const DateTimeSelector = ({ formData, handleChange, errors }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -279,21 +284,38 @@ const DateTimeSelector = ({ formData, handleChange, errors }) => {
   );
 };
 
-const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    dueDate: '',
-    time: '',
-    priority: 'medium',
-    category: 'work',
-    description: '',
-    recurrence: 'none',
-    enableReminders: false,
-    reminderFrequency: 'once',
-    reminderTiming: '1_day_before',
-    customReminderTime: '',
-    notificationMethod: 'app'
-  });
+const TASK_REMINDER_TIMING_OPTIONS = [
+  { value: '5_minutes_before', label: '5 minutes before', minutesBefore: 5, usesDerivedCustomTime: true },
+  { value: '10_minutes_before', label: '10 minutes before', minutesBefore: 10, usesDerivedCustomTime: true },
+  { value: '15_minutes_before', label: '15 minutes before', minutesBefore: 15, usesDerivedCustomTime: true },
+  { value: '30_minutes_before', label: '30 minutes before', minutesBefore: 30, usesDerivedCustomTime: true },
+  { value: '1_hour_before', label: '1 hour before' },
+  { value: '2_hours_before', label: '2 hours before' },
+  { value: '1_day_before', label: '1 day before' },
+  { value: '2_days_before', label: '2 days before' },
+  { value: '1_week_before', label: '1 week before' },
+  { value: 'on_due_date', label: 'On due date' },
+  { value: 'custom', label: 'Custom time' },
+];
+
+const buildInitialTaskFormData = (notificationSettings) => ({
+  title: '',
+  dueDate: '',
+  time: '',
+  priority: 'medium',
+  category: 'work',
+  description: '',
+  recurrence: 'none',
+  enableReminders: false,
+  reminderFrequency: 'once',
+  reminderTiming: mapReminderLeadTimeToTaskTiming(notificationSettings?.defaultReminderTime),
+  customReminderTime: '',
+  notificationMethod: normalizeNotificationMethodPreference(notificationSettings?.taskNotificationMethod),
+});
+
+const TaskFormModal = ({ isOpen, onClose, onSubmit, task = null, isEditMode = false }) => {
+  const { notificationSettings } = useNotifications();
+  const [formData, setFormData] = useState(() => buildInitialTaskFormData(notificationSettings));
 
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [errors, setErrors] = useState({});
@@ -316,15 +338,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
     { value: 'daily', label: 'Daily until completed' }
   ];
 
-  const reminderTimingOptions = [
-    { value: '1_hour_before', label: '1 hour before' },
-    { value: '2_hours_before', label: '2 hours before' },
-    { value: '1_day_before', label: '1 day before' },
-    { value: '2_days_before', label: '2 days before' },
-    { value: '1_week_before', label: '1 week before' },
-    { value: 'on_due_date', label: 'On due date' },
-    { value: 'custom', label: 'Custom time' }
-  ];
+  const reminderTimingOptions = TASK_REMINDER_TIMING_OPTIONS;
 
   const notificationMethodOptions = [
     { value: 'app', label: 'App notification', icon: '📱' },
@@ -344,6 +358,19 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isOpen || isEditMode || task) return;
+    setFormData(buildInitialTaskFormData(notificationSettings));
+    setErrors({});
+    setShowCategoryDropdown(false);
+  }, [
+    isOpen,
+    isEditMode,
+    task,
+    notificationSettings.defaultReminderTime,
+    notificationSettings.taskNotificationMethod
+  ]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -416,11 +443,22 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
       // Calculate reminder times based on settings
       let reminderSettings = null;
       if (formData.enableReminders) {
+        const selectedTimingOption = reminderTimingOptions.find((option) => option.value === formData.reminderTiming);
+        let reminderTiming = formData.reminderTiming;
+        let customReminderTime = formData.customReminderTime;
+
+        if (selectedTimingOption?.usesDerivedCustomTime) {
+          reminderTiming = 'custom';
+          customReminderTime = new Date(
+            new Date(formattedDueDate).getTime() - selectedTimingOption.minutesBefore * 60 * 1000
+          ).toISOString();
+        }
+
         reminderSettings = {
           enabled: true,
           frequency: formData.reminderFrequency,
-          timing: formData.reminderTiming,
-          customTime: formData.customReminderTime,
+          timing: reminderTiming,
+          customTime: customReminderTime,
           notificationMethod: formData.notificationMethod,
           // You can add logic here to calculate actual reminder times
         };
@@ -440,20 +478,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
       onSubmit(taskData);
       
       // Reset form
-      setFormData({
-        title: '',
-        dueDate: '',
-        time: '',
-        priority: 'medium',
-        category: 'work',
-        description: '',
-        recurrence: 'none',
-        enableReminders: false,
-        reminderFrequency: 'once',
-        reminderTiming: '1_day_before',
-        customReminderTime: '',
-        notificationMethod: 'app'
-      });
+      setFormData(buildInitialTaskFormData(notificationSettings));
       
       setErrors({});
       setShowCategoryDropdown(false);
@@ -489,6 +514,10 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
       formRef.current.dispatchEvent(submitEvent);
     }
   };
+
+  const selectedReminderTimingLabel =
+    reminderTimingOptions.find((option) => option.value === formData.reminderTiming)?.label ||
+    formData.reminderTiming;
 
   if (!isOpen) return null;
 
@@ -881,7 +910,7 @@ const TaskFormModal = ({ isOpen, onClose, onSubmit }) => {
                     {formData.reminderFrequency === 'once' && 'One reminder '}
                     {formData.reminderFrequency === 'multiple' && 'Multiple reminders '}
                     {formData.reminderFrequency === 'daily' && 'Daily reminders '}
-                    {formData.reminderTiming !== 'custom' && `sent ${formData.reminderTiming.replace('_', ' ')}`}
+                    {formData.reminderTiming !== 'custom' && `sent ${selectedReminderTimingLabel.toLowerCase()}`}
                     {formData.reminderTiming === 'custom' && 'sent at custom time'}
                     {formData.notificationMethod === 'app' && ' via app notification'}
                     {formData.notificationMethod === 'email' && ' via email'}

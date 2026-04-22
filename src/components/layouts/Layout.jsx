@@ -10,7 +10,8 @@ import { useTasks } from '../../context/TaskContext';
 import { useNotifications } from '../../hooks/useNotifications';
 import { getGoals, goalEvents, hydrateGoalsFromBackend } from '../../services/goalStorage';
 import useVoiceNotifications from '../../hooks/Usevoicenotifications';
-import { FiVolume2, FiVolumeX } from 'react-icons/fi';
+import { FiClock, FiVolume2, FiVolumeX } from 'react-icons/fi';
+import { getQuietHoursStatus } from '../../utils/notificationPreferences';
 
 const STARTUP_DIGEST_SESSION_KEY = 'noxa_startup_digest';
 const PRIORITY_SCORE = { high: 3, medium: 2, low: 1 };
@@ -187,13 +188,71 @@ const StartupDigestPopup = ({
   );
 };
 
+const QuietHoursBanner = ({
+  visible,
+  quietUntilLabel,
+  onKeepOn,
+  onDisableForTonight,
+  onEdit,
+}) => {
+  if (!visible) return null;
+
+  return (
+    <div className="mx-4 mt-4 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/30 sm:mx-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+            <FiClock className="text-lg" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+              Quiet hours are active{quietUntilLabel ? ` until ${quietUntilLabel}` : ''}.
+            </p>
+            <p className="mt-1 text-sm text-amber-800/90 dark:text-amber-200/85">
+              Your smart briefing is waiting. Keep quiet hours on, disable them for tonight, or edit the schedule.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:justify-end">
+          <button
+            type="button"
+            onClick={onKeepOn}
+            className="rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:border-amber-800 dark:text-amber-100 dark:hover:bg-amber-900/40"
+          >
+            Keep On
+          </button>
+          <button
+            type="button"
+            onClick={onDisableForTonight}
+            className="rounded-xl bg-amber-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
+          >
+            Disable For Tonight
+          </button>
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-amber-900 transition hover:bg-amber-100 dark:text-amber-100 dark:hover:bg-amber-900/40"
+          >
+            Edit Quiet Hours
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Layout ────────────────────────────────────────────────────
 const Layout = () => {
   const location  = useLocation();
   const navigate  = useNavigate();
   const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
   const { tasks, reminders } = useTasks();
-  const { addNotification } = useNotifications();
+  const {
+    addNotification,
+    notificationSettings,
+    disableQuietHoursForCurrentWindow,
+  } = useNotifications();
   const isTaskPage =
     location.pathname === '/tasks' ||
     location.pathname === '/notes' ||
@@ -207,6 +266,8 @@ const Layout = () => {
   const [aiAssistantCloseSignal, setAiAssistantCloseSignal] = useState(0);
   const [goals, setGoals]                           = useState(() => getGoals());
   const [startupDigest, setStartupDigest]           = useState(null);
+  const [pendingStartupDigest, setPendingStartupDigest] = useState(null);
+  const [quietHoursBannerDismissedUntil, setQuietHoursBannerDismissedUntil] = useState(null);
   const [hydratedGoalsUserKey, setHydratedGoalsUserKey] = useState(null);
   const [currentTimestamp, setCurrentTimestamp]     = useState(0);
   const startupDigestRef                            = useRef('');
@@ -228,6 +289,36 @@ const Layout = () => {
   // Track which reminders have already been spoken this session
   // so the same reminder doesn't fire twice
   const spokenReminderIdsRef = useRef(new Set());
+  const quietHoursStatus = useMemo(
+    () =>
+      getQuietHoursStatus(
+        notificationSettings?.quietHoursStart,
+        notificationSettings?.quietHoursEnd,
+        currentTimestamp ? new Date(currentTimestamp) : new Date(),
+        notificationSettings?.quietHoursDisabledUntil
+      ),
+    [
+      currentTimestamp,
+      notificationSettings?.quietHoursDisabledUntil,
+      notificationSettings?.quietHoursEnd,
+      notificationSettings?.quietHoursStart,
+    ]
+  );
+  const isInQuietHours = quietHoursStatus.active;
+  const quietHoursWindowEnd = quietHoursStatus.windowEnd
+    ? quietHoursStatus.windowEnd.toISOString()
+    : null;
+  const quietHoursLabel = useMemo(() => {
+    if (!quietHoursWindowEnd) return '';
+    const parsed = new Date(quietHoursWindowEnd);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }, [quietHoursWindowEnd]);
+  const quietHoursBannerVisible = useMemo(() => {
+    if (!pendingStartupDigest || !isInQuietHours) return false;
+    if (!quietHoursBannerDismissedUntil) return true;
+    return quietHoursBannerDismissedUntil !== quietHoursWindowEnd;
+  }, [isInQuietHours, pendingStartupDigest, quietHoursBannerDismissedUntil, quietHoursWindowEnd]);
 
   // ── Your original effects (unchanged) ────────────────────────
   useEffect(() => {
@@ -302,6 +393,29 @@ const Layout = () => {
     if (!isAiAssistantEnabled) setIsAiAssistantEnabled(true);
     setAiAssistantOpenSignal((prev) => prev + 1);
   };
+
+  const showStartupDigestNow = useCallback((digestSummary, userId) => {
+    if (!digestSummary) return;
+    setStartupDigest(digestSummary);
+    setPendingStartupDigest(null);
+    addNotification(
+      'socket_message',
+      { title: digestSummary.title },
+      null,
+      false,
+      {
+        source:      'local',
+        dedupeKey:   `startup-digest:${userId}`,
+        templateOverride: {
+          title:   'Smart Briefing',
+          message: digestSummary.message,
+          type:    'info',
+        },
+        originPath: '/dashboard',
+      },
+    );
+    speakSmartBriefing(digestSummary, { auto: true });
+  }, [addNotification, speakSmartBriefing]);
 
   // ── startupDigestSummary  ─────────────────────────
   const startupDigestSummary = useMemo(() => {
@@ -389,37 +503,31 @@ const Layout = () => {
 
     const timerId = window.setTimeout(() => {
       window.sessionStorage.setItem(sessionKey, 'shown');
-      setStartupDigest(startupDigestSummary);
-      addNotification(
-        'socket_message',
-        { title: startupDigestSummary.title },
-        null,
-        false,
-        {
-          source:      'local',
-          dedupeKey:   `startup-digest:${userId}`,
-          templateOverride: {
-            title:   'Smart Briefing',
-            message: startupDigestSummary.message,
-            type:    'info',
-          },
-          originPath: '/dashboard',
-        },
-      );
+      if (isInQuietHours) {
+        setPendingStartupDigest(startupDigestSummary);
+        return;
+      }
+      showStartupDigestNow(startupDigestSummary, userId);
 
       // ── NEW: auto-speak the briefing on app open ──
       // Blocked on iOS — user sees "Tap to hear" button instead
-      speakSmartBriefing(startupDigestSummary, { auto: true });
     }, 900);
 
     return () => window.clearTimeout(timerId);
-  }, [addNotification, authLoading, goalsHydrated, isAuthenticated, startupDigestSummary, user, speakSmartBriefing]);
+  }, [authLoading, goalsHydrated, isAuthenticated, isInQuietHours, showStartupDigestNow, startupDigestSummary, user]);
+
+  useEffect(() => {
+    if (!pendingStartupDigest || isInQuietHours || startupDigest) return;
+    const userId = user?.id || user?._id || user?.email || 'guest';
+    showStartupDigestNow(pendingStartupDigest, userId);
+  }, [isInQuietHours, pendingStartupDigest, showStartupDigestNow, startupDigest, user]);
 
   // ── NEW: Speak reminder when it fires from the scheduler ─────
   // Watches the reminders list — when a reminder becomes 'today'
   // or 'missed' and hasn't been spoken yet, speak it aloud.
   useEffect(() => {
     if (!reminders?.length) return;
+    if (isInQuietHours) return;
 
     const now = Date.now();
     reminders.forEach((reminder) => {
@@ -436,7 +544,7 @@ const Layout = () => {
       // Speak the reminder — auto: true so iOS blocks it cleanly
       speakReminder(reminder, { auto: true });
     });
-  }, [reminders, speakReminder]);
+  }, [isInQuietHours, reminders, speakReminder]);
 
   // ── Voice handlers for the popup ─────────────────────────────
   const handleSpeakBriefing = useCallback(() => {
@@ -460,6 +568,26 @@ const Layout = () => {
     setStartupDigest(null);
     navigate('/reminders');
   };
+
+  const handleKeepQuietHours = useCallback(() => {
+    setQuietHoursBannerDismissedUntil(quietHoursWindowEnd || new Date().toISOString());
+  }, [quietHoursWindowEnd]);
+
+  const handleDisableQuietHoursForTonight = useCallback(() => {
+    const disabledUntil = disableQuietHoursForCurrentWindow();
+    if (disabledUntil) {
+      setQuietHoursBannerDismissedUntil(disabledUntil);
+    }
+
+    const userId = user?.id || user?._id || user?.email || 'guest';
+    if (pendingStartupDigest) {
+      showStartupDigestNow(pendingStartupDigest, userId);
+    }
+  }, [disableQuietHoursForCurrentWindow, pendingStartupDigest, showStartupDigestNow, user]);
+
+  const handleEditQuietHours = useCallback(() => {
+    navigate('/notifications');
+  }, [navigate]);
 
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-gray-900">
@@ -504,6 +632,13 @@ const Layout = () => {
         <main
           className={`flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-all duration-300 ${getMainContentClass()}`}
         >
+          <QuietHoursBanner
+            visible={quietHoursBannerVisible}
+            quietUntilLabel={quietHoursLabel}
+            onKeepOn={handleKeepQuietHours}
+            onDisableForTonight={handleDisableQuietHoursForTonight}
+            onEdit={handleEditQuietHours}
+          />
           <Outlet
             context={{
               aiAssistantEnabled:   isAiAssistantEnabled,

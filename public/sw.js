@@ -8,24 +8,97 @@ const normalizeText = (value, fallback = "") => {
   return result || fallback;
 };
 
+const normalizeSnoozeMinutes = (value, fallback = 30) => {
+  const numeric = Number(value);
+  if ([30, 60, 120, 1440].includes(numeric)) return numeric;
+  return fallback;
+};
+
+const formatSnoozeActionLabel = (minutes) => {
+  const numeric = normalizeSnoozeMinutes(minutes);
+  if (numeric % 1440 === 0) {
+    return `Snooze ${numeric / 1440}d`;
+  }
+  if (numeric % 60 === 0) {
+    return `Snooze ${numeric / 60}h`;
+  }
+  return `Snooze ${numeric}m`;
+};
+
+const parseTimeLabelToMinutes = (value) => {
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridiem = match[3].toUpperCase();
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes) || hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+
+  const normalizedHours = hours % 12;
+  return normalizedHours * 60 + minutes + (meridiem === "PM" ? 12 * 60 : 0);
+};
+
+const isQuietHoursActive = (startLabel, endLabel, now = new Date(), disabledUntil = null) => {
+  const startMinutes = parseTimeLabelToMinutes(startLabel);
+  const endMinutes = parseTimeLabelToMinutes(endLabel);
+
+  if (startMinutes === null || endMinutes === null || startMinutes === endMinutes) {
+    return false;
+  }
+
+  const disabledUntilDate = disabledUntil ? new Date(disabledUntil) : null;
+  if (disabledUntilDate instanceof Date && !Number.isNaN(disabledUntilDate.getTime()) && disabledUntilDate.getTime() > now.getTime()) {
+    return false;
+  }
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (startMinutes < endMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  }
+
+  return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+};
+
 const readQuietModeState = async () => {
   try {
     const cache = await caches.open(self.__NOXA_QUIET_MODE_CACHE);
     const response = await cache.match(self.__NOXA_QUIET_MODE_KEY);
-    if (!response) return { quietUntil: null };
+    if (!response) return { quietUntil: null, quietHoursStart: "", quietHoursEnd: "", quietHoursDisabledUntil: null };
     const parsed = await response.json();
-    return parsed && typeof parsed === "object" ? parsed : { quietUntil: null };
+    return parsed && typeof parsed === "object"
+      ? {
+          quietUntil: parsed.quietUntil || null,
+          quietHoursStart: parsed.quietHoursStart || "",
+          quietHoursEnd: parsed.quietHoursEnd || "",
+          quietHoursDisabledUntil: parsed.quietHoursDisabledUntil || null,
+        }
+      : { quietUntil: null, quietHoursStart: "", quietHoursEnd: "", quietHoursDisabledUntil: null };
   } catch {
-    return { quietUntil: null };
+    return { quietUntil: null, quietHoursStart: "", quietHoursEnd: "", quietHoursDisabledUntil: null };
   }
 };
 
 const writeQuietModeState = async (payload = {}) => {
   try {
     const cache = await caches.open(self.__NOXA_QUIET_MODE_CACHE);
+    const previousState = await readQuietModeState();
     await cache.put(
       self.__NOXA_QUIET_MODE_KEY,
-      new Response(JSON.stringify({ quietUntil: payload.quietUntil || null }), {
+      new Response(JSON.stringify({
+        ...previousState,
+        ...payload,
+        quietUntil: payload.quietUntil ?? previousState.quietUntil ?? null,
+        quietHoursStart: payload.quietHoursStart ?? previousState.quietHoursStart ?? "",
+        quietHoursEnd: payload.quietHoursEnd ?? previousState.quietHoursEnd ?? "",
+        quietHoursDisabledUntil: payload.quietHoursDisabledUntil ?? previousState.quietHoursDisabledUntil ?? null,
+      }), {
         headers: { "Content-Type": "application/json" },
       })
     );
@@ -92,18 +165,23 @@ const resolveTargetUrl = ({ data = {}, notificationType = "", itemType = "", ite
 };
 
 const resolveActions = ({ notificationType = "", itemType = "", itemId = "" }) => {
+  const snoozeActionTitle = formatSnoozeActionLabel(self.__NOXA_DEFAULT_SNOOZE_MINUTES);
   if ((itemType === "goal" || notificationType.startsWith("goal_")) && itemId) {
     return [
-      { action: "snooze", title: "Snooze 30m" },
+      { action: "snooze", title: snoozeActionTitle },
       { action: "goal-update", title: "Update" },
     ];
   }
 
   if ((itemType === "task" || notificationType.startsWith("task_")) && itemId) {
     return [
-      { action: "snooze", title: "Snooze 30m" },
+      { action: "snooze", title: snoozeActionTitle },
       { action: "task-view", title: "View" },
     ];
+  }
+
+  if ((itemType === "reminder" || notificationType.startsWith("reminder_")) && itemId) {
+    return [{ action: "snooze", title: snoozeActionTitle }];
   }
 
   return [];
@@ -199,6 +277,21 @@ self.addEventListener("message", (event) => {
   const { type, payload } = event.data || {};
   if (type === "SET_NOTIFICATION_QUIET_MODE") {
     event.waitUntil(writeQuietModeState(payload));
+    return;
+  }
+  if (type === "SET_NOTIFICATION_QUIET_HOURS") {
+    event.waitUntil(writeQuietModeState({
+      quietHoursStart: payload?.quietHoursStart || "",
+      quietHoursEnd: payload?.quietHoursEnd || "",
+      quietHoursDisabledUntil: payload?.quietHoursDisabledUntil || null,
+    }));
+    return;
+  }
+  if (type === "SET_DEFAULT_SNOOZE_MINUTES") {
+    self.__NOXA_DEFAULT_SNOOZE_MINUTES = normalizeSnoozeMinutes(
+      payload?.defaultSnoozeMinutes,
+      self.__NOXA_DEFAULT_SNOOZE_MINUTES
+    );
   }
 });
 
@@ -234,7 +327,13 @@ self.addEventListener("push", (event) => {
     (async () => {
       const quietModeState = await readQuietModeState();
       const quietUntil = quietModeState?.quietUntil ? new Date(quietModeState.quietUntil).getTime() : null;
-      if (quietUntil && quietUntil > Date.now()) {
+      const quietHoursActive = isQuietHoursActive(
+        quietModeState?.quietHoursStart,
+        quietModeState?.quietHoursEnd,
+        new Date(),
+        quietModeState?.quietHoursDisabledUntil
+      );
+      if ((quietUntil && quietUntil > Date.now()) || quietHoursActive) {
         return;
       }
 

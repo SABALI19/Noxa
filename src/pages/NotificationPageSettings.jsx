@@ -1,6 +1,16 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
 import { ringtoneManager } from '../services/ringtones/RingtoneManager';
+import {
+  REMINDER_TIME_OPTIONS,
+  GOAL_CHECKIN_FREQUENCY_OPTIONS,
+  buildTaskChannelsFromMethod,
+  parseTaskChannelsToMethod,
+  buildGoalChannelsFromMethod,
+  parseGoalChannelsToMethod,
+  buildEventChannelsFromMethod,
+  parseEventChannelsToMethod,
+} from '../utils/notificationPreferences';
 
 // ─── Reusable sub-components (exact original style + dark mode) ───────────────
 
@@ -84,33 +94,27 @@ const NotificationPageSettings = () => {
   const [soundEnabled, setSoundEnabled]               = useState(notificationSettings.soundEnabled ?? true);
   const [ringtoneVolume, setRingtoneVolume]           = useState(notificationSettings.ringtoneVolume ?? 0.8);
 
-  const [defaultReminderTime, setDefaultReminderTime] = useState('15 minutes before');
-  const [taskNotificationChannels, setTaskNotificationChannels] = useState({ push: false, email: false, both: false });
-  const [quietHoursStart, setQuietHoursStart] = useState('10:00 PM');
-  const [quietHoursEnd, setQuietHoursEnd]     = useState('7:00 AM');
-  const [checkInFrequency, setCheckInFrequency] = useState('Weekly');
-  const [goalNotificationChannels, setGoalNotificationChannels] = useState({ push: false, email: false });
-  const [defaultAdvanceNotice, setDefaultAdvanceNotice] = useState('30 minutes before');
-  const [multipleReminders, setMultipleReminders] = useState(false);
-  const [eventNotificationChannels, setEventNotificationChannels] = useState({ push: false, both: false });
+  const [defaultReminderTime, setDefaultReminderTime] = useState(notificationSettings.defaultReminderTime);
+  const [taskNotificationChannels, setTaskNotificationChannels] = useState(
+    buildTaskChannelsFromMethod(notificationSettings.taskNotificationMethod)
+  );
+  const [quietHoursStart, setQuietHoursStart] = useState(notificationSettings.quietHoursStart);
+  const [quietHoursEnd, setQuietHoursEnd]     = useState(notificationSettings.quietHoursEnd);
+  const [checkInFrequency, setCheckInFrequency] = useState(notificationSettings.checkInFrequency);
+  const [goalNotificationChannels, setGoalNotificationChannels] = useState(
+    buildGoalChannelsFromMethod(notificationSettings.goalNotificationMethod)
+  );
+  const [defaultAdvanceNotice, setDefaultAdvanceNotice] = useState(notificationSettings.defaultAdvanceNotice);
+  const [multipleReminders, setMultipleReminders] = useState(notificationSettings.multipleReminders ?? false);
+  const [eventNotificationChannels, setEventNotificationChannels] = useState(
+    buildEventChannelsFromMethod(notificationSettings.eventNotificationMethod)
+  );
   const [uploadedFile, setUploadedFile] = useState(null);
   const [previewing, setPreviewing]     = useState(null);
   const previewTimerRef                 = useRef(null);
 
-  const reminderTimeOptions = [
-    { value: '5 minutes before',  label: '5 minutes before'  },
-    { value: '10 minutes before', label: '10 minutes before' },
-    { value: '15 minutes before', label: '15 minutes before' },
-    { value: '30 minutes before', label: '30 minutes before' },
-    { value: '1 hour before',     label: '1 hour before'     },
-    { value: '2 hours before',    label: '2 hours before'    },
-    { value: '1 day before',      label: '1 day before'      },
-  ];
-
-  const frequencyOptions = [
-    { value: 'Daily', label: 'Daily' }, { value: 'Weekly', label: 'Weekly' },
-    { value: 'Bi-weekly', label: 'Bi-weekly' }, { value: 'Monthly', label: 'Monthly' },
-  ];
+  const reminderTimeOptions = REMINDER_TIME_OPTIONS;
+  const frequencyOptions = GOAL_CHECKIN_FREQUENCY_OPTIONS;
 
   const soundOptions = [
     { value: 'Default',      label: 'Default - C Major Arpeggio'   },
@@ -127,6 +131,51 @@ const NotificationPageSettings = () => {
     '12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM',
     '6:00 PM','7:00 PM','8:00 PM','9:00 PM','10:00 PM','11:00 PM',
   ].map((t) => ({ value: t, label: t }));
+
+  useEffect(() => {
+    setEnableNotifications(notificationSettings.enableNotifications);
+    setPushNotifications(notificationSettings.pushNotifications);
+    setEmailNotifications(notificationSettings.emailNotifications);
+    setCustomRingtones(notificationSettings.customRingtones ?? false);
+    setDefaultSound(notificationSettings.defaultSound ?? 'Default');
+    setSoundEnabled(notificationSettings.soundEnabled ?? true);
+    setRingtoneVolume(notificationSettings.ringtoneVolume ?? 0.8);
+    setDefaultReminderTime(notificationSettings.defaultReminderTime);
+    setTaskNotificationChannels(buildTaskChannelsFromMethod(notificationSettings.taskNotificationMethod));
+    setQuietHoursStart(notificationSettings.quietHoursStart);
+    setQuietHoursEnd(notificationSettings.quietHoursEnd);
+    setCheckInFrequency(notificationSettings.checkInFrequency);
+    setGoalNotificationChannels(buildGoalChannelsFromMethod(notificationSettings.goalNotificationMethod));
+    setDefaultAdvanceNotice(notificationSettings.defaultAdvanceNotice);
+    setMultipleReminders(notificationSettings.multipleReminders ?? false);
+    setEventNotificationChannels(buildEventChannelsFromMethod(notificationSettings.eventNotificationMethod));
+  }, [notificationSettings]);
+
+  const handleTaskChannelChange = (channel, checked) => {
+    if (!checked) {
+      setTaskNotificationChannels(buildTaskChannelsFromMethod('app'));
+      return;
+    }
+    setTaskNotificationChannels(buildTaskChannelsFromMethod(channel === 'push' ? 'app' : channel));
+  };
+
+  const handleGoalChannelChange = (channel, checked) => {
+    setGoalNotificationChannels((prev) => {
+      if (!checked) {
+        const next = { ...prev, [channel]: false };
+        return next.push || next.email ? next : buildGoalChannelsFromMethod('app');
+      }
+      return { ...prev, [channel]: true };
+    });
+  };
+
+  const handleEventChannelChange = (channel, checked) => {
+    if (!checked) {
+      setEventNotificationChannels(buildEventChannelsFromMethod('app'));
+      return;
+    }
+    setEventNotificationChannels(buildEventChannelsFromMethod(channel === 'push' ? 'app' : 'both'));
+  };
 
   // Built-in oscillator sounds (unchanged from original)
   const playDefaultSound = () => {
@@ -251,7 +300,24 @@ const NotificationPageSettings = () => {
       const permission = await requestPushPermission();
       if (permission !== 'granted') { alert('Push notifications were not enabled because browser permission is blocked.'); return; }
     }
-    updateNotificationSettings({ enableNotifications, pushNotifications, emailNotifications, customRingtones, defaultSound, soundEnabled, ringtoneVolume });
+    updateNotificationSettings({
+      enableNotifications,
+      pushNotifications,
+      emailNotifications,
+      customRingtones,
+      defaultSound,
+      soundEnabled,
+      ringtoneVolume,
+      defaultReminderTime,
+      taskNotificationMethod: parseTaskChannelsToMethod(taskNotificationChannels),
+      quietHoursStart,
+      quietHoursEnd,
+      checkInFrequency,
+      goalNotificationMethod: parseGoalChannelsToMethod(goalNotificationChannels),
+      defaultAdvanceNotice,
+      multipleReminders,
+      eventNotificationMethod: parseEventChannelsToMethod(eventNotificationChannels),
+    });
     if (soundEnabled) {
       customRingtones ? ringtoneManager.ring(ringtoneVolume) : playBuiltInSound(defaultSound);
     }
@@ -315,9 +381,9 @@ const NotificationPageSettings = () => {
                 <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3">How you want to be notified</span>
               </label>
               <div className="space-y-1">
-                <Checkbox checked={taskNotificationChannels.push}  onChange={(v) => setTaskNotificationChannels({ ...taskNotificationChannels, push: v })}  label="Push notifications" />
-                <Checkbox checked={taskNotificationChannels.email} onChange={(v) => setTaskNotificationChannels({ ...taskNotificationChannels, email: v })} label="Email" />
-                <Checkbox checked={taskNotificationChannels.both}  onChange={(v) => setTaskNotificationChannels({ ...taskNotificationChannels, both: v })}  label="Both" />
+                <Checkbox checked={taskNotificationChannels.push}  onChange={(v) => handleTaskChannelChange('push', v)}  label="Push notifications" />
+                <Checkbox checked={taskNotificationChannels.email} onChange={(v) => handleTaskChannelChange('email', v)} label="Email" />
+                <Checkbox checked={taskNotificationChannels.both}  onChange={(v) => handleTaskChannelChange('both', v)}  label="Both" />
               </div>
             </div>
             <div className="mb-6">
@@ -347,8 +413,8 @@ const NotificationPageSettings = () => {
                 <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3">How you want to be reminded</span>
               </label>
               <div className="space-y-1">
-                <Checkbox checked={goalNotificationChannels.push}  onChange={(v) => setGoalNotificationChannels({ ...goalNotificationChannels, push: v })}  label="Push notifications" />
-                <Checkbox checked={goalNotificationChannels.email} onChange={(v) => setGoalNotificationChannels({ ...goalNotificationChannels, email: v })} label="Email" />
+                <Checkbox checked={goalNotificationChannels.push}  onChange={(v) => handleGoalChannelChange('push', v)}  label="Push notifications" />
+                <Checkbox checked={goalNotificationChannels.email} onChange={(v) => handleGoalChannelChange('email', v)} label="Email" />
               </div>
             </div>
           </div>
@@ -366,8 +432,8 @@ const NotificationPageSettings = () => {
                 <span className="block text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3">How you want to be reminded</span>
               </label>
               <div className="space-y-1">
-                <Checkbox checked={eventNotificationChannels.push} onChange={(v) => setEventNotificationChannels({ ...eventNotificationChannels, push: v })} label="Push notifications" />
-                <Checkbox checked={eventNotificationChannels.both} onChange={(v) => setEventNotificationChannels({ ...eventNotificationChannels, both: v })} label="Both" />
+                <Checkbox checked={eventNotificationChannels.push} onChange={(v) => handleEventChannelChange('push', v)} label="Push notifications" />
+                <Checkbox checked={eventNotificationChannels.both} onChange={(v) => handleEventChannelChange('both', v)} label="Both" />
               </div>
             </div>
           </div>

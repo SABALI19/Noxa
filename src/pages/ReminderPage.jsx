@@ -14,11 +14,18 @@ import { useNotifications } from '../hooks/useNotifications';
 import TaskTrackingDetail from '../components/tracking/TaskTrackingDetail';
 import { useTasks } from '../context/TaskContext';
 import SetReminderModal from '../components/reminders/SetReminderModal'; // Import the modal
+import { normalizeDefaultSnoozeMinutes } from '../utils/notificationPreferences';
 
 const ReminderPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { addNotification } = useNotifications();
+  const {
+    addNotification,
+    notificationSettings,
+    updateNotificationSettings,
+    requestPushPermission,
+    pushSupported,
+  } = useNotifications();
   const { trackSnooze, trackView, trackCompletion, trackNotification, getNotificationStats } = useNotificationTracking();
   
   const { 
@@ -260,7 +267,8 @@ const ReminderPage = () => {
   const handleSnooze = (reminderId, e) => {
     e?.stopPropagation();
     const reminder = reminders.find(r => r.id === reminderId);
-    const snoozedUntil = new Date(new Date().getTime() + 30 * 60000).toISOString();
+    const snoozeMinutes = normalizeDefaultSnoozeMinutes(notificationSettings.defaultSnoozeMinutes);
+    const snoozedUntil = new Date(new Date().getTime() + snoozeMinutes * 60000).toISOString();
     
     updateReminder(reminderId, {
       reminderTime: snoozedUntil,
@@ -277,9 +285,20 @@ const ReminderPage = () => {
     
     // Track snooze
     if (reminder) {
-      trackNotification(reminder.id, 'reminder', 'snoozed', 'reminder_snoozed', { snoozeMinutes: 30 });
-      trackSnooze(reminder.taskId, 'task', 30);
+      trackNotification(reminder.id, 'reminder', 'snoozed', 'reminder_snoozed', { snoozeMinutes });
+      trackSnooze(reminder.taskId, 'task', snoozeMinutes);
     }
+  };
+
+  const handleReminderPushToggle = async (checked) => {
+    if (!checked) {
+      updateNotificationSettings({ pushNotifications: false });
+      return;
+    }
+    if (!pushSupported) return;
+    const permission = await requestPushPermission();
+    if (permission !== 'granted') return;
+    updateNotificationSettings({ pushNotifications: true });
   };
 
   // Handle dismiss
@@ -1019,7 +1038,13 @@ const ReminderPage = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400">Receive app notifications</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationSettings.pushNotifications}
+                      onChange={(e) => handleReminderPushToggle(e.target.checked)}
+                      disabled={!pushSupported}
+                    />
                     <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-400/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-100 after:border-gray-300 dark:after:border-gray-500 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
                   </label>
                 </div>
@@ -1030,7 +1055,12 @@ const ReminderPage = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400">Receive email reminders</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationSettings.emailNotifications}
+                      onChange={(e) => updateNotificationSettings({ emailNotifications: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-gray-200 dark:bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-teal-400/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-gray-100 after:border-gray-300 dark:after:border-gray-500 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-400"></div>
                   </label>
                 </div>
@@ -1051,7 +1081,15 @@ const ReminderPage = () => {
                     <p className="font-medium text-gray-900 dark:text-gray-100">Default Snooze Time</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">When you snooze a reminder</p>
                   </div>
-                  <select className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-400 dark:focus:ring-teal-500/30 focus:border-transparent outline-none w-full sm:w-auto bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                  <select
+                    value={normalizeDefaultSnoozeMinutes(notificationSettings.defaultSnoozeMinutes)}
+                    onChange={(e) =>
+                      updateNotificationSettings({
+                        defaultSnoozeMinutes: normalizeDefaultSnoozeMinutes(e.target.value),
+                      })
+                    }
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-teal-400 dark:focus:ring-teal-500/30 focus:border-transparent outline-none w-full sm:w-auto bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  >
                     <option value="30">30 minutes</option>
                     <option value="60">1 hour</option>
                     <option value="120">2 hours</option>

@@ -31,6 +31,11 @@ import { useAuth } from '../hooks/UseAuth';
 import backendService from '../services/backendService';
 import { ringtoneManager, RINGTONE_CATALOGUE } from '../services/ringtones/RingtoneManager';
 import { useTasks } from './TaskContext';
+import {
+  getQuietHoursStatus,
+  isQuietHoursActive,
+  normalizeDefaultSnoozeMinutes,
+} from '../utils/notificationPreferences';
 
 const NotificationContext = createContext(null);
 
@@ -66,6 +71,17 @@ const DEFAULT_NOTIFICATION_SETTINGS = {
   soundEnabled: true,
   ringtoneVolume: 0.8,         // 0.0 – 1.0
   soundSnoozedUntil: null,
+  defaultReminderTime: '15 minutes before',
+  taskNotificationMethod: 'app',
+  quietHoursStart: '10:00 PM',
+  quietHoursEnd: '7:00 AM',
+  quietHoursDisabledUntil: null,
+  checkInFrequency: 'Weekly',
+  goalNotificationMethod: 'app',
+  defaultAdvanceNotice: '30 minutes before',
+  multipleReminders: false,
+  eventNotificationMethod: 'app',
+  defaultSnoozeMinutes: 30,
 };
 
 const buildNotificationsStorageKey = (userId = '') => {
@@ -95,7 +111,14 @@ const getInitialNotificationSettings = () => {
     if (!raw) return DEFAULT_NOTIFICATION_SETTINGS;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return DEFAULT_NOTIFICATION_SETTINGS;
-    return { ...DEFAULT_NOTIFICATION_SETTINGS, ...parsed };
+    return {
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      ...parsed,
+      defaultSnoozeMinutes: normalizeDefaultSnoozeMinutes(
+        parsed.defaultSnoozeMinutes,
+        DEFAULT_NOTIFICATION_SETTINGS.defaultSnoozeMinutes
+      ),
+    };
   } catch {
     return DEFAULT_NOTIFICATION_SETTINGS;
   }
@@ -448,7 +471,11 @@ export const NotificationProvider = ({ children }) => {
   // calls the up-to-date function — so settings changes are reflected instantly.
   const playNotificationSoundRef = useRef(null);
 
-  const pushSupported = notificationPermission !== 'unsupported';
+  const pushSupported =
+    notificationPermission !== 'unsupported' &&
+    typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window;
   const notificationStorageKey = isAuthenticated
     ? buildNotificationsStorageKey(user?.id || user?._id)
     : null;
@@ -456,6 +483,34 @@ export const NotificationProvider = ({ children }) => {
     const snoozedUntil = readTimestamp(notificationSettings.soundSnoozedUntil);
     return snoozedUntil !== null && snoozedUntil > Date.now();
   }, [notificationSettings.soundSnoozedUntil]);
+  const quietHoursStatus = useMemo(
+    () =>
+      getQuietHoursStatus(
+        notificationSettings.quietHoursStart,
+        notificationSettings.quietHoursEnd,
+        new Date(),
+        notificationSettings.quietHoursDisabledUntil
+      ),
+    [
+      notificationSettings.quietHoursDisabledUntil,
+      notificationSettings.quietHoursEnd,
+      notificationSettings.quietHoursStart,
+    ]
+  );
+  const isInQuietHours = useCallback(
+    () =>
+      isQuietHoursActive(
+        notificationSettings.quietHoursStart,
+        notificationSettings.quietHoursEnd,
+        new Date(),
+        notificationSettings.quietHoursDisabledUntil
+      ),
+    [
+      notificationSettings.quietHoursDisabledUntil,
+      notificationSettings.quietHoursEnd,
+      notificationSettings.quietHoursStart,
+    ]
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -686,7 +741,8 @@ export const NotificationProvider = ({ children }) => {
     if (
       !notificationSettings.enableNotifications ||
       !notificationSettings.soundEnabled ||
-      isSoundSnoozed()
+      isSoundSnoozed() ||
+      isInQuietHours()
     ) {
       return;
     }
@@ -717,6 +773,7 @@ export const NotificationProvider = ({ children }) => {
     notificationSettings.enableNotifications,
     notificationSettings.soundEnabled,
     isSoundSnoozed,
+    isInQuietHours,
     notificationSettings.customRingtones,
     notificationSettings.defaultSound,
     notificationSettings.ringtoneVolume,
@@ -827,7 +884,38 @@ export const NotificationProvider = ({ children }) => {
   }, []);
 
   const updateNotificationSettings = useCallback((newSettings) => {
-    setNotificationSettings((prev) => ({ ...prev, ...newSettings }));
+    setNotificationSettings((prev) => ({
+      ...prev,
+      ...newSettings,
+      defaultSnoozeMinutes: normalizeDefaultSnoozeMinutes(
+        newSettings?.defaultSnoozeMinutes,
+        prev.defaultSnoozeMinutes ?? DEFAULT_NOTIFICATION_SETTINGS.defaultSnoozeMinutes
+      ),
+    }));
+  }, []);
+
+  const disableQuietHoursForCurrentWindow = useCallback(() => {
+    const status = getQuietHoursStatus(
+      notificationSettings.quietHoursStart,
+      notificationSettings.quietHoursEnd,
+      new Date(),
+      null
+    );
+    if (!status.scheduledActive || !status.windowEnd) return null;
+
+    const disabledUntil = status.windowEnd.toISOString();
+    setNotificationSettings((prev) => ({
+      ...prev,
+      quietHoursDisabledUntil: disabledUntil,
+    }));
+    return disabledUntil;
+  }, [notificationSettings.quietHoursEnd, notificationSettings.quietHoursStart]);
+
+  const clearQuietHoursOverride = useCallback(() => {
+    setNotificationSettings((prev) => ({
+      ...prev,
+      quietHoursDisabledUntil: null,
+    }));
   }, []);
 
   useEffect(() => {
@@ -859,6 +947,26 @@ export const NotificationProvider = ({ children }) => {
 
     return () => window.clearTimeout(timeoutId);
   }, [notificationSettings.soundSnoozedUntil]);
+
+  useEffect(() => {
+    const disabledUntil = readTimestamp(notificationSettings.quietHoursDisabledUntil);
+    if (disabledUntil === null) return undefined;
+
+    if (disabledUntil <= Date.now()) {
+      setNotificationSettings((prev) =>
+        prev.quietHoursDisabledUntil ? { ...prev, quietHoursDisabledUntil: null } : prev
+      );
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setNotificationSettings((prev) =>
+        prev.quietHoursDisabledUntil ? { ...prev, quietHoursDisabledUntil: null } : prev
+      );
+    }, disabledUntil - Date.now());
+
+    return () => window.clearTimeout(timeoutId);
+  }, [notificationSettings.quietHoursDisabledUntil]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -922,6 +1030,18 @@ export const NotificationProvider = ({ children }) => {
     return permission;
   }, []);
 
+  const syncServiceWorkerPreferences = useCallback(async (message) => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const target =
+        registration.active || navigator.serviceWorker.controller || registration.waiting || registration.installing;
+      target?.postMessage(message);
+    } catch (error) {
+      console.warn('Failed to sync notification preferences to service worker:', error);
+    }
+  }, []);
+
   const syncQuietModeToServiceWorker = useCallback(async () => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
@@ -930,23 +1050,44 @@ export const NotificationProvider = ({ children }) => {
       quietUntil: quietUntil !== null && quietUntil > Date.now() ? new Date(quietUntil).toISOString() : null,
     };
 
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const target =
-        registration.active || navigator.serviceWorker.controller || registration.waiting || registration.installing;
-      target?.postMessage({
-        type: 'SET_NOTIFICATION_QUIET_MODE',
-        payload,
-      });
-    } catch (error) {
-      console.warn('Failed to sync quiet mode to service worker:', error);
-    }
-  }, [notificationSettings.soundSnoozedUntil]);
+    await syncServiceWorkerPreferences({
+      type: 'SET_NOTIFICATION_QUIET_MODE',
+      payload,
+    });
+  }, [notificationSettings.soundSnoozedUntil, syncServiceWorkerPreferences]);
 
   useEffect(() => {
     if (!quietModeHydrated) return;
     syncQuietModeToServiceWorker();
   }, [quietModeHydrated, syncQuietModeToServiceWorker]);
+
+  useEffect(() => {
+    syncServiceWorkerPreferences({
+      type: 'SET_DEFAULT_SNOOZE_MINUTES',
+      payload: {
+        defaultSnoozeMinutes: normalizeDefaultSnoozeMinutes(
+          notificationSettings.defaultSnoozeMinutes,
+          DEFAULT_NOTIFICATION_SETTINGS.defaultSnoozeMinutes
+        ),
+      },
+    });
+  }, [notificationSettings.defaultSnoozeMinutes, syncServiceWorkerPreferences]);
+
+  useEffect(() => {
+    syncServiceWorkerPreferences({
+      type: 'SET_NOTIFICATION_QUIET_HOURS',
+      payload: {
+        quietHoursStart: notificationSettings.quietHoursStart,
+        quietHoursEnd: notificationSettings.quietHoursEnd,
+        quietHoursDisabledUntil: notificationSettings.quietHoursDisabledUntil,
+      },
+    });
+  }, [
+    notificationSettings.quietHoursDisabledUntil,
+    notificationSettings.quietHoursEnd,
+    notificationSettings.quietHoursStart,
+    syncServiceWorkerPreferences,
+  ]);
 
   const resolveVapidPublicKey = useCallback(async () => {
     if (vapidPublicKeyRef.current) return vapidPublicKeyRef.current;
@@ -1036,6 +1177,7 @@ export const NotificationProvider = ({ children }) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     if (!notificationSettings.enableNotifications || !notificationSettings.pushNotifications) return;
     if (isSoundSnoozed()) return;
+    if (isInQuietHours()) return;
     if (notificationPermission !== 'granted') return;
 
     const instance = new Notification(notification.title, {
@@ -1056,6 +1198,7 @@ export const NotificationProvider = ({ children }) => {
     window.setTimeout(() => instance.close(), 10000);
   }, [
     isSoundSnoozed,
+    isInQuietHours,
     navigateToNotificationOrigin,
     notificationSettings.enableNotifications,
     notificationSettings.pushNotifications,
@@ -1404,11 +1547,16 @@ export const NotificationProvider = ({ children }) => {
     getNotificationsByItem,
     getUnreadCount,
     updateNotificationSettings,
+    disableQuietHoursForCurrentWindow,
+    clearQuietHoursOverride,
     muteNotificationSounds,
     unmuteNotificationSounds,
     snoozeNotificationSounds,
     clearNotificationSoundSnooze,
     isSoundSnoozed: isSoundSnoozed(),
+    isInQuietHours: quietHoursStatus.active,
+    quietHoursWindowEnd: quietHoursStatus.windowEnd ? quietHoursStatus.windowEnd.toISOString() : null,
+    quietHoursOverrideActive: quietHoursStatus.overrideActive,
     requestPushPermission,
     playNotificationSound,
     testNotificationSound,

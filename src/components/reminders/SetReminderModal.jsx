@@ -5,13 +5,25 @@ import Button from '../Button';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useNotificationTracking } from '../../hooks/useNotificationTracking';
 import { useAuth } from '../../hooks/UseAuth';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  getReminderLeadTimeMinutes,
+  mapGoalCheckInFrequencyToReminderFrequency,
+  normalizeNotificationMethodPreference,
+} from '../../utils/notificationPreferences';
 
-const SetReminderModal = ({ isOpen, onClose, onSubmit, linkedGoal = null, linkedTask = null }) => {
-  const { addNotification } = useNotifications();
-  const { trackNotification } = useNotificationTracking();
-  const { isAuthenticated } = useAuth();
-  
-  const [formData, setFormData] = useState({
+const buildInitialReminderFormData = (notificationSettings, { linkedGoal = null, linkedTask = null } = {}) => {
+  const settings = notificationSettings || DEFAULT_NOTIFICATION_SETTINGS;
+  const leadTimePreference = linkedTask
+    ? settings.defaultReminderTime
+    : settings.defaultAdvanceNotice;
+  const notificationMethodPreference = linkedGoal
+    ? settings.goalNotificationMethod
+    : linkedTask
+      ? settings.taskNotificationMethod
+      : settings.eventNotificationMethod;
+
+  return {
     title: '',
     description: '',
     dueDate: '',
@@ -20,35 +32,33 @@ const SetReminderModal = ({ isOpen, onClose, onSubmit, linkedGoal = null, linked
     reminderTime: '',
     priority: 'medium',
     category: 'general',
-    frequency: 'once',
-    notificationMethod: 'app',
+    frequency: linkedGoal
+      ? mapGoalCheckInFrequencyToReminderFrequency(settings.checkInFrequency)
+      : 'once',
+    notificationMethod: normalizeNotificationMethodPreference(notificationMethodPreference),
     autoSnooze: false,
     autoComplete: false,
-    linkedGoalId: null,
-    linkedTaskId: null
-  });
+    linkedGoalId: linkedGoal?.id || null,
+    linkedTaskId: linkedTask?.id || null,
+    defaultLeadTimeMinutes: getReminderLeadTimeMinutes(leadTimePreference),
+  };
+};
+
+const SetReminderModal = ({ isOpen, onClose, onSubmit, linkedGoal = null, linkedTask = null }) => {
+  const { addNotification, notificationSettings } = useNotifications();
+  const { trackNotification } = useNotificationTracking();
+  const { isAuthenticated } = useAuth();
+  
+  const [formData, setFormData] = useState(() =>
+    buildInitialReminderFormData(notificationSettings, { linkedGoal, linkedTask })
+  );
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Reset form
   const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      dueDate: '',
-      dueTime: '',
-      reminderDate: '',
-      reminderTime: '',
-      priority: 'medium',
-      category: 'general',
-      frequency: 'once',
-      notificationMethod: 'app',
-      autoSnooze: false,
-      autoComplete: false,
-      linkedGoalId: null,
-      linkedTaskId: null
-    });
+    setFormData(buildInitialReminderFormData(notificationSettings, { linkedGoal, linkedTask }));
     setErrors({});
   };
 
@@ -77,7 +87,11 @@ const SetReminderModal = ({ isOpen, onClose, onSubmit, linkedGoal = null, linked
   // Set reminder to current time + 1 hour by default
   const setDefaultReminderTime = () => {
     const now = new Date();
-    const oneHourLater = new Date(now.getTime() + 60 * 60000);
+    const leadTimeMinutes =
+      Number.isFinite(Number(formData.defaultLeadTimeMinutes)) && Number(formData.defaultLeadTimeMinutes) > 0
+        ? Number(formData.defaultLeadTimeMinutes)
+        : 60;
+    const oneHourLater = new Date(now.getTime() + leadTimeMinutes * 60000);
     
     const reminderDate = oneHourLater.toISOString().split('T')[0];
     const reminderTime = oneHourLater.toTimeString().slice(0, 5);
@@ -190,32 +204,41 @@ const SetReminderModal = ({ isOpen, onClose, onSubmit, linkedGoal = null, linked
 
   // Set default times when modal opens
   useEffect(() => {
-    if (isOpen) {
-      setDefaultReminderTime();
-      
-      // Pre-fill from linked goal or task
-      if (linkedGoal) {
-        setFormData(prev => ({
-          ...prev,
-          title: `Reminder: ${linkedGoal.title}`,
-          description: linkedGoal.description || '',
-          category: linkedGoal.category?.toLowerCase() || 'general',
-          priority: linkedGoal.priority || 'medium',
-          linkedGoalId: linkedGoal.id
-        }));
-      }
-      
-      if (linkedTask) {
-        setFormData(prev => ({
-          ...prev,
-          title: `Reminder: ${linkedTask.title}`,
-          description: linkedTask.description || '',
-          priority: linkedTask.priority || 'medium',
-          linkedTaskId: linkedTask.id
-        }));
-      }
+    if (!isOpen) return;
+
+    const nextFormData = buildInitialReminderFormData(notificationSettings, { linkedGoal, linkedTask });
+
+    if (linkedGoal) {
+      nextFormData.title = `Reminder: ${linkedGoal.title}`;
+      nextFormData.description = linkedGoal.description || '';
+      nextFormData.category = linkedGoal.category?.toLowerCase() || 'general';
+      nextFormData.priority = linkedGoal.priority || 'medium';
     }
-  }, [isOpen, linkedGoal, linkedTask]);
+
+    if (linkedTask) {
+      nextFormData.title = `Reminder: ${linkedTask.title}`;
+      nextFormData.description = linkedTask.description || '';
+      nextFormData.priority = linkedTask.priority || 'medium';
+    }
+
+    setFormData(nextFormData);
+    setErrors({});
+  }, [
+    isOpen,
+    linkedGoal,
+    linkedTask,
+    notificationSettings.checkInFrequency,
+    notificationSettings.defaultAdvanceNotice,
+    notificationSettings.defaultReminderTime,
+    notificationSettings.eventNotificationMethod,
+    notificationSettings.goalNotificationMethod,
+    notificationSettings.taskNotificationMethod
+  ]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setDefaultReminderTime();
+  }, [isOpen, formData.defaultLeadTimeMinutes]);
 
   // Set today's date as default for due date
   useEffect(() => {
